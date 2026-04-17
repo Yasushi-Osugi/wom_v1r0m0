@@ -129,6 +129,24 @@ class WOMIOAdapter:
         env.load_data_files()
         self._env = env
 
+        # *******************
+        #@ADD for debug
+        prod = "IPHONE_NM_2028_BASE"
+        print("[pipeline-check] OT len =", len(env.prod_tree_dict_OT[prod].psi4demand))
+        print("[pipeline-check] IN len =", len(env.prod_tree_dict_IN[prod].psi4demand))
+
+        import inspect
+
+        print("[TRACE] WOMEnv class module =", type(env).__module__)
+        print("[TRACE] WOMEnv class file   =", inspect.getsourcefile(type(env)))
+        print("[TRACE] load_data_files file =", inspect.getsourcefile(type(env).load_data_files))
+
+        #print("[TRACE] make_psi_space_dict file =", inspect.getsourcefile(make_psi_space_dict))
+        #print("[TRACE] set_dict2tree_psi file   =", inspect.getsourcefile(set_dict2tree_psi))
+        #print("[TRACE] set_df_Slots2psi4demand file =", inspect.getsourcefile(set_df_Slots2psi4demand))
+        # *******************
+
+
         # optionally pick a product
         if self.product:
             if hasattr(env, "product_name_list") and self.product in getattr(env, "product_name_list"):
@@ -209,6 +227,10 @@ class WOMPipelineRunner:
 
 
     def run(self, data_dir: str, product: Optional[str] = None, scenario_id: str = "default") -> Dict[str, Any]:
+
+        #@ADD
+        print("[pipeline] WOMPipelineRunner.run entered")
+
         # prepare spec and allow plugins to modify it
         spec = {"data_dir": data_dir, "scenario_id": scenario_id, "product": product}
         spec = self.bus.apply_filters("pipeline:spec", spec)
@@ -251,7 +273,39 @@ class WOMPipelineRunner:
 
             if hasattr(env, "supply_planning4multi_product"):
                 env.supply_planning4multi_product()
+
+                #@STOP
+                #self.bus.do_action("pipeline:after_supply_planning", env=env, root=root)
+
+
+                print("[pipeline] before after_supply_planning hook")
+
+                for name in ["actions", "_actions", "_registry", "registry"]:
+                    value = getattr(self.bus, name, None)
+                    if value is not None:
+                        print(f"[pipeline] bus.{name} type={type(value)}")
+                        try:
+                            hook_actions = value.get("pipeline:after_supply_planning", [])
+                            print(f"[pipeline] registered actions for after_supply_planning: {hook_actions}")
+                        except Exception as e:
+                            print(f"[pipeline] could not inspect bus.{name}: {e}")
+
                 self.bus.do_action("pipeline:after_supply_planning", env=env, root=root)
+
+                print("[pipeline] after after_supply_planning hook")
+
+
+
+
+
+
+
+
+
+
+
+
+
             else:
                 self.logger.warning("env missing supply_planning4multi_product")
 
@@ -263,6 +317,18 @@ class WOMPipelineRunner:
 
         # collect result and allow result filters (visualize/export etc.)
         result = self.io.collect_result(root)
+
+        # bridge payload (v0.1 minimal handoff)
+        # plugin stores bridge artifacts on env; pipeline copies them into result["bridge"].
+        if isinstance(result, dict):
+            bridge_events = getattr(env, "_bridge_events", [])
+            bridge_flow_events = getattr(env, "_bridge_kernel_flow_events", [])
+            bridge_sidecar_events = getattr(env, "_bridge_sidecar_events", [])
+            result["bridge"] = {
+                "events": bridge_events,
+                "flow_events": bridge_flow_events,
+                "sidecar_events": bridge_sidecar_events,
+            }
         result = self.bus.apply_filters("pipeline:result", result)
         self.bus.do_action("pipeline:after_run", result=result)
 
@@ -284,4 +350,3 @@ def main_cli():
 
 if __name__ == "__main__":
     main_cli()
-
