@@ -1,17 +1,17 @@
 {
   "meta": {
     "record_count": 2501,
-    "cost_line_count": 10053
+    "cost_line_count": 35063
   },
   "product_report": [
     {
       "product": "IPHONE_NM_2028_BASE",
-      "total_cost": 36555673.66000001
+      "total_cost": 50189951.9439993
     }
   ],
   "product_total": {
     "label": "ALL",
-    "total_cost": 29639735.40000001
+    "total_cost": 50189951.9439993
   },
   "node_report": [
     {
@@ -44,168 +44,211 @@
     },
     {
       "node": "DAD_FAS_AMER",
-      "total_cost": 4524863.199999999
+      "total_cost": 5067846.784000002
     },
     {
       "node": "DAD_FAS_APAC",
-      "total_cost": 3816543.8000000007
+      "total_cost": 4274529.056000002
     },
     {
       "node": "DAD_FAS_EURO",
-      "total_cost": 1538504.7999999989
+      "total_cost": 1723125.3759999995
     },
     {
       "node": "RT_CN_ONLINE",
-      "total_cost": 1402239.3700000003
+      "total_cost": 1482367.333999999
     },
     {
       "node": "RT_DE_ONLINE",
-      "total_cost": 526653.5399999996
+      "total_cost": 556748.0279999999
     },
     {
       "node": "RT_IN_ECOM",
-      "total_cost": 760197.9700000004
+      "total_cost": 803637.8539999996
     },
     {
       "node": "RT_JP_APPLE",
-      "total_cost": 509143.3200000002
+      "total_cost": 538237.2240000003
     },
     {
       "node": "RT_UK_CARRIER",
-      "total_cost": 550299.8200000003
+      "total_cost": 581745.5240000004
     },
     {
       "node": "RT_US_CARRIER",
-      "total_cost": 1761423.37
+      "total_cost": 1862076.1339999994
     },
     {
       "node": "RT_US_ONLINE",
-      "total_cost": 1405980.870000001
+      "total_cost": 1486322.6340000012
     },
     {
       "node": "WS_APAC",
-      "total_cost": 4579852.5600000005
+      "total_cost": 4961506.940000004
     },
     {
       "node": "WS_EU",
-      "total_cost": 1846205.7599999993
+      "total_cost": 2000056.239999998
     },
     {
       "node": "WS_NA",
-      "total_cost": 5429835.840000001
+      "total_cost": 5882322.16
     },
     {
       "node": "supply_point",
-      "total_cost": 37543664.83999999
+      "total_cost": 48609166.056
     }
   ],
   "market_report": [
     {
       "market": "MKT_CN_PREMIUM",
-      "total_cost": 7411836.670000002
+      "total_cost": 7491964.634000001
     },
     {
       "market": "MKT_DE_PREMIUM",
-      "total_cost": 2783740.1399999997
+      "total_cost": 2813834.628
     },
     {
       "market": "MKT_IN_ASPIRER",
-      "total_cost": 4018189.27
+      "total_cost": 4061629.153999999
     },
     {
       "market": "MKT_JP_REPLACEMENT",
-      "total_cost": 2691186.1199999996
+      "total_cost": 2720280.0239999997
     },
     {
       "market": "MKT_UK_MAINSTREAM",
-      "total_cost": 2908727.62
+      "total_cost": 2940173.324
     },
     {
       "market": "MKT_US_MAINSTREAM",
-      "total_cost": 9310380.67
+      "total_cost": 9411033.434
     },
     {
       "market": "MKT_US_PREMIUM",
-      "total_cost": 7431613.170000002
+      "total_cost": 7511954.934000002
     }
   ],
   "monthly_cost_report": [
     {
       "month": "2026-07",
-      "total_cost": 68726.01
+      "total_cost": 108005.34599999999
     },
     {
       "month": "2026-08",
-      "total_cost": 177122.61000000016
+      "total_cost": 262627.64400000015
     },
     {
       "month": "2026-09",
-      "total_cost": 232026.45000000022
+      "total_cost": 336512.6480000003
     },
     {
       "month": "2026-10",
-      "total_cost": 306557.1299999999
+      "total_cost": 429562.6840000003
     },
     {
       "month": "2026-11",
-      "total_cost": 355463.87999999995
+      "total_cost": 496988.78999999975
     },
     {
       "month": "2026-12",
-      "total_cost": 35415777.57999991
+      "total_cost": 48556254.831999354
     }
   ],
   "monthly_total": {
     "label": "ALL",
-    "total_cost": 29639735.40000001
+    "total_cost": 50189951.9439993
   },
   "cost_waterfall": [
     {
-      "step": "allocation:allocated_pool",
-      "amount": 29639735.40000001
+      "step": "purchase_cost",
+      "step_name": "Purchase Cost",
+      "amount": 0.0,
+      "display_order": 20,
+      "cost_behavior": "variable",
+      "block_label": "variable_cost",
+      "source_steps": "node:purchase|node:material|node:direct_material"
     },
     {
-      "step": "node:depreciation",
-      "amount": 1975982.3600000008
+      "step": "production_cost",
+      "step_name": "Production Cost",
+      "amount": 26675761.86000001,
+      "display_order": 30,
+      "cost_behavior": "variable",
+      "block_label": "variable_cost",
+      "source_steps": "node:production|node:direct_labor|node:machine|node:utility|node:quality_inspection|node:scrap_loss|node:yield_loss|node:overtime"
     },
     {
-      "step": "node:inventory",
-      "amount": 5927947.079999996
+      "step": "logistics_cost",
+      "step_name": "Logistics Cost",
+      "amount": 2766375.3040000033,
+      "display_order": 40,
+      "cost_behavior": "variable",
+      "block_label": "variable_cost",
+      "source_steps": "lane:logistics|lane:freight|lane:insurance|lane:customs|lane:tariff|lane:carbon|lane:premium_freight|lane:expedite|node:warehouse_handling"
     },
     {
-      "step": "node:production",
-      "amount": 15807858.880000006
+      "step": "inventory_holding_cost",
+      "step_name": "Inventory Holding Cost",
+      "amount": 5927947.079999996,
+      "display_order": 50,
+      "cost_behavior": "semi_variable",
+      "block_label": "variable_cost",
+      "source_steps": "node:inventory"
     },
     {
-      "step": "node:sga",
-      "amount": 12843885.34000002
+      "step": "market_cost",
+      "step_name": "Market / Channel Cost",
+      "amount": 0.0,
+      "display_order": 60,
+      "cost_behavior": "semi_variable",
+      "block_label": "variable_cost",
+      "source_steps": "market:sales|market:promotion|market:rebate|market:returns|market:gross_to_net"
+    },
+    {
+      "step": "fixed_node_cost",
+      "step_name": "Fixed Node Cost",
+      "amount": 14819867.700000022,
+      "display_order": 70,
+      "cost_behavior": "fixed",
+      "block_label": "fixed_cost",
+      "source_steps": "node:depreciation|node:maintenance|node:capacity_reservation|node:sga"
+    },
+    {
+      "step": "allocated_fixed_cost",
+      "step_name": "Allocated Fixed Cost",
+      "amount": 29639735.40000001,
+      "display_order": 80,
+      "cost_behavior": "allocated",
+      "block_label": "fixed_cost",
+      "source_steps": "allocation:*"
     }
   ],
   "pain_points": [
     {
       "pain_point": "supply_point",
       "metric": "total_cost",
-      "value": 37543664.83999999
+      "value": 48609166.056
     },
     {
       "pain_point": "WS_NA",
       "metric": "total_cost",
-      "value": 5429835.840000001
-    },
-    {
-      "pain_point": "WS_APAC",
-      "metric": "total_cost",
-      "value": 4579852.5600000005
+      "value": 5882322.16
     },
     {
       "pain_point": "DAD_FAS_AMER",
       "metric": "total_cost",
-      "value": 4524863.199999999
+      "value": 5067846.784000002
+    },
+    {
+      "pain_point": "WS_APAC",
+      "metric": "total_cost",
+      "value": 4961506.940000004
     },
     {
       "pain_point": "DAD_FAS_APAC",
       "metric": "total_cost",
-      "value": 3816543.8000000007
+      "value": 4274529.056000002
     }
   ],
   "allocation_breakdown": [

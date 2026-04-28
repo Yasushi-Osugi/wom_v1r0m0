@@ -15,13 +15,64 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from dataclasses import dataclass
 
+import threading
+
 import numpy as np
 
 # for events dump
 from pysi.bridge.dump_rows import build_dump_rows_from_product_plan_tree
 
+# for getting money evaluation results 
+try:
+    from pysi.evaluate.money_evaluator import evaluate_money_by_node
+except Exception:
+    evaluate_money_by_node = None
+
+
+# management cockpit
+try:
+    from wom_cockpit.services.delta_detector import compare_snapshots
+    from wom_cockpit.services.fact_extractor import extract_management_facts
+    from wom_cockpit.services.issue_engine import generate_issues
+    from wom_cockpit.domain.issue import Issue, RecommendedAction
+    from wom_cockpit.ui.cockpit_view_model import build_cockpit_view_model, RiskViewModel
+    from wom_cockpit.ui.tk.cockpit_panel_adapter import CockpitPanelAdapter
+    _WOM_MANAGEMENT_COCKPIT_AVAILABLE = True
+except Exception as e:
+    print("[management_cockpit] import skipped:", e)
+    compare_snapshots = None
+    extract_management_facts = None
+    generate_issues = None
+    Issue = None
+    RecommendedAction = None
+    build_cockpit_view_model = None
+    RiskViewModel = None
+    CockpitPanelAdapter = None
+    _WOM_MANAGEMENT_COCKPIT_AVAILABLE = False
+
+try:
+    from pysi.reporting.management_issue_analyzer import analyze_management_delta
+except Exception as e:
+    print("[management_issue_analyzer] import skipped:", e)
+    analyze_management_delta = None
+
+# optional snapshot builder for management cockpit
+try:
+    from pysi.bridge.state_snapshot import SnapshotBuildContext, build_snapshot_from_v0r8
+except Exception:
+    SnapshotBuildContext = None
+    build_snapshot_from_v0r8 = None
+
 # consumer node CSV input
 from pysi.bridge.event_rules import initialize_consumer_experience_inputs
+
+# ISSUE MANAGEMENT
+try:
+    from wom_cockpit.adapters.bridge_snapshot_adapter import (
+        adapt_planning_snapshot_to_state_snapshot,
+    )
+except Exception:
+    adapt_planning_snapshot_to_state_snapshot = None
 
 
 # world map backend switch
@@ -928,6 +979,12 @@ class WOMCockpit(tk.Tk):
         self.last_bridge_payload = {"events": [], "kernel_flow_events": [], "sidecar_events": []}
         self.last_dad_handoff_result = None
 
+        # management cockpit state
+        self.management_cockpit_win = None
+        self.management_cockpit_panel = None
+        self.management_cockpit_status_var = tk.StringVar(value="Management cockpit: idle")
+        self._last_management_snapshot = None
+
         # trace on/off
         self.var_trace_enabled = tk.BooleanVar(value=False)
         self.trace_event_sink = []
@@ -974,7 +1031,10 @@ class WOMCockpit(tk.Tk):
         # L1: PSI mini (selected node)
         self.l1_frame = ttk.Labelframe(self, text="L1: Selected Node PSI (mini)")
         self.l1_frame.pack(fill="x", padx=10, pady=(0, 6))
-        self.l1_text = tk.Text(self.l1_frame, height=6, wrap="word")
+
+        #@UPDATE
+        self.l1_text = tk.Text(self.l1_frame, height=14, wrap="word")
+        
         self.l1_text.pack(fill="x", padx=6, pady=6)
 
         # KPI panel
@@ -1027,6 +1087,12 @@ class WOMCockpit(tk.Tk):
         # decouple nodes list
         self.decouple_node_selected = [] 
 
+        # seed initial management snapshot after first UI paint
+        try:
+            self.after(200, self._capture_initial_management_snapshot)
+        except Exception:
+            pass
+
         # CAPACITY
         self.last_capacity_result = None
 
@@ -1035,14 +1101,47 @@ class WOMCockpit(tk.Tk):
         frm = ttk.Frame(self)
         frm.pack(fill="x", padx=10, pady=10)
 
-        ttk.Label(frm, text="Product:", width=10).pack(side="left")
-        self.cb_product = ttk.Combobox(frm, textvariable=self.var_product, values=self.products, width=35, state="readonly")
+        # --------------------------------------------------
+        # Row 1: Action menu
+        # --------------------------------------------------
+        action_row = ttk.Frame(frm)
+        action_row.pack(fill="x", pady=(0, 6))
+
+        ttk.Button(action_row, text="Network", command=self.open_network).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="World", command=self.open_world_map).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Run (recompute)", command=self.run_and_refresh).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Refresh", command=self.refresh).pack(side="left", padx=(0, 6))
+
+        ttk.Checkbutton(action_row, text="Trace", variable=self.var_trace_enabled).pack(side="left", padx=(12, 6))
+        ttk.Button(action_row, text="Trace Viewer", command=self.open_trace_viewer).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Mgmt Cockpit", command=self.open_management_cockpit).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Business Animation", command=self.open_business_animation).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="PSI累計+利益率", command=self.open_psi_profit_animation).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Animation Viewer", command=self.open_animation_viewer).pack(side="left", padx=(0, 6))
+
+        ttk.Button(action_row, text="Run Full Plan", command=self.run_full_plan).pack(side="right", padx=(6, 0))
+        ttk.Button(action_row, text="Run Step", command=self.run_step).pack(side="right")
+
+        # --------------------------------------------------
+        # Row 2: Basic selection
+        # --------------------------------------------------
+        select_row = ttk.Frame(frm)
+        select_row.pack(fill="x")
+
+        ttk.Label(select_row, text="Product:", width=10).pack(side="left")
+        self.cb_product = ttk.Combobox(
+            select_row,
+            textvariable=self.var_product,
+            values=self.products,
+            width=35,
+            state="readonly",
+        )
         self.cb_product.pack(side="left", padx=5)
         self.cb_product.bind("<<ComboboxSelected>>", lambda e: self.on_change_product())
 
-        ttk.Label(frm, text="Node:", width=6).pack(side="left", padx=(20, 0))
+        ttk.Label(select_row, text="Node:", width=6).pack(side="left", padx=(20, 0))
         self.cb_node = ttk.Combobox(
-            frm,
+            select_row,
             textvariable=self.var_node,
             values=self.node_names,
             width=28,
@@ -1051,33 +1150,25 @@ class WOMCockpit(tk.Tk):
         self.cb_node.pack(side="left", padx=5)
         self.cb_node.bind("<<ComboboxSelected>>", lambda e: self.on_change_node())
 
-        # ---- Step workbench controls ----
-        ttk.Label(frm, text="Step:", width=6).pack(side="left", padx=(20, 0))
+        ttk.Label(select_row, text="Step:", width=6).pack(side="left", padx=(20, 0))
         self.cb_step_type = ttk.Combobox(
-            frm, textvariable=self.var_step_type, values=["Demand", "Supply"], width=10, state="readonly"
+            select_row,
+            textvariable=self.var_step_type,
+            values=["Demand", "Supply"],
+            width=10,
+            state="readonly",
         )
         self.cb_step_type.pack(side="left", padx=5)
 
-        ttk.Label(frm, text="Dir:", width=4).pack(side="left")
+        ttk.Label(select_row, text="Dir:", width=4).pack(side="left")
         self.cb_direction = ttk.Combobox(
-            frm, textvariable=self.var_direction, values=["Outbound", "Inbound"], width=10, state="readonly"
+            select_row,
+            textvariable=self.var_direction,
+            values=["Outbound", "Inbound"],
+            width=10,
+            state="readonly",
         )
         self.cb_direction.pack(side="left", padx=5)
-
-        ttk.Button(frm, text="Run Step", command=self.run_step).pack(side="right")
-        ttk.Button(frm, text="Run Full Plan", command=self.run_full_plan).pack(side="right", padx=8)
-
-        ttk.Button(frm, text="Animation Viewer", command=self.open_animation_viewer).pack(side="right", padx=8)
-        ttk.Button(frm, text="PSI累計+利益率", command=self.open_psi_profit_animation).pack(side="right", padx=8)
-        ttk.Button(frm, text="Business Animation", command=self.open_business_animation).pack(side="right", padx=8)
-        ttk.Button(frm, text="Trace Viewer", command=self.open_trace_viewer).pack(side="right", padx=8)
-        ttk.Checkbutton(frm, text="Trace", variable=self.var_trace_enabled).pack(side="right", padx=8)
-        ttk.Button(frm, text="Refresh", command=self.refresh).pack(side="right", padx=8)
-        ttk.Button(frm, text="Run (recompute)", command=self.run_and_refresh).pack(side="right")
-        ttk.Button(frm, text="World Map", command=self.open_world_map).pack(side="right", padx=8)
-        ttk.Button(frm, text="Network",   command=self.open_network).pack(side="right", padx=8)
-        ttk.Button(frm, text="Select Node", command=self.open_node_selector).pack(side="right", padx=8)
-
 
 
 
@@ -1278,12 +1369,100 @@ class WOMCockpit(tk.Tk):
 
         env.node_dict = node_dict
 
+
+    def _get_money_row_for_selected_node(self, node_name: str | None):
+        if not node_name:
+            return None
+
+        candidates = [
+            getattr(self.env, "node_money_rows", None),
+            getattr(self.env, "money_node_rows", None),
+        ]
+
+        money_payload = getattr(self.env, "money_result", None)
+        if isinstance(money_payload, dict):
+            candidates.append(money_payload.get("node_money_rows"))
+
+        product_name = None
+        try:
+            product_name = str(self.var_product.get()).strip()
+        except Exception:
+            product_name = None
+
+        # 1) prefer already evaluated rows
+        for rows in candidates:
+            if not isinstance(rows, list):
+                continue
+            for r in rows:
+                if not isinstance(r, dict):
+                    continue
+                if (r.get("node_name") or "").strip() != node_name:
+                    continue
+                row_product = (r.get("product") or "").strip()
+                if product_name and row_product and row_product != product_name:
+                    continue
+                return r
+
+        # 2) fallback: evaluate on demand
+        if evaluate_money_by_node is not None:
+            try:
+                rows = evaluate_money_by_node(self.env)
+            except Exception as e:
+                print(f"[L1] evaluate_money_by_node fallback skipped: {e}")
+                return None
+
+            if isinstance(rows, list):
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    if (r.get("node_name") or "").strip() != node_name:
+                        continue
+                    row_product = (r.get("product") or "").strip()
+                    if product_name and row_product and row_product != product_name:
+                        continue
+                    return r
+
+        return None
+
+
+    def _format_money_debug_lines(self, node_name: str | None) -> list[str]:
+        row = self._get_money_row_for_selected_node(node_name)
+        if not row:
+            return []
+
+        def _fmt(v):
+            try:
+                return f"{float(v):,.2f}"
+            except Exception:
+                return "-"
+
+        lines = []
+        node_character = row.get("node_character")
+        if node_character:
+            lines.append(f"node_character: {node_character}")
+
+        lines.extend(
+            [
+                f"revenue:        {_fmt(row.get('revenue'))}",
+                f"variable_cost:  {_fmt(row.get('variable_cost'))}",
+                f"fixed_cost:     {_fmt(row.get('fixed_cost'))}",
+                f"inventory_value:{_fmt(row.get('inventory_value'))}",
+                f"profit:         {_fmt(row.get('profit'))}",
+            ]
+        )
+        return lines
+
+
+
+
+
     def l1_clear(self):
         self.l1_text.delete("1.0", "end")
 
     def l1_show_text(self, s: str):
         self.l1_clear()
         self.l1_text.insert("end", s)
+
 
     def render_l1_psi_mini(self):
         node_name = getattr(self.state, "selected_node", None)
@@ -1304,14 +1483,23 @@ class WOMCockpit(tk.Tk):
 
         self.l1_draw_mini_from_node(node)
 
+
+
     def l1_draw_mini_from_node(self, node):
         """Default mini view: last 10 weeks of S/I/P lot counts (supply layer)."""
         def cnt(x):
             return len(x) if x else 0
 
         psi4 = getattr(node, "psi4supply", None) or []
-        W = min(10, len(psi4))
+
+        #@RESET
+        # keep mini text compact so money debug lines remain visible
+        #W = min(10, len(psi4))
+        W = min(5, len(psi4))
+
         lines = [f"node: {getattr(node, 'name', '')}", ""]
+
+        #@STOP@GO
         for w in range(W):
             try:
                 S = cnt(psi4[w][0])
@@ -1320,8 +1508,16 @@ class WOMCockpit(tk.Tk):
             except Exception:
                 S = I = P = 0
             lines.append(f"w{w+1:02d}  S:{S:4d}  I:{I:4d}  P:{P:4d}")
+        
         if W == 0:
             lines.append("(psi4supply is empty)")
+
+
+        #@ADD "MONEY attribute" on "node&product"
+        money_lines = self._format_money_debug_lines(getattr(node, "name", None))
+        if money_lines:
+            lines.extend([""] + money_lines)
+        
         self.l1_show_text("\n".join(lines))
 
     # ----------------------------
@@ -1521,7 +1717,14 @@ class WOMCockpit(tk.Tk):
         ★ rerun_fn があれば：pipeline を再実行して env を差し替え
         ★ なければ：従来フォールバック（軽量再計算）
         """
+        self.current_mode = "recompute"
         prod = self.var_product.get()
+
+        baseline_snapshot = None
+        try:
+            baseline_snapshot = self._build_management_snapshot()
+        except Exception as e:
+            print("[management_cockpit] baseline snapshot skipped:", e)
 
         if callable(self.rerun_fn):
             try:
@@ -1565,6 +1768,20 @@ class WOMCockpit(tk.Tk):
             if hasattr(self.env, "demand_leveling4multi_prod"):
                 self.env.demand_leveling4multi_prod()
 
+        scenario_snapshot = None
+        try:
+            scenario_snapshot = self._build_management_snapshot()
+        except Exception as e:
+            print("[management_cockpit] scenario snapshot skipped:", e)
+
+        try:
+            self.refresh_management_cockpit(
+                baseline_snapshot=baseline_snapshot,
+                scenario_snapshot=scenario_snapshot,
+            )
+        except Exception as e:
+            print("[management_cockpit] refresh after run_and_refresh skipped:", e)
+
         self.refresh()
 
 # ********
@@ -1585,8 +1802,31 @@ class WOMCockpit(tk.Tk):
 
 
     def run_full_plan(self):
+        self.current_mode = "full_plan"
+        baseline_snapshot = None
+        try:
+            baseline_snapshot = self._build_management_snapshot()
+        except Exception as e:
+            print("[management_cockpit] baseline snapshot skipped before full plan:", e)
+
         try:
             self._run_planning_sequence(use_selected_decouples=True)
+
+            scenario_snapshot = None
+            try:
+                scenario_snapshot = self._build_management_snapshot()
+            except Exception as e:
+                print("[management_cockpit] scenario snapshot skipped after full plan:", e)
+
+            try:
+                self.refresh_management_cockpit(
+                    baseline_snapshot=baseline_snapshot,
+                    scenario_snapshot=scenario_snapshot,
+                )
+            except Exception as e:
+                print("[management_cockpit] refresh after full plan skipped:", e)
+
+            self.refresh()
             print("[full-plan] completed")
         except Exception as e:
             import traceback
@@ -3482,6 +3722,376 @@ class WOMCockpit(tk.Tk):
 
 
 
+    # ------------------------------------------------------------
+    # Management cockpit
+    # ------------------------------------------------------------
+    def _capture_initial_management_snapshot(self):
+        """
+        初回表示後の現状態を baseline 候補として保持する。
+        """
+        try:
+            snap = self._build_management_snapshot()
+            if snap is not None:
+                self._last_management_snapshot = snap
+                self.management_cockpit_status_var.set(
+                    f"Management cockpit: baseline ready ({getattr(snap, 'scenario_id', '-')})"
+                )
+        except Exception as e:
+            print("[management_cockpit] initial snapshot skipped:", e)
+
+    def _build_management_snapshot_OLD(self):
+        """
+        現在の env / product から StateSnapshot を構築する。
+        """
+        if build_snapshot_from_v0r8 is None or SnapshotBuildContext is None:
+            return None
+
+        product_id = None
+        try:
+            product_id = self.var_product.get().strip() if self.var_product.get() else None
+        except Exception:
+            product_id = getattr(self.env, "product_selected", None)
+
+        try:
+            time_bucket = str(getattr(self.env, "current_time_bucket", "202601"))
+        except Exception:
+            time_bucket = "202601"
+
+        snap = build_snapshot_from_v0r8(
+            env_or_root=self.env,
+            time_bucket=time_bucket,
+            ctx=SnapshotBuildContext(product_id=product_id),
+        )
+
+        try:
+            if not getattr(snap, "scenario_name", ""):
+                snap.scenario_name = str(getattr(self, "current_mode", "cockpit"))
+        except Exception:
+            pass
+
+        return snap
+
+    def _build_management_snapshot(self):
+        if build_snapshot_from_v0r8 is None or SnapshotBuildContext is None:
+            return None
+
+        product_id = None
+        try:
+            product_id = self.var_product.get().strip() if self.var_product.get() else None
+        except Exception:
+            product_id = getattr(self.env, "product_selected", None)
+
+        try:
+            time_bucket = str(getattr(self.env, "current_time_bucket", "202601"))
+        except Exception:
+            time_bucket = "202601"
+
+        planning_snapshot = build_snapshot_from_v0r8(
+            env_or_root=self.env,
+            time_bucket=time_bucket,
+            ctx=SnapshotBuildContext(product_id=product_id),
+        )
+
+        if planning_snapshot is None:
+            return None
+
+        if adapt_planning_snapshot_to_state_snapshot is None:
+            return planning_snapshot
+
+        scenario_id = str(getattr(self, "current_mode", "cockpit"))
+        snapshot_id = f"{scenario_id}::{product_id or 'UNKNOWN'}::{time_bucket}"
+
+        return adapt_planning_snapshot_to_state_snapshot(
+            planning_snapshot,
+            snapshot_id=snapshot_id,
+            scenario_id=scenario_id,
+            scenario_name=scenario_id,
+            env=self.env,
+        )
+
+
+
+    def _ensure_management_cockpit_window(self):
+        """
+        Toplevel 上に management cockpit panel を生成する。
+        """
+        if not _WOM_MANAGEMENT_COCKPIT_AVAILABLE:
+            messagebox.showwarning(
+                "Management Cockpit",
+                "wom_cockpit modules are not available.\nPlease place wom_cockpit package into repo first.",
+            )
+            return None
+
+        if self.management_cockpit_win is not None:
+            try:
+                if self.management_cockpit_win.winfo_exists():
+                    return self.management_cockpit_win
+            except Exception:
+                pass
+
+        win = tk.Toplevel(self)
+        win.title("WOM Management Cockpit")
+        win.geometry("1400x900")
+
+        top = ttk.Frame(win)
+        top.pack(fill="x", padx=6, pady=6)
+
+        ttk.Label(
+            top,
+            textvariable=self.management_cockpit_status_var,
+            anchor="w",
+        ).pack(side="left", fill="x", expand=True)
+
+        ttk.Button(
+            top,
+            text="Refresh from current state",
+            command=lambda: self.refresh_management_cockpit(
+                baseline_snapshot=self._last_management_snapshot,
+                scenario_snapshot=self._build_management_snapshot(),
+            ),
+        ).pack(side="right")
+
+        body = ttk.Frame(win)
+        body.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        self.management_cockpit_panel = CockpitPanelAdapter(body)
+        self.management_cockpit_panel.build()
+
+        self.management_cockpit_win = win
+        return win
+
+    def open_management_cockpit(self):
+        """
+        Management cockpit window を開く。
+        初回は baseline=current state で描画を試みる。
+        """
+        win = self._ensure_management_cockpit_window()
+        if win is None:
+            return
+
+        try:
+            current = self._build_management_snapshot()
+
+            #@STOP
+            #baseline = self._last_management_snapshot or current
+
+            baseline = self._last_management_snapshot
+
+            if baseline is None:
+                baseline = current
+                self._last_management_snapshot = baseline
+
+
+            self.refresh_management_cockpit(
+                baseline_snapshot=baseline,
+                scenario_snapshot=current,
+            )
+            win.lift()
+        except Exception as e:
+            print("[management_cockpit] open skipped:", e)
+
+    def refresh_management_cockpit_OLD(self, baseline_snapshot=None, scenario_snapshot=None):
+        """
+        baseline/scenario snapshot から management cockpit を更新する。
+        """
+        if not _WOM_MANAGEMENT_COCKPIT_AVAILABLE:
+            return
+
+        if baseline_snapshot is None and scenario_snapshot is None:
+            return
+
+        if scenario_snapshot is None:
+            scenario_snapshot = self._build_management_snapshot()
+        if baseline_snapshot is None:
+            baseline_snapshot = self._last_management_snapshot or scenario_snapshot
+
+        if baseline_snapshot is None or scenario_snapshot is None:
+            return
+
+        self._ensure_management_cockpit_window()
+        if self.management_cockpit_panel is None:
+            return
+
+        plan_delta = compare_snapshots(baseline_snapshot, scenario_snapshot)
+        facts = extract_management_facts(plan_delta)
+        issues = generate_issues(facts, group_similar_facts=False)
+        vm = build_cockpit_view_model(plan_delta, issues)
+
+        self.management_cockpit_panel.render(vm)
+        self.management_cockpit_status_var.set(
+            f"Management cockpit: {baseline_snapshot.scenario_id} -> {scenario_snapshot.scenario_id} / issues={len(issues)}"
+        )
+
+        # baseline は自動追随させない
+        #self._last_management_snapshot = scenario_snapshot
+
+    @staticmethod
+    def _is_management_demo_scenario(scenario_name: str) -> bool:
+        if not scenario_name:
+            return False
+        name = scenario_name.lower()
+        return any(
+            token in name
+            for token in ("demo", "sample", "demand_surge", "demand_down", "port_stop")
+        )
+
+    @staticmethod
+    #@STOP
+    #def _extract_management_analyzer_input(snapshot, plan_delta) -> dict[str, float]:
+    def _extract_management_analyzer_input(snapshot, plan_delta, side: str = "after") -> dict[str, float]:
+
+        summary = getattr(plan_delta, "summary_delta", None)
+        if summary is not None:
+            return {
+                "revenue": float(getattr(getattr(summary, "total_revenue", None), side, 0.0) or 0.0),
+                "profit": float(getattr(getattr(summary, "total_profit", None), side, 0.0) or 0.0),
+                "profit_ratio": float(getattr(getattr(summary, "profit_ratio", None), side, 0.0) or 0.0),
+                "inventory": float(getattr(getattr(summary, "total_inventory_qty", None), side, 0.0) or 0.0),
+                "shortage": float(getattr(getattr(summary, "total_lost_sales_qty", None), side, 0.0) or 0.0),
+                "backlog": float(getattr(getattr(summary, "total_backlog_qty", None), side, 0.0) or 0.0),
+            }
+
+        kpi = getattr(snapshot, "kpi_summary", None)
+        if kpi is None:
+            return {
+                "revenue": 0.0,
+                "profit": 0.0,
+                "profit_ratio": 0.0,
+                "inventory": 0.0,
+                "shortage": 0.0,
+                "backlog": 0.0,
+            }
+        return {
+            "revenue": float(getattr(kpi, "total_revenue", 0.0) or 0.0),
+            "profit": float(getattr(kpi, "total_profit", 0.0) or 0.0),
+            "profit_ratio": float(getattr(kpi, "profit_ratio", 0.0) or 0.0),
+            "inventory": float(getattr(kpi, "total_inventory_qty", 0.0) or 0.0),
+            "shortage": float(getattr(kpi, "total_lost_sales_qty", 0.0) or 0.0),
+            "backlog": float(getattr(kpi, "total_backlog_qty", 0.0) or 0.0),
+        }
+
+    def _apply_management_analyzer(self, vm, baseline_snapshot, scenario_snapshot, plan_delta):
+        if analyze_management_delta is None or Issue is None or RiskViewModel is None:
+            return vm
+
+        priority_map = {"High": 10, "Medium": 50, "Low": 90}
+        severity_map = {"Critical": "critical", "Warning": "high", "Info": "low"}
+        issue_type_map = {"Opportunity": "opportunity"}
+
+        baseline_input = self._extract_management_analyzer_input(baseline_snapshot, plan_delta, side="before")
+        scenario_input = self._extract_management_analyzer_input(scenario_snapshot, plan_delta, side="after")
+        scenario_name = str(
+            getattr(scenario_snapshot, "scenario_name", None)
+            or getattr(scenario_snapshot, "scenario_id", None)
+            or "Scenario"
+        )
+        demo_mode = self._is_management_demo_scenario(scenario_name)
+
+        result = analyze_management_delta(
+            baseline_input,
+            scenario_input,
+            scenario_name=scenario_name,
+            demo_mode=demo_mode,
+        )
+
+        mapped_issues = []
+        issue_id_by_title = {}
+        for idx, src in enumerate(result.issues, start=1):
+            issue_id = f"mgmt_analyzer::{idx}"
+            mapped_issues.append(
+                Issue(
+                    issue_id=issue_id,
+                    issue_type=issue_type_map.get(src.category, "risk"),
+                    category=src.category,
+                    title=src.title,
+                    summary=src.reason,
+                    severity=severity_map.get(src.severity, "medium"),
+                    priority=priority_map.get(src.priority, 50),
+                    why_it_matters=src.reason,
+                    management_question=f"{src.related_kpi} をどのように改善するか？",
+                    recommendation_summary=src.suggested_action,
+                    recommended_actions=[
+                        RecommendedAction(
+                            action_id=f"mgmt_action::{idx}",
+                            action_type="management_action",
+                            title=src.suggested_action,
+                            description=src.suggested_action,
+                        )
+                    ],
+                    owner_hint=src.owner,
+                    tags=[src.related_kpi],
+                    attributes={
+                        "baseline_value": src.baseline_value,
+                        "scenario_value": src.scenario_value,
+                        "delta_value": src.delta_value,
+                    },
+                )
+            )
+            issue_id_by_title.setdefault(src.title, issue_id)
+
+        vm.issues = mapped_issues
+        vm.top_risks = [
+            RiskViewModel(
+                risk_id=issue_id_by_title.get(risk.risk_name, f"mgmt_analyzer::risk::{risk.rank}"),
+                title=risk.risk_name,
+                category="Management",
+                severity=severity_map.get(risk.severity, "medium"),
+                priority=risk.rank,
+                summary=risk.description,
+            )
+            for risk in result.risks
+        ]
+        if result.narrative:
+            vm.metadata["narrative_override"] = result.narrative
+        vm.metadata["management_analyzer_input"] = {
+            "baseline": baseline_input,
+            "scenario": scenario_input,
+            "scenario_name": scenario_name,
+            "demo_mode": demo_mode,
+        }
+        vm.metadata["issue_count"] = len(mapped_issues)
+        vm.metadata["issue_count_analyzer"] = len(mapped_issues)
+        return vm
+
+    def refresh_management_cockpit(self, baseline_snapshot=None, scenario_snapshot=None):
+        if not _WOM_MANAGEMENT_COCKPIT_AVAILABLE:
+            return
+
+        self.management_cockpit_status_var.set("Management cockpit: refreshing...")
+        self.update_idletasks()
+
+        if baseline_snapshot is None and scenario_snapshot is None:
+            return
+
+        if scenario_snapshot is None:
+            scenario_snapshot = self._build_management_snapshot()
+        if baseline_snapshot is None:
+            baseline_snapshot = self._last_management_snapshot or scenario_snapshot
+
+        if baseline_snapshot is None or scenario_snapshot is None:
+            return
+
+        self._ensure_management_cockpit_window()
+        if self.management_cockpit_panel is None:
+            return
+
+        plan_delta = compare_snapshots(baseline_snapshot, scenario_snapshot)
+        facts = extract_management_facts(plan_delta)
+        issues = generate_issues(facts, group_similar_facts=False)
+        vm = build_cockpit_view_model(plan_delta, issues)
+        try:
+            vm = self._apply_management_analyzer(vm, baseline_snapshot, scenario_snapshot, plan_delta)
+        except Exception as e:
+            print("[management_issue_analyzer] apply skipped:", e)
+
+        self.management_cockpit_panel.render(vm)
+
+        from datetime import datetime
+        ts = datetime.now().strftime("%H:%M:%S")
+        self.management_cockpit_status_var.set(
+            f"Management cockpit: {baseline_snapshot.scenario_id} -> {scenario_snapshot.scenario_id} / issues={len(issues)} / refreshed {ts}"
+        )
+
 
     def refresh(self):
         prod = self.var_product.get()
@@ -3601,19 +4211,68 @@ class WOMCockpit(tk.Tk):
             on_select=self.set_selected_node,
         )
 
-    def set_selected_node(self, node_name: str, source: str = ""):
-        """Update selection state and refresh dependent views.
-        node_name is the common key across map/network/PSI.
-        """
-        self.selected_node_id = node_name
-        self.state.selected_node = node_name
-        self.state.selected_product = self.var_product.get() if self.var_product.get() else None
+    #@STOP
+    #def set_selected_node(self, node_name: str, source: str = ""):
+    #    """Update selection state and refresh dependent views.
+    #    node_name is the common key across map/network/PSI.
+    #    """
+    #    self.selected_node_id = node_name
+    #    self.state.selected_node = node_name
+    #    self.state.selected_product = self.var_product.get() if self.var_product.get() else None
+    #
+    #    try:
+    #        if node_name and hasattr(self, "var_node") and self.var_node.get() != node_name:
+    #            self.var_node.set(node_name)
+    #    except Exception:
+    #        pass
 
-        try:
-            if node_name and hasattr(self, "var_node") and self.var_node.get() != node_name:
+    #@UPDATE wrapping with "_apply()"
+    def set_selected_node(self, node_name: str, source: str = ""):
+        def _apply():
+
+            self.state.selected_node = node_name
+
+            #@ADD for "node_name" linking
+            try:
                 self.var_node.set(node_name)
-        except Exception:
-            pass
+            except Exception:
+                pass
+
+
+            self.state.selected_product = self.var_product.get() if self.var_product.get() else None
+
+            try:
+                self.render_l1_psi_mini()
+            except Exception:
+                pass
+
+            if hasattr(self, "_network_viewer") and self._network_viewer:
+                try:
+                    self._network_viewer.set_selected_node(node_name)
+                except Exception:
+                    pass
+
+            if hasattr(self, "_world_map_view") and self._world_map_view:
+                try:
+                    self._world_map_view.set_selected_node(node_name)
+                except Exception:
+                    pass
+
+            try:
+                self.refresh()
+            except Exception:
+                pass
+
+        if threading.current_thread() is threading.main_thread():
+            _apply()
+        else:
+            self.after(0, _apply)
+
+
+
+
+
+
 
 # ...既存処理...
         if hasattr(self, "_network_viewer") and self._network_viewer:

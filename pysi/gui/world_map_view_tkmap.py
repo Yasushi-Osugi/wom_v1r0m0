@@ -35,6 +35,12 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
+try:
+    from pysi.evaluate.money_evaluator import evaluate_money_by_node
+except Exception:
+    evaluate_money_by_node = None
+
+
 OnSelect = Callable[[str], None]
 
 
@@ -158,6 +164,11 @@ class WorldMapViewTk:
 
     _HUB_NAMES = {"sales_office", "procurement_office", "supply_point"}
 
+    # ---- UI 表示名置換 (内部IDはそのまま維持) ----
+    _DISPLAY_NAME_MAP = {
+        "supply_point": "Global Supply Chain Office",
+    }
+
     def __init__(
         self,
         env: Any,
@@ -182,6 +193,7 @@ class WorldMapViewTk:
         self._top: Optional[tk.Toplevel] = None
         self._selected_node: Optional[str] = None
         self._info_var: Optional[tk.StringVar] = None
+        self._money_by_node: Dict[str, Dict[str, Any]] = {}
 
     # ----------------------------------------------------------
     # Public API
@@ -227,6 +239,7 @@ class WorldMapViewTk:
         self._set_initial_view(selected_names)
         self._draw_edges(all_edges, ot_edges, in_edges)
         self._draw_markers(nodes_all, selected_names)
+        self._money_by_node = self._build_money_by_node()
         self._build_legend_panel(right_frame)
 
         self._map_widget.add_right_click_menu_command(
@@ -243,6 +256,13 @@ class WorldMapViewTk:
     def set_selected_node(self, node_name: str) -> None:
         if not node_name or node_name not in self._pos:
             return
+
+        # Refresh money rows because recompute may update env after the map was opened.
+        try:
+            self._money_by_node = self._build_money_by_node()
+        except Exception as e:
+            print(f"[TKMAP] money cache refresh skipped: {e}")
+
         self._highlight_node(node_name)
 
     # ----------------------------------------------------------
@@ -449,6 +469,9 @@ class WorldMapViewTk:
                 pass
         self._markers.pop(node_name, None)
 
+    def _display_name(self, node_name: str) -> str:
+        return self._DISPLAY_NAME_MAP.get(node_name, node_name)
+
     def _create_marker(self, node_name: str, *, selected: bool = False) -> None:
         if node_name not in self._pos:
             return
@@ -459,7 +482,7 @@ class WorldMapViewTk:
         marker = self._map_widget.set_marker(
             lat,
             lon,
-            text=node_name,
+            text=self._display_name(node_name),
             marker_color_circle=color,
             marker_color_outside=color,
             command=self._make_marker_cb(node_name),
@@ -535,13 +558,112 @@ class WorldMapViewTk:
         if self._info_var is None:
             return
 
+        # Always refresh before rendering selected-node detail.
+        # This keeps the map panel aligned with the latest recompute result.
+        try:
+            self._money_by_node = self._build_money_by_node()
+        except Exception as e:
+            print(f"[TKMAP] money cache refresh skipped: {e}")
+
+
         node = self._nodes.get(node_name)
-        lines = [f"▶ {node_name}", f"lat: {lat:.3f}  lon: {lon:.3f}"]
+        money_row = self._money_by_node.get(node_name, {})
+        shown_name = self._display_name(node_name)
+        lines = [f"▶ {shown_name}", f"node_name: {node_name}", f"lat: {lat:.3f}  lon: {lon:.3f}"]
+
+        node_character = money_row.get("node_character")
+        if not node_character:
+            bundle = getattr(self.env, "money_master_bundle", None)
+            if bundle is not None:
+                try:
+                    node_character = bundle.get_node_character(node_name)
+                except Exception:
+                    node_character = None
+        if node_character:
+            lines.append(f"node_character: {node_character}")
+
         if node is not None:
             for k in ("node_type", "capacity", "cost_coeff", "revenue_coeff"):
                 if hasattr(node, k):
                     lines.append(f"{k}: {getattr(node, k)}")
+
+        for k in ("revenue", "variable_cost", "fixed_cost", "inventory_value", "profit"):
+            v = money_row.get(k, None)
+            if v is None:
+                continue
+            try:
+                v = float(v)
+                lines.append(f"{k}: {v:,.2f}")
+            except Exception:
+                lines.append(f"{k}: {v}")
+
         self._info_var.set("\n".join(lines))
+
+    def _build_money_by_node(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Build index: node_name -> money row.
+        Prefer already-evaluated rows attached to env by pipeline.
+        """
+        candidates = [
+            getattr(self.env, "node_money_rows", None),
+            getattr(self.env, "money_node_rows", None),
+        ]
+        money_payload = getattr(self.env, "money_result", None)
+        if isinstance(money_payload, dict):
+            candidates.append(money_payload.get("node_money_rows"))
+
+        for rows in candidates:
+            if not isinstance(rows, list):
+                continue
+            out: Dict[str, Dict[str, Any]] = {}
+
+
+
+            for r in rows:
+                if not isinstance(r, dict):
+                    continue
+
+                node_name = (r.get("node_name") or "").strip()
+                if not node_name:
+                    continue
+
+                # これがかなり重要です。
+                # node_money_rows に複数 product の同一 node が含まれる場合、
+                # product filter なしだと、別 product の row で上書きされる可能性があります。
+                product = (r.get("product_name") or r.get("product") or "").strip()
+                if self.product_name and product and product != self.product_name:
+                    continue
+
+                out[node_name] = r
+
+            if out:
+                return out
+
+
+
+        # Fallback: evaluate on demand if pipeline did not attach money rows to env
+        if evaluate_money_by_node is not None:
+            try:
+                rows = evaluate_money_by_node(self.env)
+            except Exception as e:
+                print(f"[TKMAP] evaluate_money_by_node fallback skipped: {e}")
+                return {}
+
+            if isinstance(rows, list):
+                out: Dict[str, Dict[str, Any]] = {}
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    node_name = (r.get("node_name") or "").strip()
+                    product = (r.get("product") or "").strip()
+                    if not node_name:
+                        continue
+                    if self.product_name and product and product != self.product_name:
+                        continue
+                    out[node_name] = r
+                return out
+
+        return {}
 
     # ----------------------------------------------------------
     # Legend / right panel
@@ -624,6 +746,22 @@ class WorldMapViewTk:
             font=("Helvetica", 9),
             anchor="w",
         ).pack(fill="x", padx=8)
+
+        # ********
+        # OpenStreetMap copy right
+        # ********
+        tk.Label(
+            parent,
+            text="Map Data: © OpenStreetMap contributors",
+            bg="#f0f0f0",
+            fg="#555555",
+            font=("Helvetica", 8),
+            anchor="w",
+            justify="left",
+            wraplength=190,
+        ).pack(fill="x", padx=8, pady=(8, 0))
+
+
 
     # ----------------------------------------------------------
     # Click handler
