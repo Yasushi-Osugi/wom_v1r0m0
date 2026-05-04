@@ -130,11 +130,13 @@ class WOMIOAdapter:
         env.load_data_files()
         self._env = env
 
+
         # *******************
+        #@STOP@260501_1535
         #@ADD for debug
-        prod = "IPHONE_NM_2028_BASE"
-        print("[pipeline-check] OT len =", len(env.prod_tree_dict_OT[prod].psi4demand))
-        print("[pipeline-check] IN len =", len(env.prod_tree_dict_IN[prod].psi4demand))
+        #prod = "IPHONE_NM_2028_BASE"
+        #print("[pipeline-check] OT len =", len(env.prod_tree_dict_OT[prod].psi4demand))
+        #print("[pipeline-check] IN len =", len(env.prod_tree_dict_IN[prod].psi4demand))
 
         import inspect
 
@@ -357,6 +359,7 @@ class WOMPipelineRunner:
                 node_money_rows=node_money_rows,
                 kpi_summary_rows=kpi_summary_rows,
                 product_money_summary_rows=product_money_summary_rows,
+                env=env,
             )
 
             result["money"] = {

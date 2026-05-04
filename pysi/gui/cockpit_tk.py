@@ -12,7 +12,7 @@ import os
 import math
 import json
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from dataclasses import dataclass
 
 import threading
@@ -958,6 +958,7 @@ class WOMCockpit(tk.Tk):
 
         # state vars
         self.var_product = tk.StringVar(value=getattr(env, "product_selected", self.products[0] if self.products else ""))
+        self.var_leaf_node = tk.StringVar(value="")
         self.var_node = tk.StringVar(value=self.node_names[0] if self.node_names else "")
         # temporary alias during migration
         self.var_mom = self.var_node
@@ -1078,6 +1079,7 @@ class WOMCockpit(tk.Tk):
         self.df_animation_kpi = None
 
         # initial draw
+        self.refresh_leaf_node_dropdown()
         self.refresh()
 
         # condumer node CSV input
@@ -1114,6 +1116,7 @@ class WOMCockpit(tk.Tk):
 
         ttk.Checkbutton(action_row, text="Trace", variable=self.var_trace_enabled).pack(side="left", padx=(12, 6))
         ttk.Button(action_row, text="Trace Viewer", command=self.open_trace_viewer).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Price & Cost Structure", command=self.on_generate_price_cost_structure_chart).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Mgmt Cockpit", command=self.open_management_cockpit).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Business Animation", command=self.open_business_animation).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="PSI累計+利益率", command=self.open_psi_profit_animation).pack(side="left", padx=(0, 6))
@@ -1138,6 +1141,16 @@ class WOMCockpit(tk.Tk):
         )
         self.cb_product.pack(side="left", padx=5)
         self.cb_product.bind("<<ComboboxSelected>>", lambda e: self.on_change_product())
+
+        ttk.Label(select_row, text="Leaf:", width=6).pack(side="left", padx=(20, 0))
+        self.cb_leaf_node = ttk.Combobox(
+            select_row,
+            textvariable=self.var_leaf_node,
+            values=[],
+            width=24,
+            state="readonly",
+        )
+        self.cb_leaf_node.pack(side="left", padx=5)
 
         ttk.Label(select_row, text="Node:", width=6).pack(side="left", padx=(20, 0))
         self.cb_node = ttk.Combobox(
@@ -1671,6 +1684,31 @@ class WOMCockpit(tk.Tk):
 
         return sorted(set(dads))
 
+    def refresh_leaf_node_dropdown(self):
+        product_name = (self.var_product.get() or "").strip()
+        if not product_name:
+            self.cb_leaf_node["values"] = []
+            self.var_leaf_node.set("")
+            return
+
+        try:
+            from pysi.reporting.leaf_node_candidates import get_leaf_node_candidates_for_product
+
+            candidates = get_leaf_node_candidates_for_product(
+                self.env,
+                product_name=product_name,
+            )
+        except Exception as e:
+            print(f"[price-cost-structure] leaf dropdown refresh skipped: {e}")
+            candidates = []
+
+        self.cb_leaf_node["values"] = candidates
+        if candidates:
+            if self.var_leaf_node.get() not in candidates:
+                self.var_leaf_node.set(candidates[0])
+        else:
+            self.var_leaf_node.set("")
+
     def on_change_node(self):
         node_name = (self.var_node.get() or "").strip()
         if not node_name:
@@ -1700,6 +1738,7 @@ class WOMCockpit(tk.Tk):
         prod = self.var_product.get()
         self.decouple_node_selected = self._detect_default_decouple_nodes(prod)
 
+        self.refresh_leaf_node_dropdown()
         self.refresh()
 
         try:
@@ -1709,6 +1748,68 @@ class WOMCockpit(tk.Tk):
                     self.business_animation_panel.set_context(ctx)
         except Exception:
             pass
+
+    def on_generate_price_cost_structure_chart(self):
+        """Thin GUI adapter to generate E2E lane price/cost structure charts."""
+        product_name = (self.var_product.get() or "").strip()
+        if not product_name:
+            messagebox.showwarning("Price & Cost Structure", "Please select a product.")
+            return
+
+        self.refresh_leaf_node_dropdown()
+        leaf_node = (self.var_leaf_node.get() or "").strip()
+        if not leaf_node:
+            messagebox.showwarning(
+                "Price & Cost Structure",
+                "No leaf node candidates found for selected product.",
+            )
+            return
+
+        try:
+            from pysi.reporting.e2e_lane_price_chart_runtime import (
+                generate_e2e_lane_price_chart_from_env,
+            )
+
+            result = generate_e2e_lane_price_chart_from_env(
+                self.env,
+                product_name=product_name,
+                leaf_node=leaf_node,
+            )
+
+            errors = result.get("errors") or []
+            warnings = result.get("warnings") or []
+            files = result.get("generated_files") or []
+
+            print("[price-cost-structure]", result)
+
+            if errors:
+                messagebox.showerror(
+                    "Price & Cost Structure",
+                    "\n".join(str(e) for e in errors),
+                )
+                return
+
+            msg_lines = []
+            if files:
+                msg_lines.append("Generated chart files:")
+                msg_lines.extend(str(p) for p in files)
+            else:
+                msg_lines.append("No chart files were generated.")
+                msg_lines.append("")
+                msg_lines.append("Possible reasons:")
+                msg_lines.append("- selected product has all-zero price/cost values")
+                msg_lines.append("- no matching E2E route rows")
+                msg_lines.append("- no matching node_price_waterfall rows")
+                msg_lines.append("- Run Full Plan has not been executed")
+
+            if warnings:
+                msg_lines.append("")
+                msg_lines.append("Warnings:")
+                msg_lines.extend(str(w) for w in warnings)
+
+            messagebox.showinfo("Price & Cost Structure", "\n".join(msg_lines))
+        except Exception as exc:
+            messagebox.showerror("Price & Cost Structure", str(exc))
 
 
 
