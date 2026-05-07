@@ -149,16 +149,19 @@ def with_capacity_forward_planning(*, root_node, weeks: list[int | str], scenari
                                             bucket.capacity_qty, len(executable), executable))
                 if overflow:
                     next_week = get_next_week(weeks, week)
-                    if bucket.cap_mode == "soft" and next_week is not None:
-                        next_target = getter(node, next_week)
-                        applier_fn = apply_P_execution if cap_type == "P" else apply_S_execution
-                        applier_fn(node, next_week, next_target + overflow)
+                    if bucket.cap_mode == "soft":
+                        if next_week is not None:
+                            next_target = getter(node, next_week)
+                            applier_fn = apply_P_execution if cap_type == "P" else apply_S_execution
+                            applier_fn(node, next_week, next_target + overflow)
                         action = "CARRY_OVER"
+                        violation_type = "CAPACITY_OVER_SOFT"
                     else:
                         action = "BLOCKED"
+                        violation_type = "CAPACITY_OVER_HARD"
                     violations.append(CapacityViolation(scenario_id, tree_side, node_name, product_name, week, cap_type,
                                                         bucket.cap_mode, bucket.capacity_qty, len(target), len(overflow),
-                                                        "OVERFLOW", overflow, action))
+                                                        violation_type, overflow, action))
 
             i_lots = get_ending_inventory_lots(node, week)
             i_bucket = get_capacity_bucket(lookup, scenario_id=scenario_id, node_name=node_name, product_name=product_name,
@@ -169,7 +172,9 @@ def with_capacity_forward_planning(*, root_node, weeks: list[int | str], scenari
             if i_over:
                 violations.append(CapacityViolation(
                     scenario_id, tree_side, node_name, product_name, week, "I", i_bucket.cap_mode,
-                    i_bucket.capacity_qty, len(i_lots), len(i_over), "INVENTORY_OVERFLOW", i_over,
+                    i_bucket.capacity_qty, len(i_lots), len(i_over),
+                    "INVENTORY_OVER_SOFT" if i_bucket.cap_mode == "soft" else "INVENTORY_OVER_HARD",
+                    i_over,
                     "ALERT_ONLY" if i_bucket.cap_mode == "soft" else "WASTE"
                 ))
     return usages, violations
