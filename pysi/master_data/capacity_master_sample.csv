@@ -1,0 +1,6 @@
+scenario_id,node_name,product_name,week,capacity_type,capacity_qty,cap_mode,unit,priority,calendar_id,comment
+BASE,MOM_CHINA,IPHONE_NM_2028_BASE,2026-W01,P,3,soft,LOT,100,STD_CAL,sample production capacity
+BASE,MOM_CHINA,IPHONE_NM_2028_BASE,2026-W01,S,999999,soft,LOT,100,STD_CAL,no shipment limit sample
+BASE,MOM_CHINA,IPHONE_NM_2028_BASE,2026-W01,I,999999,soft,LOT,100,STD_CAL,no inventory limit sample
+BASE,DAD_COLD_DC,VACCINE_X,2026-W01,I,3,hard,LOT,100,COLD_CAL,sample cold storage hard capacity
+BASE,MKT_HOSP,VACCINE_X,2026-W01,S,2,hard,LOT,100,COLD_CAL,sample vaccination capacity
