@@ -54,7 +54,11 @@ def get_next_week(weeks: list[int | str], current_week: int | str) -> int | str 
 
 
 def get_node_name(node) -> str:
-    return getattr(node, "name", getattr(node, "node_name", "UNKNOWN_NODE"))
+    return getattr(
+        node,
+        "name",
+        getattr(node, "node_name", getattr(node, "name4node", "UNKNOWN_NODE")),
+    )
 
 
 def _get_psi_lots(node, layer: str, week: int | str, idx: int) -> list[str]:
