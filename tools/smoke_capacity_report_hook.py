@@ -69,6 +69,47 @@ def _write_capacity_master_smoke_csv(path: Path) -> None:
     path.write_text(header + "\n".join(rows) + "\n", encoding="utf-8")
 
 
+def run_smoke_runner_with_optional_capacity_report(
+    output_dir: str | Path = "outputs/capacity/runner",
+    *,
+    enable_capacity_report: bool = False,
+    capacity_master_path: str | Path | None = None,
+) -> tuple[int, int]:
+    """Run a small WOM-like sample path with an optional capacity report hook.
+
+    This wrapper is intentionally lightweight and disabled by default so that
+    existing runner behavior is unchanged unless explicitly opted in.
+    """
+    scenario_id = "BASE"
+    product_name = "TEST_PRODUCT"
+    week = "2026-W01"
+    weeks = [week]
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    outbound_root = _build_outbound_tree(week)
+    inbound_root = _build_inbound_tree(week)
+
+    usage_records = []
+    violation_records = []
+
+    if enable_capacity_report:
+        usage_records, violation_records = run_capacity_report_hook(
+            enabled=True,
+            scenario_id=scenario_id,
+            product_name=product_name,
+            weeks=weeks,
+            outbound_root=outbound_root,
+            inbound_root=inbound_root,
+            capacity_master_path=capacity_master_path,
+            output_dir=output_dir,
+            strict_capacity_master=False,
+        )
+
+    return len(usage_records), len(violation_records)
+
+
 def main(output_dir: str | Path = "outputs/capacity/smoke") -> tuple[int, int]:
     scenario_id = "BASE"
     product_name = "TEST_PRODUCT"
@@ -84,19 +125,11 @@ def main(output_dir: str | Path = "outputs/capacity/smoke") -> tuple[int, int]:
     capacity_master_path = output_dir / "capacity_master_smoke.csv"
     _write_capacity_master_smoke_csv(capacity_master_path)
 
-    usage_records, violation_records = run_capacity_report_hook(
-        enabled=True,
-        scenario_id=scenario_id,
-        product_name=product_name,
-        weeks=weeks,
-        outbound_root=outbound_root,
-        inbound_root=inbound_root,
-        capacity_master_path=capacity_master_path,
+    usage_count, violation_count = run_smoke_runner_with_optional_capacity_report(
         output_dir=output_dir,
+        enable_capacity_report=True,
+        capacity_master_path=capacity_master_path,
     )
-
-    usage_count = len(usage_records)
-    violation_count = len(violation_records)
 
     print("Capacity report hook smoke runner completed.")
     print(f"Scenario: {scenario_id}")
