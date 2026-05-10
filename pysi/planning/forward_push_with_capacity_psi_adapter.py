@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from pysi.planning.bottleneck_allocation import AllocationRule, allocate_lots_at_bottleneck
+from pysi.planning.capacity_master import get_capacity_record
 from pysi.planning.capacity_io import (
     CapacityUsage,
     CapacityViolation,
@@ -57,8 +59,29 @@ def apply_capacity_to_node_psi_bucket(
     week: str | int,
     capacity_type: str,
     capacity_lookup: dict,
+    allocation_rule: AllocationRule | None = None,
 ) -> tuple[list, list, CapacityUsage | None, CapacityViolation | None]:
     requested_lots = list(get_psi_lots(node, "psi4demand", week, capacity_type))
+
+    record = get_capacity_record(
+        capacity_lookup,
+        scenario_id=scenario_id,
+        tree_side=tree_side,
+        node_name=node.name,
+        product_name=product_name,
+        week=str(week),
+        capacity_type=capacity_type,
+    )
+    allocation_result = allocate_lots_at_bottleneck(
+        node_name=node.name,
+        product_name=product_name,
+        week=week,
+        capacity_type=capacity_type,
+        requested_lots=requested_lots,
+        capacity_qty=None if record is None else record.capacity_qty,
+        rule=allocation_rule,
+    )
+
     plan_result, usage, violation = run_forward_push_with_capacity_from_master(
         scenario_id=scenario_id,
         tree_side=tree_side,
@@ -66,7 +89,7 @@ def apply_capacity_to_node_psi_bucket(
         product_name=product_name,
         week=str(week),
         capacity_type=capacity_type,
-        requested_lots=requested_lots,
+        requested_lots=allocation_result.ordered_lots,
         capacity_lookup=capacity_lookup,
     )
     append_psi_lots(node, "psi4supply", week, capacity_type, plan_result.pushed_lots)
@@ -82,6 +105,7 @@ def run_forward_push_with_capacity_psi_lists(
     product_name: str,
     capacity_lookup: dict,
     capacity_types: list[str] | None = None,
+    allocation_rule: AllocationRule | None = None,
 ) -> ForwardPushWithCapacityPsiResult:
     cap_types = capacity_types or ["P", "S"]
     result = ForwardPushWithCapacityPsiResult()
@@ -97,6 +121,7 @@ def run_forward_push_with_capacity_psi_lists(
                     week=week,
                     capacity_type=capacity_type,
                     capacity_lookup=capacity_lookup,
+                    allocation_rule=allocation_rule,
                 )
                 key = (node.name, product_name, week, capacity_type)
                 result.accepted_lots_by_key[key] = list(accepted_lots)
