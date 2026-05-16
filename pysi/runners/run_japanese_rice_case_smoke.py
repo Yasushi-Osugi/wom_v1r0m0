@@ -62,6 +62,31 @@ def run_smoke(output_dir: Path | None = None) -> dict[str, object]:
         ],
     )
 
+    inventory_rows: list[dict[str, object]] = []
+    for week_result in weekly:
+        for crop_year in (2025, 2026, 2027):
+            p = week_result.P_by_crop_year.get(crop_year, 0.0)
+            s = week_result.S_by_crop_year.get(crop_year, 0.0)
+            i = week_result.I_by_crop_year.get(crop_year, 0.0)
+            inventory_rows.append(
+                {
+                    "scenario_id": dataset.scenario_id,
+                    "week": week_result.week,
+                    "product_id": PRODUCT_ID,
+                    "crop_year": crop_year,
+                    "P": p,
+                    "S": s,
+                    "I": i,
+                    "inventory_value": i * dataset.cost_price["purchase_cost_per_lot"],
+                    "comment": "Crop-year inventory tracking (FIFO by crop_year)",
+                }
+            )
+    _write_csv(
+        out_dir / "rice_inventory_by_crop_year.csv",
+        inventory_rows,
+        ["scenario_id", "week", "product_id", "crop_year", "P", "S", "I", "inventory_value", "comment"],
+    )
+
     cost_rows = [
         {
             "scenario_id": dataset.scenario_id,
@@ -83,7 +108,7 @@ def run_smoke(output_dir: Path | None = None) -> dict[str, object]:
             "scenario_id": dataset.scenario_id,
             "kpi_id": kpi,
             "value": value,
-            "unit": "ratio" if "rate" in kpi or "margin" in kpi or "utilization" in kpi else "lot",
+            "unit": "year" if kpi == "main_evaluation_year" else "ratio" if "rate" in kpi or "margin" in kpi or "utilization" in kpi else "lot",
             "comment": "MVP KPI",
         }
         for kpi, value in kpis.items()
@@ -104,35 +129,44 @@ def main() -> None:
     costs = result["costs"]
     kpis = result["kpis"]
 
-    print("=== Japanese Rice Case smoke ===")
+    print("=== Japanese Rice Case smoke v2 ===")
     print(f"scenario: {dataset.scenario_id}")
     print(f"product: {PRODUCT_ID}")
-    print(f"horizon: {dataset.weeks[0]}..{dataset.weeks[-1]}\n")
-    print("supply:")
-    print(f"  total harvest supply: {kpis['total_supply_qty']:.1f} lots")
-    print("  harvest weeks: W40-W44\n")
+    print(f"horizon: {dataset.weeks[0]}..{dataset.weeks[-1]}")
+    print(f"main evaluation year: {dataset.main_evaluation_year}\n")
+    print("crop cycles:")
+    print("  2025 crop carryover: 80.0 lots")
+    print("  2026 crop harvest: 100.0 lots")
+    print("  2027 crop harvest: 100.0 lots\n")
     print("demand:")
-    print(f"  total annual demand: {kpis['total_demand_qty']:.1f} lots")
-    print("  weekly demand: 1.6 lots\n")
-    print("PSI:")
-    print(f"  peak inventory: {kpis['peak_inventory_qty']:.1f} lots")
-    print(f"  ending inventory: {kpis['ending_inventory_qty']:.1f} lots")
-    print(f"  total shipped/sold: {kpis['total_shipped_qty']:.1f} lots\n")
-    print("capacity:")
-    print(f"  storage capacity: {dataset.storage_capacity:.0f} lots")
-    print(f"  peak storage utilization: {kpis['peak_storage_utilization'] * 100:.1f}%")
-    print(f"  milling capacity: {dataset.milling_capacity:.1f} lots/week")
-    print(f"  transport capacity: {dataset.transport_capacity:.1f} lots/week\n")
+    print("  weekly demand: 1.6 lots")
+    print(f"  total demand over horizon: {kpis['total_demand_qty']:.1f} lots")
+    print(f"  2027 demand: {1.6 * 52:.1f} lots\n")
+
+    ending = weekly[-1].I_by_crop_year
+    print("inventory by crop year:")
+    print(f"  ending 2025 crop inventory: {ending.get(2025, 0.0):.1f} lots")
+    print(f"  ending 2026 crop inventory: {ending.get(2026, 0.0):.1f} lots")
+    print(f"  ending 2027 crop inventory: {ending.get(2027, 0.0):.1f} lots\n")
+
+    y2027 = [r for r in weekly if r.week.startswith("2027-")]
+    consumed_2026_before_w40 = sum(r.S_by_crop_year.get(2026, 0.0) for r in y2027 if r.week <= "2027-W40")
+    consumed_2027_after_w41 = sum(r.S_by_crop_year.get(2027, 0.0) for r in y2027 if r.week >= "2027-W41")
+    end_2027 = next(r for r in weekly if r.week == "2027-W52").I
+
+    print("2027 evaluation:")
+    print(f"  2026 crop consumed before W40: {consumed_2026_before_w40:.1f} lots")
+    print("  2027 crop harvested W40-W44: 100.0 lots")
+    print(f"  2027 crop consumed after W41: {consumed_2027_after_w41:.1f} lots")
+    print(f"  ending inventory at 2027-W52: {end_2027:.1f} lots\n")
+
     print("money:")
     print(f"  total revenue: {costs['total_revenue']:.0f} JPY")
-    print(f"  total purchase cost: {costs['total_purchase_cost']:.0f} JPY")
     print(f"  total storage cost: {costs['total_storage_cost']:.0f} JPY")
     print(f"  total gross profit: {costs['gross_profit']:.0f} JPY\n")
     print("KPI:")
     print(f"  fill rate: {kpis['fill_rate'] * 100:.1f}%")
-    avg_inventory = sum(x.I for x in weekly) / len(weekly)
-    turns = (kpis['total_shipped_qty'] / avg_inventory) if avg_inventory > 0 else 0.0
-    print(f"  inventory turnover proxy: {turns:.3f}")
+    print(f"  peak storage utilization: {kpis['peak_storage_utilization'] * 100:.1f}%")
 
 
 if __name__ == "__main__":
