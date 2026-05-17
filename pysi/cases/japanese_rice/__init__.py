@@ -6,6 +6,14 @@ from pysi.cases.japanese_rice.rice_case_adapter import (
     summarize_costs,
     summarize_kpis,
 )
+from pysi.cases.japanese_rice.rice_real_plannode_seed_integration import (
+    RealLikePlanNode,
+    RiceRealPlanNodeSeedResult,
+    build_plan_node_lookup_from_roots,
+    build_plan_node_lookup_from_tree,
+    make_real_like_plan_node,
+    seed_rice_weekly_input_to_real_like_plan_tree,
+)
 from pysi.cases.japanese_rice.rice_plan_input_integration import (
     RicePlanInputSeedResult,
     build_rice_row_attributes,
@@ -44,4 +52,10 @@ __all__ = [
     "run_weekly_psi_simulation",
     "summarize_costs",
     "summarize_kpis",
+    "RealLikePlanNode",
+    "RiceRealPlanNodeSeedResult",
+    "make_real_like_plan_node",
+    "build_plan_node_lookup_from_tree",
+    "build_plan_node_lookup_from_roots",
+    "seed_rice_weekly_input_to_real_like_plan_tree",
 ]
