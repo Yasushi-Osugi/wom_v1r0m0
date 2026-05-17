@@ -1,5 +1,16 @@
 # Codex Request: Implement Rice Case Backward Planning After Seed Smoke
 
+Please implement this request on the current branch:
+feature/with-capacity-psi-engine-v0r2
+
+Before coding, please verify that the following files exist:
+- docs/design/rice_case_backward_planning_after_seed.md
+- pysi/cases/japanese_rice/rice_actual_prod_tree_seed_integration.py
+- pysi/cases/japanese_rice/rice_real_plannode_seed_integration.py
+- pysi/cases/japanese_rice/rice_plan_input_integration.py
+- pysi/adapters/plan_node_seeding.py
+- tests/test_japanese_rice_actual_prod_tree_seed_integration.py
+
 ## 1. Background
 
 We are working on branch:
