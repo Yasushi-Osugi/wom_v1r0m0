@@ -21,6 +21,13 @@ from pysi.cases.japanese_rice.rice_actual_prod_tree_seed_integration import (
     resolve_product_plan_roots,
     seed_rice_weekly_input_to_actual_product_plan_nodes,
 )
+from pysi.cases.japanese_rice.rice_backward_planning_after_seed import (
+    RiceBackwardPlanningAfterSeedResult,
+    collect_lot_ids_from_demand_tree,
+    run_rice_backward_planning_after_seed_smoke,
+    validate_psi_buckets_are_lot_id_lists,
+)
+
 from pysi.cases.japanese_rice.rice_plan_input_integration import (
     RicePlanInputSeedResult,
     build_rice_row_attributes,
@@ -50,6 +57,10 @@ __all__ = [
     "RiceExecutablePlanInput",
     "RiceWeekResult",
     "build_default_rice_case_dataset",
+    "RiceBackwardPlanningAfterSeedResult",
+    "collect_lot_ids_from_demand_tree",
+    "validate_psi_buckets_are_lot_id_lists",
+    "run_rice_backward_planning_after_seed_smoke",
     "seed_rice_weekly_rows_to_mock_plan_nodes",
     "make_mock_plan_node",
     "build_rice_row_attributes",
