@@ -1,5 +1,15 @@
 """WOM plan input adapters."""
 
+from pysi.adapters.capacity_input_granularity import (
+    MonthlyCapacityInputRow as MonthlyCapacityInputRow,
+    WeeklyCapacityInputRow as WeeklyCapacityInputRow,
+    WeeklyCapacityRow as WeeklyCapacityRow,
+    monthly_capacity_to_weekly_rows as monthly_capacity_to_weekly_rows,
+    normalize_capacity_input_to_weekly_rows as normalize_capacity_input_to_weekly_rows,
+    normalize_capacity_owner_name as normalize_capacity_owner_name,
+    weekly_capacity_rows_to_weekly_capability as weekly_capacity_rows_to_weekly_capability,
+    weekly_capacity_to_weekly_rows as weekly_capacity_to_weekly_rows,
+)
 from pysi.adapters.calendar_445 import (
     build_445_month_to_weeks_map,
     build_445_week_to_month_map,
@@ -30,6 +40,14 @@ from pysi.adapters.weekly_plan_table import (
 )
 
 __all__ = [
+    "MonthlyCapacityInputRow",
+    "WeeklyCapacityInputRow",
+    "WeeklyCapacityRow",
+    "monthly_capacity_to_weekly_rows",
+    "weekly_capacity_to_weekly_rows",
+    "normalize_capacity_input_to_weekly_rows",
+    "normalize_capacity_owner_name",
+    "weekly_capacity_rows_to_weekly_capability",
     "MonthlyPlanInputRow",
     "WeeklyPlanInputRow",
     "WeeklyPlanRow",
