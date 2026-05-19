@@ -12,8 +12,6 @@
 - `docs/design/wom_plan_input_granularity_adapter_v0r2.md`
 - `docs/design/wom_plan_input_granularity_adapter_v0r3_plan_node_seeding.md`
 - `docs/design/legacy_pysi_v0r8_input_loader_mapping.md`
-- `docs/design/rice_case_backward_planning_after_seed.md`
-- `docs/design/rice_case_actual_prod_tree_seed_integration.md`
 
 ---
 
@@ -21,9 +19,9 @@
 
 This memo defines the **WOM Capacity Input Granularity Adapter**.
 
-The purpose is to normalize different capacity input granularities into a canonical weekly capacity structure that can be consumed by WOM Planning Engine components.
+The purpose is to normalize capacity inputs with different granularities into a canonical weekly capacity representation that can be consumed by WOM planning functions.
 
-The main target is:
+The main target flow is:
 
 ```text
 monthly capacity input
@@ -37,17 +35,19 @@ env.weekly_capability
 MOM capacity-aware planning / leveling
 ```
 
-This memo is especially focused on the MOM production capacity path:
+The primary use case is MOM production capacity:
 
 ```text
 P_capacity_month / P_capacity_week
     ↓
-weekly capability
+WeeklyCapacityRow
     ↓
-MOM capacity-constrained planning
+env.weekly_capability[product][MOM_node][week]
+    ↓
+level_mom_demand_with_capacity(...)
 ```
 
-This is separate from demand or production plan input.
+This is separate from demand / supply plan input.
 
 ---
 
@@ -72,7 +72,7 @@ env.weekly_capability[product][MOMxxx] = [cap_lot per week]
 env.weekly_capability_df
 ```
 
-This confirms that a monthly capacity to weekly capability path already exists.
+Therefore, the path from monthly capacity-like data to `env.weekly_capability` already exists.
 
 However, the current implementation uses a simplified rule:
 
@@ -86,9 +86,9 @@ where:
 month offset = (month - 1) * 4
 ```
 
-This differs from the newer Plan Input Granularity Adapter, which defines a 4-4-5 calendar adapter.
+This differs from the newer Plan Input Granularity Adapter, which defines a 4-4-5 planning calendar.
 
-Therefore, capacity input should be normalized with the same discipline as plan input.
+The purpose of this memo is to define a cleaner and more explicit capacity input layer that can support both the current legacy behavior and the new 4-4-5-compatible behavior.
 
 ---
 
@@ -98,12 +98,18 @@ The key design principle is:
 
 ```text
 Capacity input should be normalized independently from demand / supply plan input.
+```
 
-Demand / supply plan:
-    describes what is required or planned
+Demand / supply plan input answers:
 
-Capacity:
-    describes what is possible
+```text
+What is required or planned?
+```
+
+Capacity input answers:
+
+```text
+What is possible?
 ```
 
 Therefore, WOM should clearly distinguish:
@@ -133,6 +139,14 @@ In the current `capacity_provider_monthly_csv` plugin, it is treated as monthly 
 
 This is functional but semantically ambiguous.
 
+Recommended future naming:
+
+```text
+mom_P_capacity_month.csv
+P_capacity_month.csv
+capacity_P_month.csv
+```
+
 ### 4.2 Monthly-to-weekly rule is inconsistent
 
 Current capacity provider:
@@ -147,7 +161,7 @@ New plan input adapter:
 4-4-5 planning calendar
 ```
 
-This creates potential inconsistency between:
+This may create inconsistencies between:
 
 ```text
 weekly demand / plan rows
@@ -156,11 +170,11 @@ weekly capacity rows
 
 ### 4.3 Capacity input is not yet canonical
 
-The current capacity provider directly builds `env.weekly_capability`.
+The current plugin directly builds `env.weekly_capability`.
 
 It does not expose a reusable canonical weekly capacity table.
 
-This makes testing and future extension harder.
+This makes testing, auditing, and future extension harder.
 
 ---
 
@@ -226,6 +240,8 @@ constraint_json:
 
 `WeeklyCapacityRow` is the canonical intermediate representation of weekly capacity.
 
+All monthly / weekly / case-specific capacity inputs should eventually become `WeeklyCapacityRow`.
+
 ### 7.2 Suggested dataclass
 
 ```python
@@ -264,7 +280,17 @@ capacity_qty
 
 ## 8. Monthly Capacity Input
 
-### 8.1 Suggested dataclass
+### 8.1 Purpose
+
+Monthly capacity input represents capacity limits given at monthly granularity.
+
+Example:
+
+```text
+MOM_CHINA can produce 400 lots in 2026-M01.
+```
+
+### 8.2 Suggested dataclass
 
 ```python
 @dataclass
@@ -282,25 +308,17 @@ class MonthlyCapacityInputRow:
     comment: str = ""
 ```
 
-Example:
-
-```python
-MonthlyCapacityInputRow(
-    scenario_id="BASE",
-    product_id="PRODUCT_X",
-    capacity_owner_type="node",
-    capacity_owner_id="MOM_CHINA",
-    month="2026-M01",
-    capacity_type="P",
-    capacity_qty=400.0,
-)
-```
-
 ---
 
 ## 9. Weekly Capacity Input
 
-### 9.1 Suggested dataclass
+### 9.1 Purpose
+
+Weekly capacity input represents capacity limits already provided by week.
+
+This should pass through without calendar conversion.
+
+### 9.2 Suggested dataclass
 
 ```python
 @dataclass
@@ -316,20 +334,6 @@ class WeeklyCapacityInputRow:
     unit: str = "LOT"
     source_id: str = ""
     comment: str = ""
-```
-
-Example:
-
-```python
-WeeklyCapacityInputRow(
-    scenario_id="RICE_AS_IS",
-    product_id="PACKAGED_RICE_STANDARD",
-    capacity_owner_type="node",
-    capacity_owner_id="MILL_EAST",
-    week="2027-W40",
-    capacity_type="P",
-    capacity_qty=5.0,
-)
 ```
 
 ---
@@ -386,6 +390,7 @@ This mode preserves current plugin behavior.
 ```text
 M01 = W01-W04
 M02 = W05-W08
+M03 = W09-W12
 ...
 M12 = W45-W48
 ```
@@ -402,27 +407,11 @@ even
 
 Monthly capacity should be evenly divided across weeks in the selected calendar bucket.
 
-Example:
-
-```text
-capacity_qty = 400
-2026-M01 = 4 weeks
-weekly capacity = 100
-```
-
-For 5-week months under 4-4-5:
-
-```text
-capacity_qty = 500
-2026-M03 = 5 weeks
-weekly capacity = 100
-```
-
 ---
 
-## 11. Monthly Capacity Conversion Function
+## 11. Conversion Functions
 
-Suggested function:
+### 11.1 Monthly capacity conversion
 
 ```python
 def monthly_capacity_to_weekly_rows(
@@ -434,21 +423,7 @@ def monthly_capacity_to_weekly_rows(
     ...
 ```
 
-Expected behavior:
-
-```text
-1. use calendar adapter to get weeks in month
-2. distribute monthly capacity into weekly capacity
-3. produce WeeklyCapacityRow per week
-4. preserve capacity_owner_type / capacity_owner_id
-5. preserve cap_mode / unit / source_id / comment
-```
-
----
-
-## 12. Weekly Capacity Pass-through
-
-Suggested function:
+### 11.2 Weekly capacity pass-through
 
 ```python
 def weekly_capacity_to_weekly_rows(
@@ -459,21 +434,7 @@ def weekly_capacity_to_weekly_rows(
     ...
 ```
 
-Behavior:
-
-```text
-week key is preserved
-capacity_qty is preserved
-capacity_type is preserved
-```
-
-This is especially important for case_weekly inputs such as Rice and Vaccine cases.
-
----
-
-## 13. Capacity Input Dispatcher
-
-Suggested dispatcher:
+### 11.3 Dispatcher
 
 ```python
 def normalize_capacity_input_to_weekly_rows(
@@ -487,7 +448,7 @@ def normalize_capacity_input_to_weekly_rows(
     ...
 ```
 
-Supported input modes:
+Supported modes:
 
 ```text
 monthly_capacity
@@ -499,11 +460,11 @@ Invalid input mode should raise `ValueError`.
 
 ---
 
-## 14. Mapping to `env.weekly_capability`
+## 12. Mapping to `env.weekly_capability`
 
-### 14.1 Purpose
+### 12.1 Purpose
 
-Convert canonical weekly capacity rows into WOM runtime capability dictionary.
+Convert canonical weekly capacity rows into the WOM runtime capability dictionary.
 
 Current expected structure:
 
@@ -511,7 +472,7 @@ Current expected structure:
 env.weekly_capability[product][MOM_node] = [cap_lot_per_week]
 ```
 
-### 14.2 Suggested function
+### 12.2 Suggested function
 
 ```python
 def weekly_capacity_rows_to_weekly_capability(
@@ -524,7 +485,7 @@ def weekly_capacity_rows_to_weekly_capability(
     ...
 ```
 
-### 14.3 Owner name normalization
+### 12.3 Owner name normalization
 
 Current capacity provider normalizes:
 
@@ -534,14 +495,7 @@ DADxxx → MOMxxx
 
 This should be supported as a configurable option.
 
-Suggested function:
-
-```python
-def normalize_capacity_owner_name(owner_id: str) -> str:
-    ...
-```
-
-MVP behavior:
+Suggested behavior:
 
 ```text
 if owner starts with DAD:
@@ -550,7 +504,7 @@ else:
     return owner
 ```
 
-### 14.4 Capacity type filter
+### 12.4 Capacity type filter
 
 For `env.weekly_capability`, initially focus on:
 
@@ -571,7 +525,7 @@ with separate runtime structures.
 
 ---
 
-## 15. Relationship to MOM Capacity Leveling
+## 13. Relationship to MOM Capacity Leveling
 
 The primary consumer is:
 
@@ -601,9 +555,9 @@ MOM capacity-constrained backward planning
 
 ---
 
-## 16. Relationship to Existing Plugin
+## 14. Relationship to Existing Capacity Provider Plugin
 
-### 16.1 Existing plugin
+### 14.1 Existing plugin
 
 ```text
 pysi/plugins/capacity_provider_monthly_csv/plugin.py
@@ -619,7 +573,7 @@ sku_P_month_data.csv
 env.weekly_capability
 ```
 
-### 16.2 New adapter role
+### 14.2 New adapter role
 
 The new adapter should not immediately replace this plugin.
 
@@ -633,7 +587,7 @@ Instead:
 
 ---
 
-## 17. Suggested Files
+## 15. Suggested Files
 
 Suggested new files:
 
@@ -652,9 +606,9 @@ Do not modify the plugin in v0r1 unless explicitly requested.
 
 ---
 
-## 18. Test Policy
+## 16. Test Policy
 
-### 18.1 4-4-5 tests
+### 16.1 4-4-5 tests
 
 ```text
 1. monthly capacity M01 expands to W01-W04
@@ -662,7 +616,7 @@ Do not modify the plugin in v0r1 unless explicitly requested.
 3. 12 months cover 52 weeks in 4-4-5 mode
 ```
 
-### 18.2 Legacy four-week mode tests
+### 16.2 Legacy four-week mode tests
 
 ```text
 1. M01 expands to W01-W04
@@ -670,7 +624,7 @@ Do not modify the plugin in v0r1 unless explicitly requested.
 3. four-week mode does not claim to cover all 52 weeks
 ```
 
-### 18.3 Weekly pass-through tests
+### 16.3 Weekly pass-through tests
 
 ```text
 1. weekly input preserves week key
@@ -678,7 +632,7 @@ Do not modify the plugin in v0r1 unless explicitly requested.
 3. case_weekly_capacity input preserves Rice W40 / W41 boundary
 ```
 
-### 18.4 weekly_capability mapping tests
+### 16.4 weekly_capability mapping tests
 
 ```text
 1. WeeklyCapacityRow maps to env.weekly_capability-like dict
@@ -690,7 +644,7 @@ Do not modify the plugin in v0r1 unless explicitly requested.
 
 ---
 
-## 19. Completion Criteria
+## 17. Completion Criteria
 
 This design is complete when future implementation can show:
 
@@ -710,7 +664,7 @@ This design is complete when future implementation can show:
 
 ---
 
-## 20. Future Refactor Path
+## 18. Future Refactor Path
 
 ### v0r1
 
@@ -746,7 +700,7 @@ connect capacity inputs to E2E Evaluation / Management Issue
 
 ---
 
-## 21. Summary
+## 19. Summary
 
 The capacity input layer should follow the same principle as the plan input layer.
 
