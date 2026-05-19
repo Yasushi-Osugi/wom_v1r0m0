@@ -1,7 +1,7 @@
 # Current WOM Backward Planning and Capacity Flow Mapping
 
-**Version:** v0r1 draft  
-**Date:** 2026-05-18  
+**Version:** v0r2 revised with capacity-provider findings  
+**Date:** 2026-05-19  
 **Status:** Design / implementation mapping memo  
 **Target path:** `docs/design/current_wom_backward_planning_and_capacity_flow_mapping.md`
 
@@ -15,10 +15,11 @@ This memo maps the current WOM / PySI V0R8 planning flow around:
 - `supply_point` connection
 - MOM allocation
 - MOM capacity leveling
+- capacity provider plugins
 - demand-to-supply bridge candidates
 - future placement of With Capacity Forward PUSH Planning
 
-The goal is to clarify existing implementation before changing the next bridge or capacity-aware forward planning functions.
+The goal is to clarify the existing implementation before designing or changing the next bridge or capacity-aware forward planning functions.
 
 ---
 
@@ -40,7 +41,7 @@ PlanNode.psi4demand seed
 Backward Planning smoke
 ```
 
-Before moving to:
+Before moving further to:
 
 ```text
 psi4demand
@@ -56,7 +57,7 @@ With Capacity Forward PUSH Planning
 
 we need to understand the existing engine sequence.
 
-Current WOM already contains several bridge-like and planning-like functions:
+Current WOM already contains several functions that look like:
 
 ```text
 outbound backward planning
@@ -65,15 +66,18 @@ market-to-MOM allocation
 MOM capacity leveling
 demand-to-supply bridge
 forward PUSH / PULL processing
+capacity provider plugins
 ```
 
 Therefore, the next step is not to create a new bridge blindly.
 
-The next step is to map the current engine.
+The next step is to map the current engine and identify canonical functions.
 
 ---
 
 ## 3. High-Level Current Flow Hypothesis
+
+The current `Run Full Plan` flow can be understood as:
 
 ```text
 Run Full Plan
@@ -86,16 +90,16 @@ outbound → inbound connection
     ↓
 MOM allocation
     ↓
-inbound backward planning by MOM subtree
+MOM capacity feasibility / leveling
     ↓
-MOM capacity leveling
+inbound backward planning by MOM subtree
     ↓
 demand-to-supply bridge
     ↓
 forward supply planning / PUSH-PULL
 ```
 
-The exact runtime order should be confirmed by tracing `_run_planning_sequence(...)`.
+The exact runtime order should be confirmed by reading `_run_planning_sequence(...)`.
 
 ---
 
@@ -113,7 +117,7 @@ ttk.Button(action_row, text="Run Full Plan", command=self.run_full_plan)
 self._run_planning_sequence(use_selected_decouples=True)
 ```
 
-The planning sequence resolves:
+The planning sequence resolves the selected product and obtains product-specific roots:
 
 ```text
 out_root = env.prod_tree_dict_OT[prod]
@@ -200,6 +204,8 @@ INBOUND:
     supply_point → MOMxxx → upstream / leaf
 ```
 
+`supply_point` is the E2E connection point between demand-side and supply-side planning worlds.
+
 However, implementation must avoid blindly propagating the same demand from `supply_point` into all MOM branches.
 
 Existing inbound logic already recognizes this risk and processes MOM subtrees separately.
@@ -257,6 +263,15 @@ Current behavior:
 4. append lot to selected MOM.psi4demand[w][S]
 ```
 
+The code comment states the minimum skeleton:
+
+```text
+1. source lots を集める
+2. lot_id から market_key を抜く
+3. policy で担当 MOM を決める
+4. 担当 MOM の psi4demand[w][0] に lot を配る
+```
+
 This is current WOM's rule-based MOM allocation.
 
 It is not yet a full optimization model.
@@ -265,7 +280,7 @@ It is not yet a full optimization model.
 
 This can later become an OR / optimization model.
 
-Possible objectives:
+Possible objective functions:
 
 ```text
 service level
@@ -326,13 +341,15 @@ This structure avoids propagating identical demand into all MOM branches from `s
 
 ## 11. Processing B: MOM Capacity Leveling
 
-Current legacy / simple function:
+### 11.1 Legacy / simple capacity leveling
+
+Existing function:
 
 ```python
 inbound_MOM_leveling_vs_capacity(...)
 ```
 
-This inspects:
+This function inspects:
 
 ```python
 mom.psi4demand[w][3]
@@ -362,6 +379,45 @@ Capacity source priority:
 
 This corresponds to capacity-constrained backward leveling / advance production.
 
+### 11.2 Current `level_mom_demand_with_capacity`
+
+Search results confirm that:
+
+```text
+level_mom_demand_with_capacity
+```
+
+is implemented in:
+
+```text
+pysi/plan/engines.py
+```
+
+and called from:
+
+```text
+pysi/gui/cockpit_tk.py::_run_planning_sequence(...)
+```
+
+as step2.5.
+
+This means the current Run Full Plan likely uses the newer `level_mom_demand_with_capacity(...)` rather than the older `inbound_MOM_leveling_vs_capacity(...)`.
+
+### 11.3 Required next check
+
+The exact behavior of `level_mom_demand_with_capacity(...)` should be inspected directly.
+
+Important questions:
+
+```text
+1. Does it replace inbound_MOM_leveling_vs_capacity?
+2. Does it consume env.weekly_capability?
+3. Does it work before or after allocate_markets_to_moms?
+4. Does it perform advance production?
+5. Does it produce capacity_result?
+6. How does capacity_result connect to GUI / reporting?
+```
+
 ---
 
 ## 12. P_month Plan vs P_capacity Month
@@ -381,73 +437,173 @@ S_month supply:
     supply / shipment / sales quantity depending on context
 ```
 
-The legacy `sku_P_month_data.csv` may represent production plan or demand/plan input, not necessarily capacity.
+The legacy `sku_P_month_data.csv` may represent production plan or demand/plan input in some contexts.
 
-MOM capacity should have a clearer capacity input model such as:
+However, in the current plugin `capacity_provider_monthly_csv`, `sku_P_month_data.csv` is used as a monthly capacity input for building `env.weekly_capability`.
 
-```text
-mom_P_capacity_month.csv
-P_capacity_month.csv
-capacity_P_month.csv
-```
+The name is therefore overloaded and should be clarified.
 
 ---
 
-## 13. P_month CSV and weekly_capability Open Issue
+## 13. Confirmed Capacity Provider Path
 
-Current confirmed behavior:
-
-```text
-inbound_MOM_leveling_vs_capacity(...)
-    can consume env.weekly_capability
-```
-
-Open issue:
+The plugin:
 
 ```text
-It is not yet confirmed that current WOM loads P_month capacity data into env.weekly_capability.
+pysi/plugins/capacity_provider_monthly_csv/plugin.py
 ```
 
-Required investigation:
+builds `env.weekly_capability` from monthly capacity CSV.
 
-```bat
-git grep -n "P_month"
-git grep -n "weekly_capability"
-git grep -n "capacity"
-git grep -n "capability"
-git grep -n "level_mom_demand_with_capacity"
-git grep -n "inbound_MOM_leveling_vs_capacity"
-```
-
-Questions:
+Current default input file:
 
 ```text
-1. Which file loads P_month_data.csv?
-2. Does P_month_data.csv represent plan or capacity?
-3. Is there a dedicated capacity CSV?
-4. Where is env.weekly_capability populated?
-5. Is monthly capacity converted to weekly capacity?
-6. Is 4-4-5 or ISO week used?
+sku_P_month_data.csv
 ```
+
+Current output:
+
+```text
+env.weekly_capability[product][MOMxxx] = [cap_lot per week]
+env.weekly_capability_df
+```
+
+The plugin normalizes DAD-like names to MOM-like names:
+
+```text
+DADxxx → MOMxxx
+```
+
+This confirms that a P-month-to-weekly-capability path exists.
+
+### 13.1 Current conversion rule
+
+The current plugin uses a simplified conversion:
+
+```text
+1 month = 4 weeks
+```
+
+It calculates month offset as:
+
+```text
+m_off = (month - 1) * 4
+```
+
+and distributes monthly capacity evenly over 4 weeks.
+
+### 13.2 Design issue
+
+This differs from the newer 4-4-5 calendar adapter used by the Plan Input Granularity Adapter.
+
+Current state:
+
+```text
+capacity_provider_monthly_csv:
+    1 month = 4 weeks
+
+plan_input_granularity_adapter:
+    4-4-5 calendar
+```
+
+This mismatch should be resolved in a future capacity input adapter.
 
 ---
 
-## 14. Demand-to-Supply Bridge Candidates
+## 14. Demand Provider Path
+
+The plugin:
+
+```text
+pysi/plugins/demand_provider_monthly_csv/plugin.py
+```
+
+loads monthly demand from:
+
+```text
+sku_S_month_data.csv
+S_month_data.csv
+```
+
+and generates:
+
+```text
+env.weekly_demand
+env.weekly_demand_df
+```
+
+It also calls:
+
+```text
+env.init_psi_spaces_and_demand()
+```
+
+when available.
+
+This suggests that the demand-side monthly-to-weekly-to-PSI initialization path already exists in plugin form.
+
+The new Plan Input Granularity Adapter is a cleaner, modular version of this idea.
+
+---
+
+## 15. Other Capacity-Related Plugins
+
+### 15.1 `capacity_clip`
+
+The `capacity_clip` plugin works on allocation mutation.
+
+Conceptual role:
+
+```text
+proposed shipments
+    ↓
+edge.capacity
+    ↓
+clipped shipments
+    ↓
+receipts recalculation
+```
+
+This is closer to forward allocation / shipment feasibility than to MOM P capacity loading.
+
+### 15.2 `capacity_allocator`
+
+The `capacity_allocator` plugin reads:
+
+```text
+weekly_constraints.json
+```
+
+and applies node and edge capacity limits to proposed shipments.
+
+This is another capacity path, separate from `capacity_provider_monthly_csv`.
+
+### 15.3 Interpretation
+
+There are currently multiple capacity-related mechanisms:
+
+```text
+1. monthly capacity provider → env.weekly_capability
+2. edge shipment clipper → clipped shipments
+3. weekly_constraints allocator → constrained allocation
+4. MOM demand leveling → capacity-aware backward planning
+```
+
+These should be mapped and unified conceptually, but not merged hastily.
+
+---
+
+## 16. Demand-to-Supply Bridge Candidates
 
 Current engine already has multiple bridge-like functions.
 
-### 14.1 `bridge_inbound_demand_to_supply(root)`
+### 16.1 `bridge_inbound_demand_to_supply(root)`
 
-This reads:
-
-```text
-node.psi4demand[w][S]
-```
-
-and sets:
+This function:
 
 ```text
-node.psi4supply[w] = [demand_s, [], [], []]
+reads node.psi4demand[w][S]
+sets node.psi4supply[w] = [demand_s, [], [], []]
 ```
 
 Meaning:
@@ -458,7 +614,7 @@ demand S
 supply S seed
 ```
 
-### 14.2 `copy_demand_to_supply_rec(node)`
+### 16.2 `copy_demand_to_supply_rec(node)`
 
 Inside `inbound_backward_MOM_to_leaf(...)`, demand is cloned to supply for each MOM subtree.
 
@@ -468,7 +624,7 @@ Conceptual behavior:
 node.psi4supply = clone(node.psi4demand)
 ```
 
-### 14.3 PUSH / PULL helpers
+### 16.3 Existing PUSH / PULL helpers
 
 Existing functions include:
 
@@ -482,13 +638,13 @@ push_pull_all_psi2i_decouple4supply5(...)
 
 These also perform demand-to-supply or supply-side actions.
 
-### 14.4 Design implication
+### 16.4 Design implication
 
 A new bridge should not be added until existing bridge candidates are mapped and a canonical bridge policy is selected.
 
 ---
 
-## 15. With Capacity Forward PUSH Placement
+## 17. With Capacity Forward PUSH Placement
 
 Future **With Capacity Forward PUSH Planning** should be placed after the demand-to-supply bridge.
 
@@ -523,7 +679,7 @@ It should validate and simulate supply execution under capacity constraints.
 
 ---
 
-## 16. Annual Capacity and ROI Interpretation
+## 18. Annual Capacity and ROI Interpretation
 
 MOM capacity has a management-level meaning.
 
@@ -572,7 +728,7 @@ This belongs to Management Cockpit / E2E Evaluation, not to low-level PSI bucket
 
 ---
 
-## 17. Current Confirmed Implementation Map
+## 19. Current Confirmed Implementation Map
 
 Confirmed or strongly indicated current implementation:
 
@@ -591,12 +747,26 @@ Outbound → Inbound connection:
 MOM Allocation:
     allocate_markets_to_moms(...)
 
+MOM Capacity Feasibility / Leveling:
+    level_mom_demand_with_capacity(...)
+    inbound_MOM_leveling_vs_capacity(...) legacy/simple
+
 Inbound Backward Planning:
     inbound_backward_MOM_to_leaf(...)
     calc_all_psiS2P2childS_preorder(...)
 
-MOM Capacity Leveling:
-    inbound_MOM_leveling_vs_capacity(...)
+Capacity Input:
+    capacity_provider_monthly_csv
+        sku_P_month_data.csv
+            ↓
+        env.weekly_capability
+
+Demand Input:
+    demand_provider_monthly_csv
+        sku_S_month_data.csv / S_month_data.csv
+            ↓
+        env.weekly_demand
+        init_psi_spaces_and_demand()
 
 Demand-to-Supply bridge candidates:
     bridge_inbound_demand_to_supply(...)
@@ -613,88 +783,83 @@ Forward Planning:
 
 ---
 
-## 18. Current Open Questions
+## 20. Current Open Questions
 
 The following must be clarified before designing the next bridge or capacity feature.
 
 ```text
 1. What is the exact current _run_planning_sequence step order?
-2. Is level_mom_demand_with_capacity implemented?
-3. Is level_mom_demand_with_capacity called from Run Full Plan?
+2. What exactly does level_mom_demand_with_capacity do?
+3. Does level_mom_demand_with_capacity replace inbound_MOM_leveling_vs_capacity?
 4. Is inbound_MOM_leveling_vs_capacity still active anywhere?
-5. Where is env.weekly_capability populated?
-6. Does P_month_data.csv mean production plan or production capacity?
-7. Is there a dedicated MOM capacity CSV?
-8. Which bridge function should become canonical?
+5. Should capacity_provider_monthly_csv move from 4-week/month to 4-4-5?
+6. Does sku_P_month_data.csv currently mean production capacity in all contexts?
+7. Is a clearer P_capacity_month.csv needed?
+8. Which demand-to-supply bridge function should become canonical?
 9. Where should With Capacity Forward PUSH be inserted?
 10. How should capacity investment / ROI scenario connect to KPI evaluation?
 ```
 
 ---
 
-## 19. Recommended Next Investigation
+## 21. Recommended Next Investigation
 
-### 19.1 Search commands
+### 21.1 Extract `_run_planning_sequence`
 
 Run:
 
 ```bat
-git grep -n "def _run_planning_sequence"
-git grep -n "outbound_backward_leaf_to_MOM"
-git grep -n "connect_outbound2inbound"
-git grep -n "allocate_markets_to_moms"
-git grep -n "level_mom_demand_with_capacity"
-git grep -n "inbound_MOM_leveling_vs_capacity"
-git grep -n "weekly_capability"
-git grep -n "P_month"
-git grep -n "bridge_inbound_demand_to_supply"
-git grep -n "copy_demand_to_supply"
-git grep -n "push_pull"
+python -c "from pathlib import Path; lines=Path('pysi/gui/cockpit_tk.py').read_text(encoding='utf-8', errors='ignore').splitlines(); [print(f'{i+1}: {lines[i]}') for i in range(1940,2225)]"
 ```
 
-### 19.2 Mapping output to produce
+This should produce the actual Run Full Plan step order.
 
-Create an updated implementation map showing:
+### 21.2 Inspect `level_mom_demand_with_capacity`
 
-```text
-function
-file
-called by
-input
-output
-PSI layer touched
-capacity source
-status
+Run:
+
+```bat
+python -c "from pathlib import Path; lines=Path('pysi/plan/engines.py').read_text(encoding='utf-8', errors='ignore').splitlines(); [print(f'{i+1}: {lines[i]}') for i in range(1100,1340)]"
+```
+
+### 21.3 Inspect capacity provider
+
+Run:
+
+```bat
+python -c "from pathlib import Path; lines=Path('pysi/plugins/capacity_provider_monthly_csv/plugin.py').read_text(encoding='utf-8', errors='ignore').splitlines(); [print(f'{i+1}: {lines[i]}') for i in range(1,180)]"
 ```
 
 ---
 
-## 20. Recommended Design Sequence
+## 22. Recommended Design Sequence
 
 Recommended next sequence:
 
 ```text
 1. Complete current implementation mapping.
 2. Identify canonical demand-to-supply bridge.
-3. Confirm weekly_capability loading path.
+3. Confirm level_mom_demand_with_capacity behavior.
 4. Design WOM capacity input granularity adapter.
-5. Design canonical demand-to-supply bridge.
-6. Design with Capacity Forward PUSH placement.
-7. Design annual capacity / ROI evaluation.
+5. Decide 4-week/month vs 4-4-5 capacity calendar policy.
+6. Design canonical demand-to-supply bridge.
+7. Design with Capacity Forward PUSH placement.
+8. Design annual capacity / ROI evaluation.
 ```
 
 ---
 
-## 21. Summary
+## 23. Summary
 
 Before adding a new demand-to-supply bridge or extending With Capacity Forward PUSH, WOM should first map its existing engine flow.
 
-Key understanding:
+Updated key understanding:
 
 ```text
 Outbound Backward Planning already exists.
 MOM allocation already exists as a policy-based function.
-MOM capacity leveling already exists in a legacy/simple form.
+level_mom_demand_with_capacity exists and is called from Run Full Plan.
+MOM capacity provider exists and populates env.weekly_capability.
 Demand-to-supply bridge candidates already exist.
 Forward PUSH/PULL functions already exist.
 ```
@@ -707,6 +872,7 @@ The next step is to:
 map the current engine,
 identify canonical functions,
 separate plan vs capacity inputs,
+align capacity calendar policy,
 and then insert With Capacity Forward PUSH at the correct location.
 ```
 
