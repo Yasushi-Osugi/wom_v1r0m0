@@ -24,4 +24,11 @@ __all__ = [
     "bridge_outbound_to_inbound_demand",
     "find_node_by_name",
     "iter_nodes",
+    "E2EBridgeForwardCapacitySmokeResult",
+    "run_e2e_bridge_forward_capacity_smoke",
 ]
+
+from .e2e_bridge_forward_capacity_smoke import (
+    E2EBridgeForwardCapacitySmokeResult,
+    run_e2e_bridge_forward_capacity_smoke,
+)
