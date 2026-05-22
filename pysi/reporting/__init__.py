@@ -3,9 +3,21 @@
 from .business_report_builder import build_business_report
 from .report_exporter import export_report_bundle
 from .report_runner import run_reporting_pipeline
+from .explicit_pipeline_capacity_report import (
+    ExplicitPipelineCapacityReport,
+    build_explicit_pipeline_capacity_report,
+    maybe_build_explicit_pipeline_capacity_report_from_env,
+    report_records_as_rows,
+    report_to_dict,
+)
 
 __all__ = [
     "build_business_report",
     "export_report_bundle",
     "run_reporting_pipeline",
+    "ExplicitPipelineCapacityReport",
+    "build_explicit_pipeline_capacity_report",
+    "maybe_build_explicit_pipeline_capacity_report_from_env",
+    "report_records_as_rows",
+    "report_to_dict",
 ]
