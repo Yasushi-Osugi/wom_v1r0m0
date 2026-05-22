@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from pysi.plan.bridges.e2e_bridge_forward_capacity_smoke import run_e2e_bridge_forward_capacity_smoke
+
+
+@dataclass
+class ExplicitBridgeCapacityPipelineResult:
+    product_name: str = ""
+
+    bridge_a_result: Any | None = None
+    mom_allocation_result: Any | None = None
+    backward_capacity_result: Any | None = None
+    bridge_b_result: Any | None = None
+    forward_capacity_result: Any | None = None
+    smoke_result: Any | None = None
+
+    source_lot_ids: list[str] = field(default_factory=list)
+    missing_lot_ids: list[str] = field(default_factory=list)
+
+    shifted_lot_ids: list[str] = field(default_factory=list)
+    backlog_lot_ids: list[str] = field(default_factory=list)
+    accepted_lot_ids: list[str] = field(default_factory=list)
+    blocked_lot_ids: list[str] = field(default_factory=list)
+    overflow_i_lot_ids: list[str] = field(default_factory=list)
+
+    capacity_usage: list[dict] = field(default_factory=list)
+    capacity_violations: list[dict] = field(default_factory=list)
+    replan_commands: list[dict] = field(default_factory=list)
+
+    non_list_bucket_errors: list[dict] = field(default_factory=list)
+    non_string_lot_errors: list[dict] = field(default_factory=list)
+
+    message: str = ""
+
+
+def run_explicit_bridge_capacity_pipeline(
+    *,
+    outbound_root,
+    inbound_root,
+    product: str,
+    mom_policy: dict,
+    backward_weekly_capability: dict,
+    forward_weekly_capacity: dict,
+    bridge_a_mode: str = "replace",
+    bridge_b_policy: str = "s_p_only",
+    bridge_b_mode: str = "replace",
+    max_early_build_weeks: int = 13,
+    cap_i_mode: str = "soft",
+    debug: bool = False,
+) -> ExplicitBridgeCapacityPipelineResult:
+    """Run the explicit bridge + capacity pipeline through the validated smoke flow.
+
+    MVP note:
+    - This wrapper intentionally reuses run_e2e_bridge_forward_capacity_smoke(...) to
+      avoid duplicating planning logic while providing a stable, runner-specific result
+      contract for later run_full_plan integration.
+    - Stage-specific result objects are currently not exposed by the smoke wrapper;
+      those fields remain None for now and can be populated in a future direct-composition phase.
+    """
+
+    smoke_result = run_e2e_bridge_forward_capacity_smoke(
+        outbound_root=outbound_root,
+        inbound_root=inbound_root,
+        product=product,
+        mom_policy=mom_policy,
+        backward_weekly_capability=backward_weekly_capability,
+        forward_weekly_capacity=forward_weekly_capacity,
+        bridge_a_mode=bridge_a_mode,
+        bridge_b_policy=bridge_b_policy,
+        bridge_b_mode=bridge_b_mode,
+        max_early_build_weeks=max_early_build_weeks,
+        cap_i_mode=cap_i_mode,
+        debug=debug,
+    )
+
+    blocked_lot_ids = sorted(set(getattr(smoke_result, "blocked_lot_ids", []) or []))
+    overflow_i_lot_ids = sorted(set(getattr(smoke_result, "overflow_i_lot_ids", []) or []))
+    # accepted_lot_ids is limited by smoke output availability in MVP; keep empty unless
+    # explicit accepted lot IDs become available from lower layers.
+    accepted_lot_ids: list[str] = []
+
+    return ExplicitBridgeCapacityPipelineResult(
+        product_name=product,
+        smoke_result=smoke_result,
+        source_lot_ids=[],
+        missing_lot_ids=list(getattr(smoke_result, "missing_lot_ids", []) or []),
+        shifted_lot_ids=[],
+        backlog_lot_ids=[],
+        accepted_lot_ids=accepted_lot_ids,
+        blocked_lot_ids=blocked_lot_ids,
+        overflow_i_lot_ids=overflow_i_lot_ids,
+        capacity_usage=[],
+        capacity_violations=[],
+        replan_commands=[],
+        non_list_bucket_errors=list(getattr(smoke_result, "non_list_bucket_errors", []) or []),
+        non_string_lot_errors=list(getattr(smoke_result, "non_string_lot_errors", []) or []),
+        message=(
+            "Explicit bridge + capacity pipeline completed via smoke wrapper "
+            "(Bridge A -> MOM allocation -> backward capacity planning -> Bridge B -> forward capacity)."
+        ),
+    )
