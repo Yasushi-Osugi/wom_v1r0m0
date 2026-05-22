@@ -138,3 +138,52 @@ def maybe_run_explicit_bridge_capacity_pipeline(ctx: dict) -> ExplicitBridgeCapa
     )
     ctx["explicit_bridge_capacity_pipeline_result"] = result
     return result
+
+
+def maybe_run_explicit_bridge_capacity_pipeline_from_env(
+    *,
+    env,
+    outbound_root,
+    inbound_root,
+    product,
+    mom_policy,
+    backward_weekly_capability=None,
+    forward_weekly_capacity=None,
+):
+    """
+    Small adapter for run_full_plan / planning-sequence integration.
+    Defaults the feature flag to False and allows env-level overrides.
+    """
+    ctx = {
+        "enable_explicit_bridge_capacity_pipeline": getattr(
+            env,
+            "enable_explicit_bridge_capacity_pipeline",
+            False,
+        ),
+    }
+    required_values = {
+        "explicit_pipeline_outbound_root": outbound_root,
+        "explicit_pipeline_inbound_root": inbound_root,
+        "explicit_pipeline_product": product,
+        "explicit_pipeline_mom_policy": mom_policy,
+        "explicit_pipeline_backward_weekly_capability": backward_weekly_capability,
+        "explicit_pipeline_forward_weekly_capacity": forward_weekly_capacity,
+    }
+    for key, value in required_values.items():
+        if value is not None:
+            ctx[key] = value
+    for key in (
+        "explicit_pipeline_bridge_a_mode",
+        "explicit_pipeline_bridge_b_policy",
+        "explicit_pipeline_bridge_b_mode",
+        "explicit_pipeline_max_early_build_weeks",
+        "explicit_pipeline_cap_i_mode",
+        "explicit_pipeline_debug",
+    ):
+        if hasattr(env, key):
+            ctx[key] = getattr(env, key)
+
+    result = maybe_run_explicit_bridge_capacity_pipeline(ctx)
+    if result is not None:
+        setattr(env, "explicit_bridge_capacity_pipeline_result", result)
+    return result

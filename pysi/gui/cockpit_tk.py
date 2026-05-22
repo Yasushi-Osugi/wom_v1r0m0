@@ -1944,6 +1944,9 @@ class WOMCockpit(tk.Tk):
 
     def _run_planning_sequence(self, *, use_selected_decouples: bool = True):
         import pysi.plan.engines as eng
+        from pysi.plan.explicit_bridge_capacity_pipeline import (
+            maybe_run_explicit_bridge_capacity_pipeline_from_env,
+        )
 
         prod = (self.var_product.get() or "").strip()
 
@@ -2068,6 +2071,16 @@ class WOMCockpit(tk.Tk):
             "UK": ["MOM_final_assy_EURO", "MOM_final_assy_ASIA"],
             "DEFAULT": ["MOM_final_assy_ASIA"],
         }
+
+        maybe_run_explicit_bridge_capacity_pipeline_from_env(
+            env=self.env,
+            outbound_root=out_root,
+            inbound_root=in_root,
+            product=prod,
+            mom_policy=MOM_POLICY_IPHONE,
+            backward_weekly_capability=getattr(self.env, "explicit_pipeline_backward_weekly_capability", None),
+            forward_weekly_capacity=getattr(self.env, "explicit_pipeline_forward_weekly_capacity", None),
+        )
 
         # ********
         # MOM ALLOCATION
