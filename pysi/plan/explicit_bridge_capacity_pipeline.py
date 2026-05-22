@@ -102,3 +102,39 @@ def run_explicit_bridge_capacity_pipeline(
             "(Bridge A -> MOM allocation -> backward capacity planning -> Bridge B -> forward capacity)."
         ),
     )
+
+
+def maybe_run_explicit_bridge_capacity_pipeline(ctx: dict) -> ExplicitBridgeCapacityPipelineResult | None:
+    """Conditionally run the explicit bridge+capacity pipeline based on a ctx feature flag."""
+    if not ctx.get("enable_explicit_bridge_capacity_pipeline", False):
+        return None
+
+    required_keys = [
+        "explicit_pipeline_outbound_root",
+        "explicit_pipeline_inbound_root",
+        "explicit_pipeline_product",
+        "explicit_pipeline_mom_policy",
+        "explicit_pipeline_backward_weekly_capability",
+        "explicit_pipeline_forward_weekly_capacity",
+    ]
+
+    for key in required_keys:
+        if key not in ctx:
+            raise ValueError(f"explicit bridge capacity pipeline enabled but missing ctx key: {key}")
+
+    result = run_explicit_bridge_capacity_pipeline(
+        outbound_root=ctx["explicit_pipeline_outbound_root"],
+        inbound_root=ctx["explicit_pipeline_inbound_root"],
+        product=ctx["explicit_pipeline_product"],
+        mom_policy=ctx["explicit_pipeline_mom_policy"],
+        backward_weekly_capability=ctx["explicit_pipeline_backward_weekly_capability"],
+        forward_weekly_capacity=ctx["explicit_pipeline_forward_weekly_capacity"],
+        bridge_a_mode=ctx.get("explicit_pipeline_bridge_a_mode", "replace"),
+        bridge_b_policy=ctx.get("explicit_pipeline_bridge_b_policy", "s_p_only"),
+        bridge_b_mode=ctx.get("explicit_pipeline_bridge_b_mode", "replace"),
+        max_early_build_weeks=ctx.get("explicit_pipeline_max_early_build_weeks", 13),
+        cap_i_mode=ctx.get("explicit_pipeline_cap_i_mode", "soft"),
+        debug=ctx.get("explicit_pipeline_debug", False),
+    )
+    ctx["explicit_bridge_capacity_pipeline_result"] = result
+    return result
