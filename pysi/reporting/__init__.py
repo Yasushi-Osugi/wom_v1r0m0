@@ -11,6 +11,14 @@ from .explicit_pipeline_capacity_report import (
     report_to_dict,
 )
 
+from .explicit_pipeline_issue_candidates import (
+    ExplicitPipelineIssueCandidateBundle,
+    build_explicit_pipeline_issue_candidates,
+    maybe_build_explicit_pipeline_issue_candidates_from_env,
+    issue_candidates_to_dict,
+    issue_candidates_as_rows,
+)
+
 from .explicit_pipeline_capacity_report_exporter import (
     ExplicitPipelineCapacityReportExportResult,
     export_explicit_pipeline_capacity_report,
@@ -29,4 +37,9 @@ __all__ = [
     "ExplicitPipelineCapacityReportExportResult",
     "export_explicit_pipeline_capacity_report",
     "maybe_export_explicit_pipeline_capacity_report_from_env",
+    "ExplicitPipelineIssueCandidateBundle",
+    "build_explicit_pipeline_issue_candidates",
+    "maybe_build_explicit_pipeline_issue_candidates_from_env",
+    "issue_candidates_to_dict",
+    "issue_candidates_as_rows",
 ]
