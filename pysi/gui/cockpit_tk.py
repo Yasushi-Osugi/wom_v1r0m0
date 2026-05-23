@@ -1950,6 +1950,9 @@ class WOMCockpit(tk.Tk):
         from pysi.reporting.explicit_pipeline_capacity_report import (
             maybe_build_explicit_pipeline_capacity_report_from_env,
         )
+        from pysi.reporting.explicit_pipeline_reporting_flags import (
+            maybe_run_explicit_pipeline_reporting_stack_from_env,
+        )
 
         prod = (self.var_product.get() or "").strip()
 
@@ -2087,6 +2090,11 @@ class WOMCockpit(tk.Tk):
 
         if explicit_result is not None:
             maybe_build_explicit_pipeline_capacity_report_from_env(self.env)
+            maybe_run_explicit_pipeline_reporting_stack_from_env(
+                self.env,
+                output_root=getattr(self.env, "explicit_bridge_capacity_reporting_output_root", None),
+                cost_kpi_context=getattr(self.env, "explicit_bridge_capacity_cost_kpi_context", None),
+            )
 
         # ********
         # MOM ALLOCATION
