@@ -11,6 +11,12 @@ from .explicit_pipeline_capacity_report import (
     report_to_dict,
 )
 
+from .explicit_pipeline_capacity_report_exporter import (
+    ExplicitPipelineCapacityReportExportResult,
+    export_explicit_pipeline_capacity_report,
+    maybe_export_explicit_pipeline_capacity_report_from_env,
+)
+
 __all__ = [
     "build_business_report",
     "export_report_bundle",
@@ -20,4 +26,7 @@ __all__ = [
     "maybe_build_explicit_pipeline_capacity_report_from_env",
     "report_records_as_rows",
     "report_to_dict",
+    "ExplicitPipelineCapacityReportExportResult",
+    "export_explicit_pipeline_capacity_report",
+    "maybe_export_explicit_pipeline_capacity_report_from_env",
 ]
