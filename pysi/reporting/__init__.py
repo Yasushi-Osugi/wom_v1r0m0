@@ -24,6 +24,11 @@ from .explicit_pipeline_capacity_report_exporter import (
     export_explicit_pipeline_capacity_report,
     maybe_export_explicit_pipeline_capacity_report_from_env,
 )
+from .explicit_pipeline_issue_candidate_exporter import (
+    ExplicitPipelineIssueCandidateExportResult,
+    export_explicit_pipeline_issue_candidates,
+    maybe_export_explicit_pipeline_issue_candidates_from_env,
+)
 
 __all__ = [
     "build_business_report",
@@ -42,4 +47,7 @@ __all__ = [
     "maybe_build_explicit_pipeline_issue_candidates_from_env",
     "issue_candidates_to_dict",
     "issue_candidates_as_rows",
+    "ExplicitPipelineIssueCandidateExportResult",
+    "export_explicit_pipeline_issue_candidates",
+    "maybe_export_explicit_pipeline_issue_candidates_from_env",
 ]
