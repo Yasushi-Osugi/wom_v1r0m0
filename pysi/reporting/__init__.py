@@ -31,6 +31,11 @@ from .explicit_pipeline_issue_candidate_cost_kpi import (
     issue_candidate_kpi_bundle_to_dict,
     issue_candidate_kpi_bundle_as_rows,
 )
+from .explicit_pipeline_issue_candidate_cost_kpi_exporter import (
+    ExplicitPipelineIssueCandidateKPIExportResult,
+    export_explicit_pipeline_issue_candidate_kpi_bundle,
+    maybe_export_explicit_pipeline_issue_candidate_kpi_bundle_from_env,
+)
 
 from .explicit_pipeline_issue_candidate_exporter import (
     ExplicitPipelineIssueCandidateExportResult,
@@ -60,6 +65,9 @@ __all__ = [
     "maybe_enrich_explicit_pipeline_issue_candidates_with_cost_kpi_from_env",
     "issue_candidate_kpi_bundle_to_dict",
     "issue_candidate_kpi_bundle_as_rows",
+    "ExplicitPipelineIssueCandidateKPIExportResult",
+    "export_explicit_pipeline_issue_candidate_kpi_bundle",
+    "maybe_export_explicit_pipeline_issue_candidate_kpi_bundle_from_env",
     "ExplicitPipelineIssueCandidateExportResult",
     "export_explicit_pipeline_issue_candidates",
     "maybe_export_explicit_pipeline_issue_candidates_from_env",
