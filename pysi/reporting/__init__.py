@@ -37,6 +37,8 @@ from .explicit_pipeline_issue_candidate_cost_kpi_exporter import (
     maybe_export_explicit_pipeline_issue_candidate_kpi_bundle_from_env,
 )
 
+from .explicit_pipeline_reporting_flags import maybe_run_explicit_pipeline_reporting_stack_from_env
+
 from .explicit_pipeline_issue_candidate_exporter import (
     ExplicitPipelineIssueCandidateExportResult,
     export_explicit_pipeline_issue_candidates,
@@ -71,4 +73,5 @@ __all__ = [
     "ExplicitPipelineIssueCandidateExportResult",
     "export_explicit_pipeline_issue_candidates",
     "maybe_export_explicit_pipeline_issue_candidates_from_env",
+    "maybe_run_explicit_pipeline_reporting_stack_from_env",
 ]
