@@ -1947,6 +1947,9 @@ class WOMCockpit(tk.Tk):
         from pysi.plan.explicit_bridge_capacity_pipeline import (
             maybe_run_explicit_bridge_capacity_pipeline_from_env,
         )
+        from pysi.reporting.explicit_pipeline_capacity_report import (
+            maybe_build_explicit_pipeline_capacity_report_from_env,
+        )
 
         prod = (self.var_product.get() or "").strip()
 
@@ -2072,7 +2075,7 @@ class WOMCockpit(tk.Tk):
             "DEFAULT": ["MOM_final_assy_ASIA"],
         }
 
-        maybe_run_explicit_bridge_capacity_pipeline_from_env(
+        explicit_result = maybe_run_explicit_bridge_capacity_pipeline_from_env(
             env=self.env,
             outbound_root=out_root,
             inbound_root=in_root,
@@ -2081,6 +2084,9 @@ class WOMCockpit(tk.Tk):
             backward_weekly_capability=getattr(self.env, "explicit_pipeline_backward_weekly_capability", None),
             forward_weekly_capacity=getattr(self.env, "explicit_pipeline_forward_weekly_capacity", None),
         )
+
+        if explicit_result is not None:
+            maybe_build_explicit_pipeline_capacity_report_from_env(self.env)
 
         # ********
         # MOM ALLOCATION
