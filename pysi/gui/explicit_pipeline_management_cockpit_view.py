@@ -351,6 +351,99 @@ def build_explicit_pipeline_kpi_graph_view_model(view_model: dict) -> dict:
         "messages": messages,
     }
 
+def _build_na_kpi_card(title: str, unit: str, subtitle: str, source: str) -> dict[str, Any]:
+    return {
+        "title": title,
+        "value": "N/A",
+        "unit": unit,
+        "subtitle": subtitle,
+        "status": "unknown",
+        "source": source,
+    }
+
+
+def _status_from_numeric(value: Any) -> str:
+    if value is None:
+        return "unknown"
+    numeric = _to_float(value)
+    return "warning" if numeric > 0 else "normal"
+
+
+def _build_explicit_pipeline_kpi_cards(view_model: dict[str, Any]) -> list[dict[str, Any]]:
+    model = _as_dict(view_model)
+    specs = [
+        ("Total Business Impact", "", "Directional estimate", "executive_kpi_summary.estimated_total_business_impact"),
+        ("Capacity Violations", "records", "Capacity pressure", "capacity_summary.capacity_violation_record_count"),
+        ("Management Issues", "issues", "Management attention", "issue_summary.management_issue_candidate_count"),
+        ("Health Warnings", "warnings", "Data quality / health", "health_summary.health_issue_count | issue_summary.health_issue_candidate_count"),
+        ("Replan Candidates", "candidates", "Candidate-only actions", "len(replan_candidates) | issue_summary.replan_command_candidate_count"),
+    ]
+    if not model or not bool(model.get("available")):
+        return [_build_na_kpi_card(*spec) for spec in specs]
+
+    executive = _as_dict(model.get("executive_kpi_summary", {}))
+    capacity = _as_dict(model.get("capacity_summary", {}))
+    issue = _as_dict(model.get("issue_summary", {}))
+    health = _as_dict(model.get("health_summary", {}))
+
+    impact_value = executive.get("estimated_total_business_impact")
+    cards = [
+        {
+            "title": "Total Business Impact",
+            "value": _format_value(impact_value) if impact_value is not None else "N/A",
+            "unit": str(executive.get("currency", "") or ""),
+            "subtitle": "Directional estimate",
+            "status": _status_from_numeric(impact_value) if impact_value is not None else "unknown",
+            "source": "executive_kpi_summary.estimated_total_business_impact",
+        }
+    ]
+
+    card_values = [
+        ("Capacity Violations", capacity.get("capacity_violation_record_count"), "records", "Capacity pressure", "capacity_summary.capacity_violation_record_count"),
+        ("Management Issues", issue.get("management_issue_candidate_count"), "issues", "Management attention", "issue_summary.management_issue_candidate_count"),
+        ("Health Warnings", health.get("health_issue_count", issue.get("health_issue_candidate_count")), "warnings", "Data quality / health", "health_summary.health_issue_count | issue_summary.health_issue_candidate_count"),
+    ]
+    replan_list = model.get("replan_candidates")
+    replan_value = len(replan_list) if isinstance(replan_list, list) else issue.get("replan_command_candidate_count")
+    card_values.append(("Replan Candidates", replan_value, "candidates", "Candidate-only actions", "len(replan_candidates) | issue_summary.replan_command_candidate_count"))
+
+    for title, raw_value, unit, subtitle, source in card_values:
+        if raw_value is None:
+            cards.append(_build_na_kpi_card(title, unit, subtitle, source))
+            continue
+        cards.append({
+            "title": title,
+            "value": _format_value(_to_int(raw_value)),
+            "unit": unit,
+            "subtitle": subtitle,
+            "status": _status_from_numeric(raw_value),
+            "source": source,
+        })
+    return cards
+
+
+def _create_kpi_card(parent: tk.Widget, card: dict[str, Any]) -> ttk.Frame:
+    frame = ttk.LabelFrame(parent, text=str(card.get("title", "")), padding=8)
+    value = str(card.get("value", "N/A") or "N/A")
+    unit = str(card.get("unit", "") or "")
+    value_text = value if not unit else f"{value} {unit}"
+    ttk.Label(frame, text=value_text, font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
+    ttk.Label(frame, text=str(card.get("subtitle", ""))).pack(anchor="w", pady=(2, 0))
+    ttk.Label(frame, text=f"Status: {card.get('status', 'unknown')}").pack(anchor="w", pady=(2, 0))
+    return frame
+
+
+def _create_kpi_cards_frame(parent: tk.Widget, cards: list[dict[str, Any]]) -> ttk.Frame:
+    frame = ttk.Frame(parent)
+    frame.pack(fill="x", pady=(0, 8))
+    for i in range(5):
+        frame.grid_columnconfigure(i, weight=1)
+    for idx, card in enumerate(cards):
+        card_frame = _create_kpi_card(frame, card)
+        card_frame.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 4, 0))
+    return frame
+
+
 def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
     pipeline_result = _getattr(env, "explicit_bridge_capacity_pipeline_result")
     capacity_report = _getattr(env, "explicit_bridge_capacity_pipeline_report")
@@ -599,6 +692,7 @@ def render_explicit_pipeline_management_cockpit_tk(parent, view_model: dict) -> 
         ("Warnings", _format_value(issue_summary.get("warning_count", 0))),
         ("Errors", _format_value(issue_summary.get("error_count", 0))),
     ]
+    _create_kpi_cards_frame(summary_tab, _build_explicit_pipeline_kpi_cards(view_model))
     _create_key_value_tree(summary_tab, summary_rows)
     _create_graphs_tab(notebook, build_explicit_pipeline_kpi_graph_view_model(view_model))
 
