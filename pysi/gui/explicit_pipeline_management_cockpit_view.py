@@ -129,6 +129,108 @@ def _create_table(parent: tk.Widget, columns: list[str], rows: list[dict[str, An
     return tree
 
 
+def _truncate_label(label: Any, max_len: int = 40) -> str:
+    text = str(label or "")
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
+
+
+def _draw_chart_message(canvas: tk.Canvas, message: str) -> None:
+    canvas.delete("all")
+    width = int(canvas.cget("width"))
+    height = int(canvas.cget("height"))
+    canvas.create_text(width / 2, height / 2, text=message, fill="#333333", font=("TkDefaultFont", 10), justify="center")
+
+
+def _draw_horizontal_bar_chart(canvas: tk.Canvas, rows: list[dict[str, Any]], *, label_key: str = "label", value_key: str = "value", empty_message: str) -> None:
+    canvas.delete("all")
+    valid_rows = [row for row in rows if isinstance(row, dict)]
+    max_value = max((_to_float(row.get(value_key, 0.0)) for row in valid_rows), default=0.0)
+    if not valid_rows or max_value <= 0:
+        _draw_chart_message(canvas, empty_message)
+        return
+    width = int(canvas.cget("width"))
+    height = int(canvas.cget("height"))
+    top, bottom = 12, height - 12
+    bar_start, value_x = 190, width - 8
+    bar_max_width = max(1, value_x - bar_start - 68)
+    row_height = max(16, int((bottom - top) / max(1, len(valid_rows))))
+    for idx, row in enumerate(valid_rows):
+        value = max(0.0, _to_float(row.get(value_key, 0.0)))
+        y = top + idx * row_height + row_height / 2
+        bar_h = min(16, int(row_height * 0.6))
+        canvas.create_text(6, y, text=_truncate_label(row.get(label_key, "")), anchor="w", fill="#111111", font=("TkDefaultFont", 9))
+        bar_width = (value / max_value) * bar_max_width if max_value > 0 else 0
+        canvas.create_rectangle(bar_start, y - bar_h / 2, bar_start + bar_width, y + bar_h / 2, fill="#5B8FF9", outline="#5B8FF9")
+        canvas.create_text(value_x, y, text=_format_value(value), anchor="e", fill="#111111", font=("TkDefaultFont", 9))
+
+
+def _draw_distribution_bar_chart(canvas: tk.Canvas, rows: list[dict[str, Any]], *, label_key: str = "label", value_key: str = "value", empty_message: str) -> None:
+    canvas.delete("all")
+    valid_rows = [row for row in rows if isinstance(row, dict)]
+    max_value = max((_to_float(row.get(value_key, 0.0)) for row in valid_rows), default=0.0)
+    if not valid_rows or max_value <= 0:
+        _draw_chart_message(canvas, empty_message)
+        return
+    width = int(canvas.cget("width"))
+    height = int(canvas.cget("height"))
+    top, bottom = 16, height - 34
+    left, right = 28, width - 18
+    chart_h = max(1, bottom - top)
+    count = max(1, len(valid_rows))
+    slot_w = max(20, int((right - left) / count))
+    bar_w = max(10, int(slot_w * 0.55))
+    canvas.create_line(left, bottom, right, bottom, fill="#888888")
+    for idx, row in enumerate(valid_rows):
+        value = max(0.0, _to_float(row.get(value_key, 0.0)))
+        label = _truncate_label(row.get(label_key, ""), 16)
+        x_center = left + int((idx + 0.5) * slot_w)
+        bar_h = (value / max_value) * (chart_h - 6) if max_value > 0 else 0
+        x0, x1 = x_center - bar_w / 2, x_center + bar_w / 2
+        y0, y1 = bottom - bar_h, bottom
+        canvas.create_rectangle(x0, y0, x1, y1, fill="#7C7C7C", outline="#7C7C7C")
+        canvas.create_text(x_center, y0 - 6, text=_format_value(int(value) if float(value).is_integer() else value), anchor="s", fill="#111111", font=("TkDefaultFont", 9))
+        canvas.create_text(x_center, bottom + 4, text=label, anchor="n", fill="#111111", font=("TkDefaultFont", 9))
+
+
+def _create_canvas_chart_frame(parent: tk.Widget, title: str) -> tuple[ttk.Frame, tk.Canvas]:
+    frame = ttk.LabelFrame(parent, text=title, padding=6)
+    canvas = tk.Canvas(frame, width=520, height=240, bg="white", highlightthickness=1, highlightbackground="#d2d2d2")
+    canvas.pack(fill="both", expand=True)
+    return frame, canvas
+
+
+def _create_graphs_tab(notebook: ttk.Notebook, graph_model: dict[str, Any]) -> None:
+    tab = ttk.Frame(notebook, padding=8)
+    notebook.add(tab, text="Graphs")
+    for i in (0, 1):
+        tab.grid_columnconfigure(i, weight=1)
+        tab.grid_rowconfigure(i, weight=1)
+    top_frame, top_canvas = _create_canvas_chart_frame(tab, "Top Business Impact")
+    comp_frame, comp_canvas = _create_canvas_chart_frame(tab, "Cost / KPI Impact Composition")
+    sev_frame, sev_canvas = _create_canvas_chart_frame(tab, "Issue Severity Distribution")
+    week_frame, week_canvas = _create_canvas_chart_frame(tab, "Weekly Issue Count")
+    top_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6), pady=(0, 6))
+    comp_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0), pady=(0, 6))
+    sev_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 6), pady=(6, 6))
+    week_frame.grid(row=1, column=1, sticky="nsew", padx=(6, 0), pady=(6, 6))
+    _draw_horizontal_bar_chart(top_canvas, _as_list(graph_model.get("top_impact_bars", [])), empty_message="No top impact issues are available.")
+    _draw_horizontal_bar_chart(comp_canvas, _as_list(graph_model.get("impact_composition", [])), empty_message="No Cost / KPI impact composition is available.")
+    sev = _as_dict(graph_model.get("severity_distribution", {}))
+    _draw_distribution_bar_chart(
+        sev_canvas,
+        [{"label": "error", "value": sev.get("error", 0)}, {"label": "warning", "value": sev.get("warning", 0)}, {"label": "info", "value": sev.get("info", 0)}],
+        empty_message="No issue severity counts are available.",
+    )
+    week_rows = [{"label": str(row.get("week", "")), "value": row.get("count", 0)} for row in _as_list(graph_model.get("weekly_issue_counts", [])) if isinstance(row, dict)]
+    _draw_distribution_bar_chart(week_canvas, week_rows, empty_message="No week-level issue data is available.")
+    messages = [str(m) for m in _as_list(graph_model.get("messages", [])) if m is not None][:3]
+    if messages:
+        ttk.Label(tab, text="Graph Notes / Caveats").grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        for idx, message in enumerate(messages):
+            ttk.Label(tab, text=f"{idx + 1}. {message}", justify="left", wraplength=1080).grid(row=3 + idx, column=0, columnspan=2, sticky="w")
+
 
 
 def _to_int(value: Any) -> int:
@@ -498,6 +600,7 @@ def render_explicit_pipeline_management_cockpit_tk(parent, view_model: dict) -> 
         ("Errors", _format_value(issue_summary.get("error_count", 0))),
     ]
     _create_key_value_tree(summary_tab, summary_rows)
+    _create_graphs_tab(notebook, build_explicit_pipeline_kpi_graph_view_model(view_model))
 
     top_issues_tab = ttk.Frame(notebook, padding=8)
     notebook.add(top_issues_tab, text="Top Issues")
