@@ -1118,6 +1118,7 @@ class WOMCockpit(tk.Tk):
         ttk.Button(action_row, text="Trace Viewer", command=self.open_trace_viewer).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Price & Cost Structure", command=self.on_generate_price_cost_structure_chart).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Mgmt Cockpit", command=self.open_management_cockpit).pack(side="left", padx=(0, 6))
+        ttk.Button(action_row, text="Explicit KPI View", command=self._open_explicit_pipeline_kpi_view).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Business Animation", command=self.open_business_animation).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="PSI累計+利益率", command=self.open_psi_profit_animation).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Animation Viewer", command=self.open_animation_viewer).pack(side="left", padx=(0, 6))
@@ -4017,6 +4018,15 @@ class WOMCockpit(tk.Tk):
             win.lift()
         except Exception as e:
             print("[management_cockpit] open skipped:", e)
+
+    def _open_explicit_pipeline_kpi_view(self):
+        from pysi.gui.explicit_pipeline_management_cockpit_view import (
+            build_explicit_pipeline_management_cockpit_view_model,
+            render_explicit_pipeline_management_cockpit_tk,
+        )
+
+        view_model = build_explicit_pipeline_management_cockpit_view_model(self.env)
+        return render_explicit_pipeline_management_cockpit_tk(self, view_model)
 
     def refresh_management_cockpit_OLD(self, baseline_snapshot=None, scenario_snapshot=None):
         """
