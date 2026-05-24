@@ -129,6 +129,126 @@ def _create_table(parent: tk.Widget, columns: list[str], rows: list[dict[str, An
     return tree
 
 
+
+
+def _to_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _make_top_impact_label(row: dict[str, Any]) -> str:
+    issue_type = str(row.get("issue_type") or "issue")
+    node = str(row.get("node") or "")
+    week_value = str(row.get("week") or "")
+    if week_value and not week_value.lower().startswith("w"):
+        week_value = f"W{week_value}"
+    return f"{issue_type} / {node} / {week_value}"
+
+
+def _week_sort_key(value: Any) -> tuple[int, int, str]:
+    text = str(value or "").strip()
+    if not text:
+        return (2, 0, "")
+    lower = text.lower()
+    digits = ""
+    if lower.startswith("w"):
+        digits = "".join(ch for ch in lower[1:] if ch.isdigit())
+    elif text.isdigit():
+        digits = text
+    if digits:
+        return (0, int(digits), text)
+    return (1, 0, text)
+
+
+def build_explicit_pipeline_kpi_graph_view_model(view_model: dict) -> dict:
+    model = _as_dict(view_model)
+    if not bool(model.get("available")):
+        return {
+            "available": False,
+            "top_impact_bars": [],
+            "severity_distribution": {"error": 0, "warning": 0, "info": 0},
+            "impact_composition": [],
+            "weekly_issue_counts": [],
+            "messages": ["No explicit pipeline KPI view data is available for graph rendering."],
+        }
+
+    top_rows = []
+    for src in _as_list(model.get("top_impact_issues", [])):
+        if not isinstance(src, dict):
+            continue
+        row = {
+            "severity": str(src.get("severity") or ""),
+            "issue_type": str(src.get("issue_type") or "issue"),
+            "node": str(src.get("node") or ""),
+            "week": str(src.get("week") or ""),
+            "value": _to_float(src.get("estimated_total_business_impact", 0.0)),
+        }
+        row["label"] = _make_top_impact_label(row)
+        top_rows.append(row)
+
+    top_rows.sort(
+        key=lambda r: (
+            -_to_float(r.get("value")),
+            _severity_rank(r.get("severity")),
+            str(r.get("issue_type", "")),
+            str(r.get("node", "")),
+            str(r.get("week", "")),
+        )
+    )
+    top_rows = top_rows[:10]
+
+    issue_summary = _as_dict(model.get("issue_summary", {}))
+    severity_distribution = {
+        "error": _to_int(issue_summary.get("error_count", 0)),
+        "warning": _to_int(issue_summary.get("warning_count", 0)),
+        "info": _to_int(issue_summary.get("info_count", 0)),
+    }
+
+    executive = _as_dict(model.get("executive_kpi_summary", {}))
+    impact_composition = [
+        {"label": "Lost Sales", "value": _to_float(executive.get("estimated_lost_sales_value_total", 0.0))},
+        {"label": "Margin Impact", "value": _to_float(executive.get("estimated_margin_impact_total", 0.0))},
+        {"label": "Inventory Cost", "value": _to_float(executive.get("estimated_inventory_cost_impact_total", 0.0))},
+        {"label": "Capacity Cost", "value": _to_float(executive.get("estimated_capacity_cost_impact_total", 0.0))},
+        {"label": "Service Penalty", "value": _to_float(executive.get("estimated_service_penalty_total", 0.0))},
+    ]
+
+    counts: dict[str, int] = {}
+    for row in top_rows:
+        week = str(row.get("week") or "").strip()
+        if not week:
+            continue
+        counts[week] = counts.get(week, 0) + 1
+    weekly_issue_counts = [{"week": week, "count": counts[week]} for week in sorted(counts.keys(), key=_week_sort_key)]
+
+    messages = ["Graph model is derived from the current read-only KPI view model."]
+    existing_messages = [str(m) for m in _as_list(model.get("messages", [])) if m is not None]
+    for caveat in [
+        "Cost / KPI values are directional scenario estimates, not formal accounting values.",
+        "Double counting may be possible depending on assumptions.",
+    ]:
+        if caveat in existing_messages:
+            messages.append(caveat)
+    if not top_rows:
+        messages.append("No top impact issues are available for graph rendering.")
+    if not weekly_issue_counts:
+        messages.append("No week-level issue data is available for graph rendering.")
+
+    return {
+        "available": True,
+        "top_impact_bars": top_rows,
+        "severity_distribution": severity_distribution,
+        "impact_composition": impact_composition,
+        "weekly_issue_counts": weekly_issue_counts,
+        "messages": messages,
+    }
+
 def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
     pipeline_result = _getattr(env, "explicit_bridge_capacity_pipeline_result")
     capacity_report = _getattr(env, "explicit_bridge_capacity_pipeline_report")
