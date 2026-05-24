@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+import tkinter as tk
 from pathlib import Path
 from typing import Any
+from tkinter import ttk
 
 SEVERITY_PRIORITY = {
     "error": 0,
@@ -62,6 +65,68 @@ def _export_result_to_summary(value: Any) -> dict[str, Any]:
         "assumptions_path": _path_to_str(_getattr(value, "assumptions_path", "")),
         "message": str(_getattr(value, "message", "") or ""),
     }
+
+
+def _bool_label(value: Any) -> str:
+    return "Yes" if bool(value) else "No"
+
+
+def _format_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return _bool_label(value)
+    if isinstance(value, (int, float)):
+        if isinstance(value, float):
+            return f"{value:,.2f}"
+        return f"{value:,}"
+    if isinstance(value, Path):
+        return value.as_posix()
+    if isinstance(value, list):
+        return ", ".join(_format_value(item) for item in value)
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True, ensure_ascii=False)
+    return str(value)
+
+
+def _rows_from_dict(data: dict[str, Any]) -> list[tuple[str, str]]:
+    return [(str(k), _format_value(v)) for k, v in data.items()]
+
+
+def _insert_tree_rows(tree: ttk.Treeview, rows: list[tuple[str, ...]]) -> None:
+    for row in rows:
+        tree.insert("", "end", values=row)
+
+
+def _create_key_value_tree(parent: tk.Widget, rows: list[tuple[str, str]]) -> ttk.Treeview:
+    container = ttk.Frame(parent)
+    container.pack(fill="both", expand=True)
+    tree = ttk.Treeview(container, columns=("key", "value"), show="headings", height=12)
+    tree.heading("key", text="Key")
+    tree.heading("value", text="Value")
+    tree.column("key", width=320, anchor="w")
+    tree.column("value", width=700, anchor="w")
+    scrollbar = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=scrollbar.set)
+    tree.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+    _insert_tree_rows(tree, rows)
+    return tree
+
+
+def _create_table(parent: tk.Widget, columns: list[str], rows: list[dict[str, Any]]) -> ttk.Treeview:
+    container = ttk.Frame(parent)
+    container.pack(fill="both", expand=True)
+    tree = ttk.Treeview(container, columns=columns, show="headings")
+    for col in columns:
+        tree.heading(col, text=col)
+        tree.column(col, width=140, anchor="w")
+    scrollbar = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=scrollbar.set)
+    tree.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+    _insert_tree_rows(tree, [tuple(_format_value(row.get(col, "")) for col in columns) for row in rows])
+    return tree
 
 
 def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
@@ -270,3 +335,113 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
         "next_review_actions": next_review_actions,
         "messages": messages,
     }
+
+
+def render_explicit_pipeline_management_cockpit_tk(parent, view_model: dict) -> tk.Toplevel:
+    window = tk.Toplevel(parent)
+    window.title("Explicit Pipeline Management Cockpit KPI View")
+    window.geometry("1200x750")
+
+    root_frame = ttk.Frame(window, padding=8)
+    root_frame.pack(fill="both", expand=True)
+
+    if not bool(view_model.get("available", False)):
+        ttk.Label(
+            root_frame,
+            text="No explicit pipeline reporting data is available.\nRun planning with explicit pipeline enabled.",
+            justify="left",
+        ).pack(anchor="w", pady=(8, 4))
+
+    notebook = ttk.Notebook(root_frame)
+    notebook.pack(fill="both", expand=True)
+
+    summary_tab = ttk.Frame(notebook, padding=8)
+    notebook.add(summary_tab, text="Summary")
+    status = _as_dict(view_model.get("status", {}))
+    executive_kpi_summary = _as_dict(view_model.get("executive_kpi_summary", {}))
+    capacity_summary = _as_dict(view_model.get("capacity_summary", {}))
+    issue_summary = _as_dict(view_model.get("issue_summary", {}))
+    summary_rows = [
+        ("Product", _format_value(view_model.get("product", ""))),
+        ("Available", _format_value(view_model.get("available", False))),
+        ("Explicit Pipeline Result", _format_value(status.get("explicit_pipeline_result", False))),
+        ("Capacity Report", _format_value(status.get("capacity_report", False))),
+        ("Issue Candidates", _format_value(status.get("issue_candidates", False))),
+        ("Cost / KPI Bundle", _format_value(status.get("cost_kpi_bundle", False))),
+        ("Total Business Impact", _format_value(executive_kpi_summary.get("estimated_total_business_impact", 0.0))),
+        ("Currency", _format_value(executive_kpi_summary.get("currency", ""))),
+        ("Capacity Violations", _format_value(capacity_summary.get("capacity_violation_record_count", 0))),
+        ("Lot Exceptions", _format_value(capacity_summary.get("lot_exception_record_count", 0))),
+        ("Planning Issues", _format_value(issue_summary.get("planning_issue_candidate_count", 0))),
+        ("Management Issues", _format_value(issue_summary.get("management_issue_candidate_count", 0))),
+        ("Warnings", _format_value(issue_summary.get("warning_count", 0))),
+        ("Errors", _format_value(issue_summary.get("error_count", 0))),
+    ]
+    _create_key_value_tree(summary_tab, summary_rows)
+
+    top_issues_tab = ttk.Frame(notebook, padding=8)
+    notebook.add(top_issues_tab, text="Top Issues")
+    top_impact_issues = _as_list(view_model.get("top_impact_issues", []))
+    if top_impact_issues:
+        _create_table(
+            top_issues_tab,
+            ["rank", "severity", "issue_type", "impact_category", "product", "node", "week", "capacity_type", "estimated_total_business_impact", "lot_ids", "message"],
+            [row for row in top_impact_issues if isinstance(row, dict)],
+        )
+    else:
+        ttk.Label(top_issues_tab, text="No top impact issues are available.").pack(anchor="w")
+
+    replan_tab = ttk.Frame(notebook, padding=8)
+    notebook.add(replan_tab, text="Replan Candidates")
+    _create_table(
+        replan_tab,
+        ["status", "command_type", "issue_type", "product", "node", "week", "expected_benefit_category", "message", "suggested_action"],
+        [row for row in _as_list(view_model.get("replan_candidates", [])) if isinstance(row, dict)],
+    )
+
+    health_tab = ttk.Frame(notebook, padding=8)
+    notebook.add(health_tab, text="Health")
+    health_summary = _as_dict(view_model.get("health_summary", {}))
+    health_counts = ttk.Frame(health_tab)
+    health_counts.pack(fill="x", pady=(0, 8))
+    _create_key_value_tree(
+        health_counts,
+        _rows_from_dict(
+            {
+                "health_issue_count": health_summary.get("health_issue_count", 0),
+                "data_quality_risk_issue_count": health_summary.get("data_quality_risk_issue_count", 0),
+                "missing_lot_count": health_summary.get("missing_lot_count", 0),
+                "has_error": health_summary.get("has_error", False),
+                "has_warning": health_summary.get("has_warning", False),
+            }
+        ),
+    )
+    _create_table(
+        health_tab,
+        ["severity", "issue_type", "source", "message", "details"],
+        [row for row in _as_list(health_summary.get("top_health_issues", [])) if isinstance(row, dict)],
+    )
+
+    assumptions_exports_tab = ttk.Frame(notebook, padding=8)
+    notebook.add(assumptions_exports_tab, text="Assumptions / Exports")
+    assumption_summary = _as_dict(view_model.get("assumption_summary", {}))
+    ttk.Label(assumptions_exports_tab, text="Assumptions").pack(anchor="w")
+    _create_key_value_tree(assumptions_exports_tab, _rows_from_dict(assumption_summary))
+    ttk.Label(assumptions_exports_tab, text="Exports").pack(anchor="w", pady=(8, 0))
+    export_rows: list[tuple[str, str]] = []
+    for name, section in _as_dict(view_model.get("export_summary", {})).items():
+        export_rows.append((name, ""))
+        export_rows.extend((f"  {k}", _format_value(v)) for k, v in _as_dict(section).items())
+    _create_key_value_tree(assumptions_exports_tab, export_rows)
+
+    messages_tab = ttk.Frame(notebook, padding=8)
+    notebook.add(messages_tab, text="Messages")
+    ttk.Label(messages_tab, text="Messages").pack(anchor="w")
+    _create_key_value_tree(messages_tab, [(f"{idx + 1}.", _format_value(msg)) for idx, msg in enumerate(_as_list(view_model.get("messages", [])))])
+    ttk.Label(messages_tab, text="Next Review Actions").pack(anchor="w", pady=(8, 0))
+    _create_key_value_tree(
+        messages_tab,
+        [(f"{idx + 1}.", _format_value(msg)) for idx, msg in enumerate(_as_list(view_model.get("next_review_actions", [])))],
+    )
+
+    return window
