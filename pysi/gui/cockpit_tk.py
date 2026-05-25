@@ -988,6 +988,7 @@ class WOMCockpit(tk.Tk):
 
         # trace on/off
         self.var_trace_enabled = tk.BooleanVar(value=False)
+        self.var_enable_explicit_kpi_reporting = tk.BooleanVar(value=False)
         self.trace_event_sink = []
 
         # trace viewer state
@@ -1119,6 +1120,7 @@ class WOMCockpit(tk.Tk):
         ttk.Button(action_row, text="Price & Cost Structure", command=self.on_generate_price_cost_structure_chart).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Mgmt Cockpit", command=self.open_management_cockpit).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Explicit KPI View", command=self._open_explicit_pipeline_kpi_view).pack(side="left", padx=(0, 6))
+        ttk.Checkbutton(action_row, text="Explicit KPI ON", variable=self.var_enable_explicit_kpi_reporting).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Business Animation", command=self.open_business_animation).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="PSI累計+利益率", command=self.open_psi_profit_animation).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Animation Viewer", command=self.open_animation_viewer).pack(side="left", padx=(0, 6))
@@ -1903,7 +1905,23 @@ class WOMCockpit(tk.Tk):
     #            print("[ERROR] Run Full Plan:", e)
 
 
+    def _maybe_apply_explicit_kpi_demo_flags(self) -> dict[str, bool] | None:
+        var = getattr(self, "var_enable_explicit_kpi_reporting", None)
+        if var is None:
+            return None
+        if not var.get():
+            return None
+
+        from pysi.reporting import apply_explicit_pipeline_kpi_demo_flags
+
+        return apply_explicit_pipeline_kpi_demo_flags(
+            self.env,
+            include_exports=False,
+        )
+
+
     def run_full_plan(self):
+        self._maybe_apply_explicit_kpi_demo_flags()
         self.current_mode = "full_plan"
         baseline_snapshot = None
         try:
