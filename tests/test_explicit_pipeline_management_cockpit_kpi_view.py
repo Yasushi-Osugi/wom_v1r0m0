@@ -108,3 +108,26 @@ def test_partial_data_safe_defaults():
     assert isinstance(vm, dict)
     assert vm["capacity_summary"]["capacity_usage_record_count"] == 0
     assert vm["issue_summary"]["planning_issue_candidate_count"] == 0
+
+
+def test_ctx_guard_diagnostics_default_absent():
+    vm = build_explicit_pipeline_management_cockpit_view_model(SimpleNamespace())
+    assert vm["ctx_guard_skipped"] is False
+    assert vm["ctx_guard_missing_keys"] == []
+    assert vm["ctx_guard_message"] == ""
+
+
+def test_ctx_guard_diagnostics_present():
+    env = SimpleNamespace(
+        explicit_kpi_demo_flag_ctx_guard_skipped=True,
+        explicit_kpi_demo_flag_missing_ctx_keys=["explicit_pipeline_backward_weekly_capability"],
+        explicit_kpi_demo_flag_guard_message=(
+            "Explicit KPI demo pipeline skipped because required ctx keys are missing: "
+            "explicit_pipeline_backward_weekly_capability"
+        ),
+    )
+    vm = build_explicit_pipeline_management_cockpit_view_model(env)
+    assert vm["available"] is False
+    assert vm["ctx_guard_skipped"] is True
+    assert "explicit_pipeline_backward_weekly_capability" in vm["ctx_guard_missing_keys"]
+    assert "explicit_pipeline_backward_weekly_capability" in vm["ctx_guard_message"]

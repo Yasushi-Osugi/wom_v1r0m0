@@ -113,3 +113,13 @@ def test_graph_view_model_missing_invalid_values_safe_defaults():
     out = build_explicit_pipeline_kpi_graph_view_model(vm)
     assert out["top_impact_bars"][0]["value"] == 0.0
     assert out["severity_distribution"] == {"error": 0, "warning": 2, "info": 0}
+
+
+def test_graph_view_model_unavailable_includes_ctx_guard_message():
+    out = build_explicit_pipeline_kpi_graph_view_model({
+        "available": False,
+        "ctx_guard_skipped": True,
+        "ctx_guard_message": "Explicit KPI demo pipeline skipped because required ctx keys are missing: explicit_pipeline_backward_weekly_capability",
+        "ctx_guard_missing_keys": ["explicit_pipeline_backward_weekly_capability"],
+    })
+    assert any("explicit_pipeline_backward_weekly_capability" in m for m in out["messages"])

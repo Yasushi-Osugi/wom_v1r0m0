@@ -271,13 +271,20 @@ def _week_sort_key(value: Any) -> tuple[int, int, str]:
 def build_explicit_pipeline_kpi_graph_view_model(view_model: dict) -> dict:
     model = _as_dict(view_model)
     if not bool(model.get("available")):
+        unavailable_message = "No explicit pipeline KPI view data is available for graph rendering."
+        if bool(model.get("ctx_guard_skipped")):
+            unavailable_message = str(model.get("ctx_guard_message") or unavailable_message)
+        messages = [unavailable_message]
+        missing_keys = [str(k) for k in _as_list(model.get("ctx_guard_missing_keys", [])) if str(k)]
+        if bool(model.get("ctx_guard_skipped")) and missing_keys:
+            messages.append("Missing required context: " + ", ".join(missing_keys))
         return {
             "available": False,
             "top_impact_bars": [],
             "severity_distribution": {"error": 0, "warning": 0, "info": 0},
             "impact_composition": [],
             "weekly_issue_counts": [],
-            "messages": ["No explicit pipeline KPI view data is available for graph rendering."],
+            "messages": messages,
         }
 
     top_rows = []
@@ -472,9 +479,21 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
         ]
     )
 
+    ctx_guard_skipped = bool(_getattr(env, "explicit_kpi_demo_flag_ctx_guard_skipped", False))
+    ctx_guard_missing_keys = list(_getattr(env, "explicit_kpi_demo_flag_missing_ctx_keys", []) or [])
+    ctx_guard_message = str(_getattr(env, "explicit_kpi_demo_flag_guard_message", "") or "")
+
     messages: list[str] = []
     if not available:
-        messages.append("No explicit pipeline reporting data is available. Run planning with explicit pipeline enabled.")
+        if ctx_guard_skipped:
+            missing_text = ", ".join(str(key) for key in ctx_guard_missing_keys if key)
+            unavailable_message = ctx_guard_message or (
+                "Explicit KPI ON was enabled, but the explicit pipeline was skipped because required context is missing"
+                + (f": {missing_text}" if missing_text else ".")
+            )
+            messages.append(unavailable_message)
+        else:
+            messages.append("No explicit pipeline reporting data is available. Run planning with explicit pipeline enabled.")
 
     kpi_summary = _get_summary(kpi_bundle)
     executive_kpi_summary = {
@@ -525,6 +544,10 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
         issue_summary[k] = int(issue_summary.get(k, 0) or 0)
     if issue_candidates is None:
         messages.append("Issue candidates are not available or the flag is off.")
+    if ctx_guard_skipped:
+        messages.append("Context guard skipped explicit pipeline execution.")
+        if ctx_guard_missing_keys:
+            messages.append("Missing required context: " + ", ".join(str(k) for k in ctx_guard_missing_keys if k))
 
     mgmt = _as_list(_getattr(kpi_bundle, "enriched_management_issue_candidates", []))
     planning = _as_list(_getattr(kpi_bundle, "enriched_planning_issue_candidates", []))
@@ -649,6 +672,9 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
         "export_summary": export_summary,
         "next_review_actions": next_review_actions,
         "messages": messages,
+        "ctx_guard_skipped": ctx_guard_skipped,
+        "ctx_guard_missing_keys": ctx_guard_missing_keys,
+        "ctx_guard_message": ctx_guard_message,
     }
 
 
@@ -661,11 +687,15 @@ def render_explicit_pipeline_management_cockpit_tk(parent, view_model: dict) -> 
     root_frame.pack(fill="both", expand=True)
 
     if not bool(view_model.get("available", False)):
-        ttk.Label(
-            root_frame,
-            text="No explicit pipeline reporting data is available.\nRun planning with explicit pipeline enabled.",
-            justify="left",
-        ).pack(anchor="w", pady=(8, 4))
+        top_message = "No explicit pipeline reporting data is available.\nRun planning with explicit pipeline enabled."
+        if bool(view_model.get("ctx_guard_skipped", False)):
+            missing_keys = [str(k) for k in _as_list(view_model.get("ctx_guard_missing_keys", [])) if str(k)]
+            top_message = str(view_model.get("ctx_guard_message", "") or "")
+            if not top_message:
+                top_message = "Explicit KPI ON was enabled, but the explicit pipeline was skipped because required context is missing:"
+            if missing_keys:
+                top_message = f"{top_message}\n" + ", ".join(missing_keys)
+        ttk.Label(root_frame, text=top_message, justify="left").pack(anchor="w", pady=(8, 4))
 
     notebook = ttk.Notebook(root_frame)
     notebook.pack(fill="both", expand=True)
@@ -692,6 +722,12 @@ def render_explicit_pipeline_management_cockpit_tk(parent, view_model: dict) -> 
         ("Warnings", _format_value(issue_summary.get("warning_count", 0))),
         ("Errors", _format_value(issue_summary.get("error_count", 0))),
     ]
+    if bool(view_model.get("ctx_guard_skipped", False)):
+        missing_context = ", ".join(str(k) for k in _as_list(view_model.get("ctx_guard_missing_keys", [])) if k)
+        summary_rows.extend([
+            ("Context Guard", "Skipped"),
+            ("Missing Context", missing_context),
+        ])
     _create_kpi_cards_frame(summary_tab, _build_explicit_pipeline_kpi_cards(view_model))
     _create_key_value_tree(summary_tab, summary_rows)
     _create_graphs_tab(notebook, build_explicit_pipeline_kpi_graph_view_model(view_model))

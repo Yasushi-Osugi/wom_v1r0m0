@@ -151,3 +151,46 @@ def test_candidate_only_visibility_and_no_side_effects():
         window.destroy()
     finally:
         root.destroy()
+
+
+def _collect_label_texts(root):
+    texts = []
+    if isinstance(root, (tk.Label, ttk.Label)):
+        texts.append(str(root.cget("text")))
+    for child in root.winfo_children():
+        texts.extend(_collect_label_texts(child))
+    return texts
+
+
+def test_render_ctx_guard_unavailable_message_contains_missing_key_and_no_mutation():
+    root = _make_root_or_skip()
+    try:
+        vm = {
+            "available": False,
+            "product": "",
+            "status": {},
+            "executive_kpi_summary": {},
+            "capacity_summary": {},
+            "issue_summary": {},
+            "top_impact_issues": [],
+            "replan_candidates": [],
+            "health_summary": {},
+            "assumption_summary": {},
+            "export_summary": {},
+            "next_review_actions": [],
+            "messages": [],
+            "ctx_guard_skipped": True,
+            "ctx_guard_missing_keys": ["explicit_pipeline_backward_weekly_capability"],
+            "ctx_guard_message": "Explicit KPI demo pipeline skipped because required ctx keys are missing: explicit_pipeline_backward_weekly_capability",
+        }
+        before = copy.deepcopy(vm)
+        window = render_explicit_pipeline_management_cockpit_tk(root, vm)
+        notebook = _find_widget(window, ttk.Notebook)
+        assert notebook is not None
+        assert {notebook.tab(i, "text") for i in notebook.tabs()} >= {"Summary", "Graphs", "Messages"}
+        joined = "\n".join(_collect_label_texts(window))
+        assert "explicit_pipeline_backward_weekly_capability" in joined
+        assert vm == before
+        window.destroy()
+    finally:
+        root.destroy()
