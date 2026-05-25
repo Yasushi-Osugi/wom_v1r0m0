@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from pysi.reporting.explicit_pipeline_kpi_demo_flags import apply_explicit_pipeline_kpi_demo_flags
+from pysi.reporting.explicit_pipeline_kpi_demo_flags import get_missing_explicit_pipeline_demo_ctx_keys
 
 
 def _expected_map(include_exports: bool) -> dict[str, bool]:
@@ -50,3 +51,19 @@ def test_provided_cost_context_attached():
     apply_explicit_pipeline_kpi_demo_flags(env, cost_kpi_context={"scenario": "demo"})
 
     assert env.explicit_bridge_capacity_cost_kpi_context == {"scenario": "demo"}
+
+
+def test_missing_ctx_detection_reports_backward_weekly_capability():
+    env = SimpleNamespace()
+
+    missing = get_missing_explicit_pipeline_demo_ctx_keys(env)
+
+    assert "explicit_pipeline_backward_weekly_capability" in missing
+
+
+def test_missing_ctx_detection_empty_when_backward_weekly_capability_present():
+    env = SimpleNamespace(
+        explicit_pipeline_backward_weekly_capability={"MOM": {"W01": 100}}
+    )
+
+    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == []

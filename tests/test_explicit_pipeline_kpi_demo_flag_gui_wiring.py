@@ -69,6 +69,35 @@ def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_
     assert applied["enable_explicit_bridge_capacity_report_export"] is False
     assert applied["enable_explicit_bridge_capacity_issue_candidate_export"] is False
     assert applied["enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export"] is False
+    assert env.explicit_kpi_demo_flag_ctx_guard_skipped is True
+    assert "explicit_pipeline_backward_weekly_capability" in env.explicit_kpi_demo_flag_missing_ctx_keys
+    assert env.enable_explicit_bridge_capacity_pipeline is False
+    assert env.enable_explicit_bridge_capacity_report is False
+    assert env.enable_explicit_bridge_capacity_issue_candidates is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi is False
+    assert env.enable_explicit_bridge_capacity_report_export is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_export is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export is False
+
+
+def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_ctx_present():
+    env = SimpleNamespace(
+        explicit_pipeline_backward_weekly_capability={"MOM": {"W01": 100}}
+    )
+    fake = SimpleNamespace(
+        env=env,
+        var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
+    )
+
+    applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
+
+    assert applied is not None
+    assert env.explicit_kpi_demo_flag_ctx_guard_skipped is False
+    assert env.explicit_kpi_demo_flag_missing_ctx_keys == []
+    assert env.enable_explicit_bridge_capacity_pipeline is True
+    assert env.enable_explicit_bridge_capacity_report is True
+    assert env.enable_explicit_bridge_capacity_issue_candidates is True
+    assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi is True
 
 
 def test_run_full_plan_calls_preflight_hook_before_planning(monkeypatch):

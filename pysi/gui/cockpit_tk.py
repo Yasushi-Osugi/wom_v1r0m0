@@ -1912,12 +1912,41 @@ class WOMCockpit(tk.Tk):
         if not var.get():
             return None
 
-        from pysi.reporting import apply_explicit_pipeline_kpi_demo_flags
+        from pysi.reporting import (
+            apply_explicit_pipeline_kpi_demo_flags,
+            get_missing_explicit_pipeline_demo_ctx_keys,
+        )
 
-        return apply_explicit_pipeline_kpi_demo_flags(
+        applied = apply_explicit_pipeline_kpi_demo_flags(
             self.env,
             include_exports=False,
         )
+
+        missing_ctx_keys = get_missing_explicit_pipeline_demo_ctx_keys(self.env)
+        if missing_ctx_keys:
+            self.env.explicit_kpi_demo_flag_ctx_guard_skipped = True
+            self.env.explicit_kpi_demo_flag_missing_ctx_keys = list(missing_ctx_keys)
+            self.env.explicit_kpi_demo_flag_guard_message = (
+                "Explicit KPI demo pipeline skipped because required ctx keys are missing: "
+                + ", ".join(missing_ctx_keys)
+            )
+
+            for flag_name in (
+                "enable_explicit_bridge_capacity_pipeline",
+                "enable_explicit_bridge_capacity_report",
+                "enable_explicit_bridge_capacity_issue_candidates",
+                "enable_explicit_bridge_capacity_issue_candidate_cost_kpi",
+                "enable_explicit_bridge_capacity_report_export",
+                "enable_explicit_bridge_capacity_issue_candidate_export",
+                "enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export",
+            ):
+                setattr(self.env, flag_name, False)
+            return applied
+
+        self.env.explicit_kpi_demo_flag_ctx_guard_skipped = False
+        self.env.explicit_kpi_demo_flag_missing_ctx_keys = []
+        self.env.explicit_kpi_demo_flag_guard_message = ""
+        return applied
 
 
     def run_full_plan(self):

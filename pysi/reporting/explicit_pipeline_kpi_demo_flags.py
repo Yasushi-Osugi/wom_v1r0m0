@@ -15,6 +15,10 @@ _EXPORT_FLAGS = (
     "enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export",
 )
 
+_REQUIRED_EXPLICIT_PIPELINE_DEMO_CTX_KEYS = (
+    "explicit_pipeline_backward_weekly_capability",
+)
+
 
 def apply_explicit_pipeline_kpi_demo_flags(
     env: Any,
@@ -43,3 +47,17 @@ def apply_explicit_pipeline_kpi_demo_flags(
         env.explicit_bridge_capacity_cost_kpi_context = cost_kpi_context
 
     return applied
+
+
+def get_missing_explicit_pipeline_demo_ctx_keys(env: Any) -> list[str]:
+    """Return required explicit pipeline ctx keys that are missing on ``env``.
+
+    A key is considered missing when the attribute does not exist or the value is
+    ``None``.
+    """
+
+    missing: list[str] = []
+    for key in _REQUIRED_EXPLICIT_PIPELINE_DEMO_CTX_KEYS:
+        if not hasattr(env, key) or getattr(env, key) is None:
+            missing.append(key)
+    return missing
