@@ -1,0 +1,3 @@
+scenario,node,product,week,capability_lots,capability_type,unit,source,note
+base,MILL_EAST,PACKAGED_RICE_STANDARD,2027-W40,5,output,lot,japanese_rice_case_sample,Japanese Rice Case milling/output capacity proxy from RICE_AS_IS weekly capacity
+base,MILL_EAST,PACKAGED_RICE_STANDARD,2027-W41,6,output,lot,japanese_rice_case_sample,Japanese Rice Case milling/output capacity proxy from RICE_AS_IS weekly capacity
