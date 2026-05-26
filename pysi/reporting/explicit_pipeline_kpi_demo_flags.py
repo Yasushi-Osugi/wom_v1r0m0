@@ -17,6 +17,7 @@ _EXPORT_FLAGS = (
 
 _REQUIRED_EXPLICIT_PIPELINE_DEMO_CTX_KEYS = (
     "explicit_pipeline_backward_weekly_capability",
+    "explicit_pipeline_forward_weekly_capacity",
 )
 
 

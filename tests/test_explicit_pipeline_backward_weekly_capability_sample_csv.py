@@ -49,7 +49,9 @@ def test_sample_csv_attach_helper_attaches_context_and_clears_guard_key() -> Non
             }
         }
     }
-    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == []
+    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == [
+        "explicit_pipeline_forward_weekly_capacity"
+    ]
 
 
 def test_sample_csv_rows_use_base_scenario_for_gui_default_filter() -> None:

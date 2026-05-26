@@ -154,7 +154,9 @@ def test_env_attach_clears_existing_guard_missing_key():
 
     assert attached is env
     assert env.explicit_pipeline_backward_weekly_capability == context
-    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == []
+    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == [
+        "explicit_pipeline_forward_weekly_capacity"
+    ]
 
 
 def test_maybe_attach_missing_csv_does_not_attach(tmp_path):
@@ -192,7 +194,9 @@ def test_maybe_attach_valid_csv_attaches_context(tmp_path):
     assert result["node_count"] == 1
     assert result["product_count"] == 1
     assert env.explicit_pipeline_backward_weekly_capability == {"MOM_A": {"P1": {"202601": 100, "202602": 80}}}
-    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == []
+    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == [
+        "explicit_pipeline_forward_weekly_capacity"
+    ]
 
 
 def test_maybe_attach_invalid_only_csv_does_not_attach(tmp_path):

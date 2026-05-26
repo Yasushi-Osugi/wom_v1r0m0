@@ -94,7 +94,10 @@ def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_
     assert applied["enable_explicit_bridge_capacity_issue_candidate_export"] is False
     assert applied["enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export"] is False
     assert env.explicit_kpi_demo_flag_ctx_guard_skipped is True
-    assert "explicit_pipeline_backward_weekly_capability" in env.explicit_kpi_demo_flag_missing_ctx_keys
+    assert env.explicit_kpi_demo_flag_missing_ctx_keys == [
+        "explicit_pipeline_backward_weekly_capability",
+        "explicit_pipeline_forward_weekly_capacity",
+    ]
     assert env.enable_explicit_bridge_capacity_pipeline is False
     assert env.enable_explicit_bridge_capacity_report is False
     assert env.enable_explicit_bridge_capacity_issue_candidates is False
@@ -104,7 +107,41 @@ def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_
     assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export is False
 
 
-def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_ctx_present():
+def test_maybe_apply_explicit_kpi_demo_flags_skips_when_only_backward_ctx_present():
+    env = SimpleNamespace()
+    attach_called = {"value": False}
+    fake = SimpleNamespace(
+        env=env,
+        var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
+    )
+
+    def fake_attach():
+        attach_called["value"] = True
+        env.explicit_pipeline_backward_weekly_capability = {
+            "MOM_A": {"P1": {"202601": 100}}
+        }
+        return {"attached": True, "reason": "attached"}
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_attach
+
+    applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
+
+    assert applied is not None
+    assert attach_called["value"] is True
+    assert env.explicit_kpi_demo_flag_ctx_guard_skipped is True
+    assert env.explicit_kpi_demo_flag_missing_ctx_keys == [
+        "explicit_pipeline_forward_weekly_capacity"
+    ]
+    assert env.enable_explicit_bridge_capacity_pipeline is False
+    assert env.enable_explicit_bridge_capacity_report is False
+    assert env.enable_explicit_bridge_capacity_issue_candidates is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi is False
+    assert env.enable_explicit_bridge_capacity_report_export is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_export is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export is False
+
+
+def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_both_ctx_present():
     env = SimpleNamespace(
         explicit_pipeline_demand={"MOM_A": {"P1": {"202601": 10}}},
         explicit_pipeline_supply={"MOM_A": {"P1": {"202601": 10}}},
@@ -121,6 +158,9 @@ def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_ctx_presen
         attach_called["value"] = True
         env.explicit_pipeline_backward_weekly_capability = {
             "MOM_A": {"P1": {"202601": 100}}
+        }
+        env.explicit_pipeline_forward_weekly_capacity = {
+            "P1": {"MOM_A": {"P": {"202601": 100}}}
         }
         return {"attached": True, "reason": "attached"}
 

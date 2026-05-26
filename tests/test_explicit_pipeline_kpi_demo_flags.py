@@ -53,17 +53,31 @@ def test_provided_cost_context_attached():
     assert env.explicit_bridge_capacity_cost_kpi_context == {"scenario": "demo"}
 
 
-def test_missing_ctx_detection_reports_backward_weekly_capability():
+def test_missing_ctx_detection_reports_both_required_keys_for_empty_env():
     env = SimpleNamespace()
 
     missing = get_missing_explicit_pipeline_demo_ctx_keys(env)
 
-    assert "explicit_pipeline_backward_weekly_capability" in missing
+    assert missing == [
+        "explicit_pipeline_backward_weekly_capability",
+        "explicit_pipeline_forward_weekly_capacity",
+    ]
 
 
-def test_missing_ctx_detection_empty_when_backward_weekly_capability_present():
+def test_missing_ctx_detection_reports_forward_when_only_backward_present():
     env = SimpleNamespace(
         explicit_pipeline_backward_weekly_capability={"MOM": {"W01": 100}}
+    )
+
+    assert get_missing_explicit_pipeline_demo_ctx_keys(env) == [
+        "explicit_pipeline_forward_weekly_capacity"
+    ]
+
+
+def test_missing_ctx_detection_empty_when_backward_and_forward_present():
+    env = SimpleNamespace(
+        explicit_pipeline_backward_weekly_capability={"MOM": {"W01": 100}},
+        explicit_pipeline_forward_weekly_capacity={"P1": {"MOM": {"P": {"W01": 100}}}},
     )
 
     assert get_missing_explicit_pipeline_demo_ctx_keys(env) == []
