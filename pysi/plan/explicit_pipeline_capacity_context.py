@@ -92,3 +92,63 @@ def attach_explicit_pipeline_backward_weekly_capability_to_env(
 ) -> Any:
     env.explicit_pipeline_backward_weekly_capability = context
     return env
+
+
+def _count_capability_context(
+    context: Mapping[str, Mapping[str, Mapping[Any, Any]]],
+) -> tuple[int, int, int]:
+    node_count = len(context)
+    product_count = 0
+    record_count = 0
+    for product_map in context.values():
+        product_count += len(product_map)
+        for week_map in product_map.values():
+            record_count += len(week_map)
+    return node_count, product_count, record_count
+
+
+def maybe_attach_explicit_pipeline_backward_weekly_capability_from_csv(
+    env: Any,
+    path: str | Path = "data/explicit_pipeline_backward_weekly_capability.csv",
+    *,
+    scenario: str | None = "base",
+    strict: bool = False,
+    encoding: str = "utf-8-sig",
+) -> dict[str, Any]:
+    csv_path = Path(path)
+    result: dict[str, Any] = {
+        "path": str(csv_path),
+        "scenario": scenario,
+        "file_exists": csv_path.exists(),
+        "attached": False,
+        "record_count": 0,
+        "node_count": 0,
+        "product_count": 0,
+        "reason": "",
+    }
+
+    if not result["file_exists"]:
+        result["reason"] = "file_missing"
+    else:
+        context = load_explicit_pipeline_backward_weekly_capability_csv(
+            csv_path,
+            scenario=scenario,
+            strict=strict,
+            encoding=encoding,
+        )
+        node_count, product_count, record_count = _count_capability_context(context)
+        result["record_count"] = record_count
+        result["node_count"] = node_count
+        result["product_count"] = product_count
+
+        if record_count == 0:
+            result["reason"] = "empty_context"
+        else:
+            attach_explicit_pipeline_backward_weekly_capability_to_env(env, context)
+            result["attached"] = True
+
+    env.explicit_pipeline_backward_weekly_capability_attach_result = result
+    env.explicit_pipeline_backward_weekly_capability_source_path = str(csv_path)
+    env.explicit_pipeline_backward_weekly_capability_source_scenario = scenario
+    env.explicit_pipeline_backward_weekly_capability_attached = result["attached"]
+    return result
