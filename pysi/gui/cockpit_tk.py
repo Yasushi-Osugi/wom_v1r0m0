@@ -1922,6 +1922,8 @@ class WOMCockpit(tk.Tk):
             include_exports=False,
         )
 
+        self._maybe_attach_explicit_pipeline_backward_weekly_capability()
+
         missing_ctx_keys = get_missing_explicit_pipeline_demo_ctx_keys(self.env)
         if missing_ctx_keys:
             self.env.explicit_kpi_demo_flag_ctx_guard_skipped = True
@@ -1947,6 +1949,17 @@ class WOMCockpit(tk.Tk):
         self.env.explicit_kpi_demo_flag_missing_ctx_keys = []
         self.env.explicit_kpi_demo_flag_guard_message = ""
         return applied
+
+    def _maybe_attach_explicit_pipeline_backward_weekly_capability(
+        self,
+    ) -> dict[str, object] | None:
+        from pysi.plan.explicit_pipeline_capacity_context import (
+            maybe_attach_explicit_pipeline_backward_weekly_capability_from_csv,
+        )
+
+        return maybe_attach_explicit_pipeline_backward_weekly_capability_from_csv(
+            self.env
+        )
 
 
     def run_full_plan(self):

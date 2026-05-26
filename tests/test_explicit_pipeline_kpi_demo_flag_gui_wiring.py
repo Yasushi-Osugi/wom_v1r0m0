@@ -52,16 +52,40 @@ def test_maybe_apply_explicit_kpi_demo_flags_returns_none_when_checkbox_off():
     assert not hasattr(env, "enable_explicit_bridge_capacity_pipeline")
 
 
+def test_maybe_apply_explicit_kpi_demo_flags_checkbox_off_does_not_attempt_attach():
+    env = SimpleNamespace()
+    fake = SimpleNamespace(
+        env=env,
+        var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: False),
+    )
+
+    def fail_if_called():
+        raise AssertionError("attach helper must not be called when checkbox is OFF")
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fail_if_called
+
+    result = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
+
+    assert result is None
+
+
 def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_on():
     env = SimpleNamespace()
+    attach_called = {"value": False}
     fake = SimpleNamespace(
         env=env,
         var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
     )
+    def fake_attach():
+        attach_called["value"] = True
+        return {"attached": False, "reason": "file_missing"}
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_attach
 
     applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
 
     assert applied is not None
+    assert attach_called["value"] is True
     assert applied["enable_explicit_bridge_capacity_pipeline"] is True
     assert applied["enable_explicit_bridge_capacity_report"] is True
     assert applied["enable_explicit_bridge_capacity_issue_candidates"] is True
@@ -82,22 +106,39 @@ def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_
 
 def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_ctx_present():
     env = SimpleNamespace(
-        explicit_pipeline_backward_weekly_capability={"MOM": {"W01": 100}}
+        explicit_pipeline_demand={"MOM_A": {"P1": {"202601": 10}}},
+        explicit_pipeline_supply={"MOM_A": {"P1": {"202601": 10}}},
+        explicit_pipeline_node_capacity={"MOM_A": {"P1": {"202601": 10}}},
+        explicit_pipeline_cost_table={"MOM_A": {"P1": {"202601": 10}}},
+        explicit_pipeline_price_table={"MOM_A": {"P1": {"202601": 10}}},
     )
+    attach_called = {"value": False}
     fake = SimpleNamespace(
         env=env,
         var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
     )
+    def fake_attach():
+        attach_called["value"] = True
+        env.explicit_pipeline_backward_weekly_capability = {
+            "MOM_A": {"P1": {"202601": 100}}
+        }
+        return {"attached": True, "reason": "attached"}
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_attach
 
     applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
 
     assert applied is not None
+    assert attach_called["value"] is True
     assert env.explicit_kpi_demo_flag_ctx_guard_skipped is False
     assert env.explicit_kpi_demo_flag_missing_ctx_keys == []
     assert env.enable_explicit_bridge_capacity_pipeline is True
     assert env.enable_explicit_bridge_capacity_report is True
     assert env.enable_explicit_bridge_capacity_issue_candidates is True
     assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi is True
+    assert env.enable_explicit_bridge_capacity_report_export is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_export is False
+    assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export is False
 
 
 def test_run_full_plan_calls_preflight_hook_before_planning(monkeypatch):
