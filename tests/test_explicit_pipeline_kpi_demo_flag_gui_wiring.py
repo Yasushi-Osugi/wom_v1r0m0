@@ -63,6 +63,7 @@ def test_maybe_apply_explicit_kpi_demo_flags_checkbox_off_does_not_attempt_attac
         raise AssertionError("attach helper must not be called when checkbox is OFF")
 
     fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fail_if_called
+    fake._maybe_attach_explicit_pipeline_forward_weekly_capacity = fail_if_called
 
     result = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
 
@@ -71,21 +72,28 @@ def test_maybe_apply_explicit_kpi_demo_flags_checkbox_off_does_not_attempt_attac
 
 def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_on():
     env = SimpleNamespace()
-    attach_called = {"value": False}
+    backward_attach_called = {"value": False}
+    forward_attach_called = {"value": False}
     fake = SimpleNamespace(
         env=env,
         var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
     )
-    def fake_attach():
-        attach_called["value"] = True
+    def fake_backward_attach():
+        backward_attach_called["value"] = True
         return {"attached": False, "reason": "file_missing"}
 
-    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_attach
+    def fake_forward_attach():
+        forward_attach_called["value"] = True
+        return {"attached": False, "reason": "file_missing"}
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_backward_attach
+    fake._maybe_attach_explicit_pipeline_forward_weekly_capacity = fake_forward_attach
 
     applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
 
     assert applied is not None
-    assert attach_called["value"] is True
+    assert backward_attach_called["value"] is True
+    assert forward_attach_called["value"] is True
     assert applied["enable_explicit_bridge_capacity_pipeline"] is True
     assert applied["enable_explicit_bridge_capacity_report"] is True
     assert applied["enable_explicit_bridge_capacity_issue_candidates"] is True
@@ -109,25 +117,32 @@ def test_maybe_apply_explicit_kpi_demo_flags_applies_phase1_flags_when_checkbox_
 
 def test_maybe_apply_explicit_kpi_demo_flags_skips_when_only_backward_ctx_present():
     env = SimpleNamespace()
-    attach_called = {"value": False}
+    backward_attach_called = {"value": False}
+    forward_attach_called = {"value": False}
     fake = SimpleNamespace(
         env=env,
         var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
     )
 
-    def fake_attach():
-        attach_called["value"] = True
+    def fake_backward_attach():
+        backward_attach_called["value"] = True
         env.explicit_pipeline_backward_weekly_capability = {
             "MOM_A": {"P1": {"202601": 100}}
         }
         return {"attached": True, "reason": "attached"}
 
-    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_attach
+    def fake_forward_attach():
+        forward_attach_called["value"] = True
+        return {"attached": False, "reason": "file_missing"}
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_backward_attach
+    fake._maybe_attach_explicit_pipeline_forward_weekly_capacity = fake_forward_attach
 
     applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
 
     assert applied is not None
-    assert attach_called["value"] is True
+    assert backward_attach_called["value"] is True
+    assert forward_attach_called["value"] is True
     assert env.explicit_kpi_demo_flag_ctx_guard_skipped is True
     assert env.explicit_kpi_demo_flag_missing_ctx_keys == [
         "explicit_pipeline_forward_weekly_capacity"
@@ -149,27 +164,34 @@ def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_both_ctx_p
         explicit_pipeline_cost_table={"MOM_A": {"P1": {"202601": 10}}},
         explicit_pipeline_price_table={"MOM_A": {"P1": {"202601": 10}}},
     )
-    attach_called = {"value": False}
+    backward_attach_called = {"value": False}
+    forward_attach_called = {"value": False}
     fake = SimpleNamespace(
         env=env,
         var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
     )
-    def fake_attach():
-        attach_called["value"] = True
+    def fake_backward_attach():
+        backward_attach_called["value"] = True
         env.explicit_pipeline_backward_weekly_capability = {
             "MOM_A": {"P1": {"202601": 100}}
         }
+        return {"attached": True, "reason": "attached"}
+
+    def fake_forward_attach():
+        forward_attach_called["value"] = True
         env.explicit_pipeline_forward_weekly_capacity = {
             "P1": {"MOM_A": {"P": {"202601": 100}}}
         }
         return {"attached": True, "reason": "attached"}
 
-    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_attach
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_backward_attach
+    fake._maybe_attach_explicit_pipeline_forward_weekly_capacity = fake_forward_attach
 
     applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
 
     assert applied is not None
-    assert attach_called["value"] is True
+    assert backward_attach_called["value"] is True
+    assert forward_attach_called["value"] is True
     assert env.explicit_kpi_demo_flag_ctx_guard_skipped is False
     assert env.explicit_kpi_demo_flag_missing_ctx_keys == []
     assert env.enable_explicit_bridge_capacity_pipeline is True
@@ -179,6 +201,39 @@ def test_maybe_apply_explicit_kpi_demo_flags_keeps_flags_enabled_when_both_ctx_p
     assert env.enable_explicit_bridge_capacity_report_export is False
     assert env.enable_explicit_bridge_capacity_issue_candidate_export is False
     assert env.enable_explicit_bridge_capacity_issue_candidate_cost_kpi_export is False
+
+
+def test_maybe_apply_explicit_kpi_demo_flags_calls_forward_after_backward_before_guard():
+    env = SimpleNamespace()
+    call_order = []
+    fake = SimpleNamespace(
+        env=env,
+        var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
+    )
+
+    def fake_backward_attach():
+        call_order.append("backward")
+        env.explicit_pipeline_backward_weekly_capability = {
+            "MILL_EAST": {"PACKAGED_RICE_STANDARD": {"2027-W40": 5}}
+        }
+        return {"attached": True, "reason": "attached"}
+
+    def fake_forward_attach():
+        call_order.append("forward")
+        env.explicit_pipeline_forward_weekly_capacity = {
+            "PACKAGED_RICE_STANDARD": {"MILL_EAST": {"P": {"2027-W40": 5}}}
+        }
+        return {"attached": True, "reason": "attached"}
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_backward_attach
+    fake._maybe_attach_explicit_pipeline_forward_weekly_capacity = fake_forward_attach
+
+    applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
+
+    assert applied is not None
+    assert call_order == ["backward", "forward"]
+    assert env.explicit_kpi_demo_flag_ctx_guard_skipped is False
+    assert env.explicit_kpi_demo_flag_missing_ctx_keys == []
 
 
 def test_run_full_plan_calls_preflight_hook_before_planning(monkeypatch):

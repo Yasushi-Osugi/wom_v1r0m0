@@ -1923,6 +1923,7 @@ class WOMCockpit(tk.Tk):
         )
 
         self._maybe_attach_explicit_pipeline_backward_weekly_capability()
+        self._maybe_attach_explicit_pipeline_forward_weekly_capacity()
 
         missing_ctx_keys = get_missing_explicit_pipeline_demo_ctx_keys(self.env)
         if missing_ctx_keys:
@@ -1958,6 +1959,17 @@ class WOMCockpit(tk.Tk):
         )
 
         return maybe_attach_explicit_pipeline_backward_weekly_capability_from_csv(
+            self.env
+        )
+
+    def _maybe_attach_explicit_pipeline_forward_weekly_capacity(
+        self,
+    ) -> dict[str, object] | None:
+        from pysi.plan.explicit_pipeline_capacity_context import (
+            maybe_attach_explicit_pipeline_forward_weekly_capacity_from_csv,
+        )
+
+        return maybe_attach_explicit_pipeline_forward_weekly_capacity_from_csv(
             self.env
         )
 
