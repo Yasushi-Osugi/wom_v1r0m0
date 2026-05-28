@@ -26,11 +26,10 @@ Please read especially:
 
 ```text
 docs/design/explicit_pipeline_capacity_pipeline_shape_and_scenario_alignment.md
+docs/design/explicit_pipeline_forward_weekly_capacity_sample_csv_completion.md
 ```
 
-Phase F3 succeeded.
-
-The Explicit KPI Management Cockpit now displays diagnostic output after:
+Phase F3 succeeded. The Explicit Pipeline Management Cockpit now displays diagnostic output after:
 
 ```text
 Explicit KPI ON
@@ -58,11 +57,7 @@ Cost / KPI Impact Composition: not available
 Weekly Issue Count: not available
 ```
 
-The next work is not to make the pipeline “speak.”
-
-It now speaks.
-
-The next work is to understand what it is saying.
+The next work is not to make the pipeline “speak.” It now speaks. The next work is to understand what it is saying.
 
 ---
 
@@ -83,11 +78,131 @@ The goal is to answer:
 8. Why are Cost / KPI Impact Composition and Weekly Issue Count unavailable?
 ```
 
-This request is primarily **inspection + characterization**, not behavior change.
+This request is primarily:
+
+```text
+inspection + characterization + WOM Knowledge Increment creation
+```
+
+not behavior change.
 
 ---
 
-## 3. Important Current Scenario Facts
+## 3. WOM Knowledge Increment Framing
+
+This observation is not a bug-fix task.
+
+Treat this as the first **WOM Knowledge Increment** for:
+
+```text
+Explicit Pipeline Capacity Context
+```
+
+The purpose is not merely to describe code behavior. The purpose is to convert observed runtime behavior into reusable WOM knowledge.
+
+The observation output should be structured so it can later be reused as:
+
+```text
+Case Observation
+Context Dictionary Update
+Operational Semantics Rule
+Diagnostic Pattern
+Characterization Test Candidate
+Grammar / Context Delta Proposal
+Design Memo
+```
+
+In other words, the deliverable should help WOM learn.
+
+Here, “learning” does not mean the software magically becomes smarter. Learning means:
+
+```text
+observed behavior
+    ↓
+ctx dictionary entry
+    ↓
+operational semantics rule
+    ↓
+diagnostic pattern
+    ↓
+characterization test
+    ↓
+design memo
+    ↓
+future behavior / future case reuse
+```
+
+This request should therefore create documentation that answers:
+
+```text
+What did WOM see?
+What ctx did WOM receive?
+What did WOM interpret as capacity?
+What did WOM call blocked_lot?
+What did WOM convert into issue / KPI output?
+What ambiguity was discovered?
+What knowledge should be preserved for future cases?
+```
+
+---
+
+## 4. Relationship to WOM Planning Language
+
+Please treat `ctx` as:
+
+```text
+WOMPlanningContext
+```
+
+That means:
+
+```text
+ctx is not just a Python dictionary.
+ctx is the runtime semantic context of WOM.
+```
+
+For this request, distinguish clearly between:
+
+```text
+WOM Modeling Language:
+    the language for defining supply chain models
+    Node / Flow / Lot / Demand / Capacity / Cost / Scenario / Policy / Event
+
+WOM Planning Context:
+    the runtime semantic context that carries model state,
+    scenario state, constraints, decisions, evaluation context,
+    and trace context into the planning / reporting pipeline
+
+WOM Planning Engine:
+    the execution system that uses the context to generate plans,
+    issues, diagnostics, and management cockpit outputs
+```
+
+This request should characterize the **operational semantics** of the current Explicit Pipeline Capacity Context.
+
+Operational semantics means:
+
+```text
+how the ctx is interpreted at runtime
+```
+
+Example:
+
+```text
+Syntax:
+    explicit_pipeline_forward_weekly_capacity[product][node][capacity_type][week] = capacity_lots
+
+Operational semantics:
+    the explicit bridge capacity pipeline interprets this as forward execution capacity
+    for selected or referenced product/node/week,
+    and emits blocked_lot or capacity-related issues when capacity is insufficient or missing.
+```
+
+If the actual implementation differs from this expectation, document the actual behavior.
+
+---
+
+## 5. Current Scenario Facts
 
 The manual GUI run showed active product:
 
@@ -122,9 +237,11 @@ forward capacity sample product = PACKAGED_RICE_STANDARD
 
 This mismatch may be acceptable for ctx guard validation, but it is not necessarily meaningful for business diagnostics.
 
+This request should determine how the current pipeline behaves in this mismatch case.
+
 ---
 
-## 4. Scope of This Request
+## 6. Scope of This Request
 
 Please implement a **non-invasive diagnostic / characterization patch**.
 
@@ -149,11 +266,11 @@ Potential test file, if useful:
 tests/test_explicit_pipeline_capacity_pipeline_shape_and_scenario_alignment.py
 ```
 
-This request should not attempt to “fix” the behavior yet.
+This request should not attempt to fix the behavior yet.
 
 ---
 
-## 5. Files to Inspect
+## 7. Files to Inspect
 
 Please inspect the following files:
 
@@ -175,11 +292,11 @@ If other files are relevant, inspect them and list them in the summary.
 
 ---
 
-## 6. Questions to Answer in the Observation Memo
+## 8. Questions to Answer in the Observation Memo
 
 The observation memo should answer the following, with code references by file/function names.
 
-### 6.1 Pipeline entry points
+### 8.1 Pipeline entry points
 
 Identify:
 
@@ -195,12 +312,11 @@ Document:
 ```text
 which ctx keys are required
 which env attributes are read
+which ctx dictionary fields are assembled
 which result objects are produced
 ```
 
----
-
-### 6.2 Required ctx shape
+### 8.2 Required ctx shape
 
 Document the expected shapes for:
 
@@ -241,9 +357,7 @@ Please verify whether the pipeline actually consumes these exact shapes.
 
 If the pipeline expects a different shape, document the mismatch.
 
----
-
-### 6.3 Selected product handling
+### 8.3 Selected product handling
 
 Answer:
 
@@ -262,9 +376,7 @@ selected product = IPHONE_NM_2028_BASE
 capacity context only has PACKAGED_RICE_STANDARD
 ```
 
----
-
-### 6.4 Missing selected product behavior
+### 8.4 Missing selected product behavior
 
 Determine the current behavior when selected product is absent from forward capacity context.
 
@@ -282,9 +394,7 @@ Document the actual behavior.
 
 Do not change it in this request unless needed for characterization tests.
 
----
-
-### 6.5 Week-key handling
+### 8.5 Week-key handling
 
 Determine whether the pipeline expects week keys like:
 
@@ -316,9 +426,7 @@ What happens if capacity weeks do not match plan weeks?
 
 This is important because the current sample CSV uses ISO-like week strings while planning logs show integer week indexes.
 
----
-
-### 6.6 Node handling
+### 8.6 Node handling
 
 Determine what node level the pipeline expects capacity for.
 
@@ -351,9 +459,7 @@ DAD_FAS_AMER
 
 Document whether the pipeline attempts to match node names.
 
----
-
-### 6.7 Capacity type handling
+### 8.7 Capacity type handling
 
 Determine how the pipeline uses:
 
@@ -376,9 +482,7 @@ Does capacity_type propagate into issue candidates?
 Why does the UI capacity_type column appear blank for blocked_lot issues?
 ```
 
----
-
-### 6.8 Issue count lineage
+### 8.8 Issue count lineage
 
 Observed:
 
@@ -400,9 +504,7 @@ warnings = planning issues + management issues
 
 Determine whether the 184,844 warnings are expected double-layer counting or unintended duplication.
 
----
-
-### 6.9 blocked_lot issue generation
+### 8.9 blocked_lot issue generation
 
 Document how `blocked_lot` issues are generated.
 
@@ -424,9 +526,7 @@ Also document why estimated impact is:
 
 if this is visible from the code.
 
----
-
-### 6.10 Cost / KPI Impact Composition unavailable
+### 8.10 Cost / KPI Impact Composition unavailable
 
 Graphs tab shows:
 
@@ -444,9 +544,7 @@ whether all impacts are zero
 whether issue records lack impact categories or cost values
 ```
 
----
-
-### 6.11 Weekly Issue Count unavailable
+### 8.11 Weekly Issue Count unavailable
 
 Graphs tab shows:
 
@@ -465,7 +563,113 @@ whether the current issue list is summary-level only
 
 ---
 
-## 7. Recommended Observation Memo Structure
+## 9. Required WOM Knowledge Increment Section
+
+The observation memo must include a section named:
+
+```text
+WOM Knowledge Increment
+```
+
+This section should contain the following subsections.
+
+### 9.1 Case Observation
+
+Document:
+
+```text
+Case name
+Input / active GUI product
+Attached ctx keys
+CSV sample products / nodes / weeks
+Observed cockpit output
+```
+
+### 9.2 Context Dictionary Update
+
+For each relevant ctx key, document:
+
+```text
+ctx key
+owner / producer
+consumer
+shape
+semantic meaning
+missing behavior
+observed issue
+future rule candidate
+```
+
+At minimum include:
+
+```text
+explicit_pipeline_backward_weekly_capability
+explicit_pipeline_forward_weekly_capacity
+```
+
+### 9.3 Operational Semantics Rule Candidate
+
+Document rule candidates such as:
+
+```text
+If selected product is absent from forward capacity context,
+the pipeline should either:
+    A. emit scenario alignment diagnostic
+    B. explicitly treat capacity as zero and explain blocked_lot explosion
+```
+
+Do not implement the rule in this request.
+
+### 9.4 Diagnostic Pattern
+
+Document diagnostic patterns found in this case.
+
+Example:
+
+```text
+Pattern:
+    active product missing from capacity context
+Symptoms:
+    blocked_lot issues
+    service_risk impact category
+    zero estimated impact
+    no capacity violations
+Interpretation:
+    possible product / capacity context mismatch
+```
+
+### 9.5 Characterization Test Candidate
+
+List candidate tests that should preserve current behavior or future desired behavior.
+
+Include:
+
+```text
+product mismatch behavior
+week key mismatch behavior
+issue count lineage
+missing graph data behavior
+```
+
+### 9.6 Grammar / Context Delta Proposal
+
+List potential future changes to ctx grammar, if needed.
+
+Examples:
+
+```text
+explicit scenario_alignment_diagnostic field
+selected_product_capacity_presence flag
+capacity_context_product_set
+week_key_format metadata
+capacity_context_node_level metadata
+```
+
+Do not implement these fields in this request.
+
+---
+
+## 10. Recommended Observation Memo Structure
 
 Please create:
 
@@ -492,10 +696,11 @@ Suggested sections:
 14. Graph data requirements
 15. Cost / KPI composition requirements
 16. Current interpretation of the 92,422 / 184,844 result
-17. Recommended next sample data strategy
-18. Recommended next behavior changes, if any
-19. Safety boundaries
-20. Summary
+17. WOM Knowledge Increment
+18. Recommended next sample data strategy
+19. Recommended next behavior changes, if any
+20. Safety boundaries
+21. Summary
 ```
 
 The memo should clearly separate:
@@ -508,7 +713,7 @@ recommended future change
 
 ---
 
-## 8. Characterization Tests
+## 11. Characterization Tests
 
 Add tests only if they can be done without changing runtime behavior.
 
@@ -520,7 +725,7 @@ tests/test_explicit_pipeline_capacity_pipeline_shape_and_scenario_alignment.py
 
 Suggested tests:
 
-### 8.1 Product mismatch characterization
+### 11.1 Product mismatch characterization
 
 Construct minimal ctx where:
 
@@ -542,9 +747,7 @@ or specific fallback behavior
 
 Only add this test if the setup is not too large or brittle.
 
----
-
-### 8.2 Forward capacity shape characterization
+### 11.2 Forward capacity shape characterization
 
 Construct minimal forward capacity context in product-first shape:
 
@@ -562,17 +765,13 @@ Construct minimal forward capacity context in product-first shape:
 
 Verify the pipeline or helper consumes it as currently expected.
 
----
-
-### 8.3 Week mismatch characterization
+### 11.3 Week mismatch characterization
 
 If feasible, test behavior when plan week is integer and capacity week is string.
 
 If too brittle, document in memo only.
 
----
-
-### 8.4 Issue count lineage characterization
+### 11.4 Issue count lineage characterization
 
 If existing functions convert:
 
@@ -584,17 +783,19 @@ add a small test proving current count multiplication behavior.
 
 ---
 
-## 9. Do Not Overfit Tests
+## 12. Do Not Overfit Tests
 
 Avoid brittle tests that require the full GUI.
 
 Prefer pure functions.
 
-If the pipeline cannot be tested without a large scenario setup, do not force a test. Document the limitation.
+If the pipeline cannot be tested without a large scenario setup, do not force a test.
+
+Document the limitation.
 
 ---
 
-## 10. Safety Boundaries
+## 13. Safety Boundaries
 
 Please preserve these boundaries:
 
@@ -620,7 +821,7 @@ code inspection + documentation + optional characterization tests
 
 ---
 
-## 11. Expected Files Changed
+## 14. Expected Files Changed
 
 Expected primary file:
 
@@ -640,7 +841,7 @@ If code files must be changed, explain why.
 
 ---
 
-## 12. Tests to Run
+## 15. Tests to Run
 
 If a new test file is added:
 
@@ -671,7 +872,7 @@ and any relevant tests touched by imports.
 
 ---
 
-## 13. Expected Response from Codex
+## 16. Expected Response from Codex
 
 After implementation, please summarize:
 
@@ -690,10 +891,15 @@ After implementation, please summarize:
 12. Why 92,422 management issues / 184,844 warnings likely appear
 13. Why Cost / KPI Impact Composition is unavailable
 14. Why Weekly Issue Count is unavailable
-15. Test commands executed
-16. Test results
-17. Safety boundaries preserved
-18. Recommended next engineering step
+15. WOM Knowledge Increment summary
+16. Context Dictionary Update summary
+17. Operational Semantics Rule candidates
+18. Diagnostic Patterns found
+19. Grammar / Context Delta proposals
+20. Test commands executed
+21. Test results
+22. Safety boundaries preserved
+23. Recommended next engineering step
 ```
 
 Please do not proceed into:
@@ -714,3 +920,5 @@ This request is only for:
 ```text
 Explicit Pipeline Capacity Pipeline Shape and Scenario Alignment Observation
 ```
+
+and should be treated as a WOM Knowledge Increment creation task.
