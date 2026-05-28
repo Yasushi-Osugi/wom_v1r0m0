@@ -482,6 +482,9 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
     ctx_guard_skipped = bool(_getattr(env, "explicit_kpi_demo_flag_ctx_guard_skipped", False))
     ctx_guard_missing_keys = list(_getattr(env, "explicit_kpi_demo_flag_missing_ctx_keys", []) or [])
     ctx_guard_message = str(_getattr(env, "explicit_kpi_demo_flag_guard_message", "") or "")
+    capacity_scenario_alignment_diagnostic = _as_dict(
+        _getattr(env, "explicit_pipeline_capacity_scenario_alignment_diagnostic")
+    )
 
     messages: list[str] = []
     if not available:
@@ -636,6 +639,14 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
     if not any(x.get("available") for x in export_summary.values()):
         messages.append("Export results are not available. Export flags may be off.")
 
+    for diagnostic_message in _as_list(
+        capacity_scenario_alignment_diagnostic.get("messages", [])
+    ):
+        if diagnostic_message is not None:
+            messages.append(
+                "Capacity scenario alignment: " + str(diagnostic_message)
+            )
+
     next_review_actions = []
     if top_impact_issues:
         next_review_actions.append("Review high impact management issues.")
@@ -672,6 +683,7 @@ def build_explicit_pipeline_management_cockpit_view_model(env) -> dict:
         "export_summary": export_summary,
         "next_review_actions": next_review_actions,
         "messages": messages,
+        "capacity_scenario_alignment_diagnostic": capacity_scenario_alignment_diagnostic,
         "ctx_guard_skipped": ctx_guard_skipped,
         "ctx_guard_missing_keys": ctx_guard_missing_keys,
         "ctx_guard_message": ctx_guard_message,

@@ -115,3 +115,62 @@ def test_backward_capability_diagnostic():
 
     assert diag["backward_capability"]["available"] is True
     assert diag["backward_capability"]["shape_version"] == "node_product_week_map_v1"
+
+
+def test_attach_helper_attaches_and_returns_diagnostic_with_product_mismatch():
+    from types import SimpleNamespace
+
+    from pysi.reporting.explicit_pipeline_capacity_scenario_alignment import (
+        attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env,
+    )
+
+    env = SimpleNamespace(
+        product_selected="IPHONE_NM_2028_BASE",
+        explicit_pipeline_forward_weekly_capacity={
+            "PACKAGED_RICE_STANDARD": {
+                "MILL_EAST": {
+                    "P": {"2027-W40": 5},
+                }
+            }
+        },
+        explicit_pipeline_backward_weekly_capability={
+            "MILL_EAST": {
+                "PACKAGED_RICE_STANDARD": {
+                    "2027-W40": 5,
+                }
+            }
+        },
+    )
+
+    diagnostic = attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env(
+        env
+    )
+
+    assert diagnostic is env.explicit_pipeline_capacity_scenario_alignment_diagnostic
+    assert diagnostic["alignment"]["product_alignment"] in {
+        "mismatch",
+        "partial_match",
+    }
+    assert diagnostic["messages"]
+    assert any(
+        "not present in forward capacity context" in m
+        for m in diagnostic["messages"]
+    )
+
+
+def test_attach_helper_is_safe_when_contexts_are_missing():
+    from types import SimpleNamespace
+
+    from pysi.reporting.explicit_pipeline_capacity_scenario_alignment import (
+        attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env,
+    )
+
+    env = SimpleNamespace(product_selected="IPHONE_NM_2028_BASE")
+
+    diagnostic = attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env(
+        env
+    )
+
+    assert diagnostic is env.explicit_pipeline_capacity_scenario_alignment_diagnostic
+    assert isinstance(diagnostic, dict)
+    assert "available" in diagnostic

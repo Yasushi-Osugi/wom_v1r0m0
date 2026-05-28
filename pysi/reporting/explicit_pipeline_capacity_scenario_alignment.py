@@ -295,3 +295,50 @@ def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
         },
         "messages": messages,
     }
+
+
+def attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env(
+    env,
+    *,
+    selected_product: str | None = None,
+    outbound_root: object | None = None,
+    inbound_root: object | None = None,
+    backward_weekly_capability: dict | None = None,
+    forward_weekly_capacity: dict | None = None,
+) -> dict:
+    """Compute and attach the explicit pipeline capacity scenario diagnostic.
+
+    The diagnostic builder remains pure; this helper is the small runtime
+    mutation point used by GUI preflight code to retain the diagnostic on env.
+    Missing inputs are tolerated so the KPI view can still explain that the
+    diagnostic was not fully evaluable.
+    """
+    selected_product = selected_product or getattr(env, "product_selected", None)
+    backward_weekly_capability = backward_weekly_capability or getattr(
+        env, "explicit_pipeline_backward_weekly_capability", None
+    )
+    forward_weekly_capacity = forward_weekly_capacity or getattr(
+        env, "explicit_pipeline_forward_weekly_capacity", None
+    )
+
+    try:
+        diagnostic = build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
+            selected_product=selected_product,
+            backward_weekly_capability=backward_weekly_capability,
+            forward_weekly_capacity=forward_weekly_capacity,
+            outbound_root=outbound_root,
+            inbound_root=inbound_root,
+        )
+    except Exception as exc:
+        diagnostic = {
+            "available": False,
+            "severity": "warning",
+            "selected_product": selected_product,
+            "messages": [
+                "Capacity scenario alignment diagnostic could not be evaluated: "
+                f"{exc}"
+            ],
+        }
+
+    env.explicit_pipeline_capacity_scenario_alignment_diagnostic = diagnostic
+    return diagnostic

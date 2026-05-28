@@ -1924,6 +1924,13 @@ class WOMCockpit(tk.Tk):
 
         self._maybe_attach_explicit_pipeline_backward_weekly_capability()
         self._maybe_attach_explicit_pipeline_forward_weekly_capacity()
+        diagnostic_attach = getattr(
+            self,
+            "_maybe_attach_explicit_pipeline_capacity_scenario_alignment_diagnostic",
+            None,
+        )
+        if callable(diagnostic_attach):
+            diagnostic_attach()
 
         missing_ctx_keys = get_missing_explicit_pipeline_demo_ctx_keys(self.env)
         if missing_ctx_keys:
@@ -1971,6 +1978,45 @@ class WOMCockpit(tk.Tk):
 
         return maybe_attach_explicit_pipeline_forward_weekly_capacity_from_csv(
             self.env
+        )
+
+    def _maybe_attach_explicit_pipeline_capacity_scenario_alignment_diagnostic(
+        self,
+    ) -> dict:
+        from pysi.reporting.explicit_pipeline_capacity_scenario_alignment import (
+            attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env,
+        )
+
+        selected_product = getattr(self.env, "product_selected", None)
+        if not selected_product:
+            try:
+                selected_product = (self.var_product.get() or "").strip()
+            except Exception:
+                selected_product = None
+
+        outbound_root = None
+        inbound_root = None
+        if selected_product:
+            try:
+                outbound_root = (
+                    getattr(self.env, "prod_tree_dict_OT", {}) or {}
+                ).get(selected_product)
+            except Exception:
+                outbound_root = None
+            try:
+                inbound_root = (
+                    getattr(self.env, "prod_tree_dict_IN", {}) or {}
+                ).get(selected_product)
+            except Exception:
+                inbound_root = None
+        outbound_root = outbound_root or getattr(self.env, "root_node_outbound", None)
+        inbound_root = inbound_root or getattr(self.env, "root_node_inbound", None)
+
+        return attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env(
+            self.env,
+            selected_product=selected_product,
+            outbound_root=outbound_root,
+            inbound_root=inbound_root,
         )
 
 

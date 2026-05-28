@@ -131,3 +131,25 @@ def test_ctx_guard_diagnostics_present():
     assert vm["ctx_guard_skipped"] is True
     assert "explicit_pipeline_backward_weekly_capability" in vm["ctx_guard_missing_keys"]
     assert "explicit_pipeline_backward_weekly_capability" in vm["ctx_guard_message"]
+
+
+def test_capacity_scenario_alignment_messages_are_appended_to_view_model():
+    env = SimpleNamespace(
+        explicit_bridge_capacity_pipeline_report=SimpleNamespace(summary={}),
+        explicit_pipeline_capacity_scenario_alignment_diagnostic={
+            "available": True,
+            "messages": [
+                "Selected product P2 is not present in forward capacity "
+                "context product set ['P1']."
+            ]
+        },
+    )
+
+    vm = build_explicit_pipeline_management_cockpit_view_model(env)
+
+    assert any("Cost / KPI enrichment is not available" in x for x in vm["messages"])
+    assert any(
+        x.startswith("Capacity scenario alignment: Selected product P2")
+        for x in vm["messages"]
+    )
+    assert vm["capacity_scenario_alignment_diagnostic"]["available"] is True

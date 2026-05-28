@@ -268,3 +268,47 @@ def test_run_full_plan_calls_preflight_hook_before_planning(monkeypatch):
 
     assert call_order[0] == "preflight"
     assert call_order.index("preflight") < call_order.index("planning")
+
+
+def test_maybe_apply_explicit_kpi_demo_flags_attaches_alignment_after_capacity_contexts_before_guard():
+    env = SimpleNamespace()
+    call_order = []
+    fake = SimpleNamespace(
+        env=env,
+        var_enable_explicit_kpi_reporting=SimpleNamespace(get=lambda: True),
+    )
+
+    def fake_backward_attach():
+        call_order.append("backward")
+        env.explicit_pipeline_backward_weekly_capability = {
+            "MILL_EAST": {"PACKAGED_RICE_STANDARD": {"2027-W40": 5}}
+        }
+        return {"attached": True, "reason": "attached"}
+
+    def fake_forward_attach():
+        call_order.append("forward")
+        env.explicit_pipeline_forward_weekly_capacity = {
+            "PACKAGED_RICE_STANDARD": {"MILL_EAST": {"P": {"2027-W40": 5}}}
+        }
+        return {"attached": True, "reason": "attached"}
+
+    def fake_alignment_attach():
+        call_order.append("alignment")
+        assert hasattr(env, "explicit_pipeline_backward_weekly_capability")
+        assert hasattr(env, "explicit_pipeline_forward_weekly_capacity")
+        env.explicit_pipeline_capacity_scenario_alignment_diagnostic = {
+            "available": True,
+            "messages": ["diagnostic attached"],
+        }
+        return env.explicit_pipeline_capacity_scenario_alignment_diagnostic
+
+    fake._maybe_attach_explicit_pipeline_backward_weekly_capability = fake_backward_attach
+    fake._maybe_attach_explicit_pipeline_forward_weekly_capacity = fake_forward_attach
+    fake._maybe_attach_explicit_pipeline_capacity_scenario_alignment_diagnostic = fake_alignment_attach
+
+    applied = WOMCockpit._maybe_apply_explicit_kpi_demo_flags(fake)
+
+    assert applied is not None
+    assert call_order == ["backward", "forward", "alignment"]
+    assert env.explicit_pipeline_capacity_scenario_alignment_diagnostic["available"] is True
+    assert env.explicit_kpi_demo_flag_ctx_guard_skipped is False
