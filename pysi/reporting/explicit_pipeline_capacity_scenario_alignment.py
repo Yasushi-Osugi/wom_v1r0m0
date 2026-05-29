@@ -114,6 +114,151 @@ def infer_forward_capacity_shape_version(context: dict | None) -> str:
     return "unknown"
 
 
+def _summary_value(summary: object, key: str, default=None):
+    if isinstance(summary, dict):
+        return summary.get(key, default)
+    return getattr(summary, key, default)
+
+
+def build_capacity_runtime_attachment_diagnostic(env) -> dict:
+    """Build a read-only diagnostic for WeeklyCapacityRow runtime env attachment."""
+    summary_available = hasattr(env, "capacity_runtime_attachment_summary")
+    if not summary_available:
+        return {
+            "available": False,
+            "summary_available": False,
+            "reason": "missing_capacity_runtime_attachment_summary",
+            "messages": ["Capacity runtime attachment: summary missing."],
+        }
+
+    summary = getattr(env, "capacity_runtime_attachment_summary")
+    forward_present = hasattr(env, "explicit_pipeline_forward_weekly_capacity")
+    backward_canonical_present = hasattr(
+        env, "explicit_pipeline_backward_weekly_capability_from_weekly_rows"
+    )
+    backward_consumer_present = hasattr(env, "explicit_pipeline_backward_weekly_capability")
+    rows_present = hasattr(env, "capacity_weekly_rows")
+
+    attached_forward = bool(_summary_value(summary, "attached_forward", False))
+    backward_canonical_attached = bool(
+        _summary_value(summary, "backward_canonical_attribute_attached", False)
+    )
+    attached_rows = bool(_summary_value(summary, "attached_rows", False))
+    backward_consumer_replaced = bool(
+        _summary_value(summary, "backward_consumer_attribute_replaced", False)
+    )
+
+    forward_matches = (not attached_forward) or forward_present
+    backward_canonical_matches = (
+        not backward_canonical_attached
+    ) or backward_canonical_present
+    rows_match = (not attached_rows) or rows_present
+    consumer_replacement_matches = (
+        not backward_consumer_replaced
+    ) or backward_consumer_present
+    summary_matches_env = (
+        forward_matches
+        and backward_canonical_matches
+        and rows_match
+        and consumer_replacement_matches
+    )
+
+    forward_shape = _summary_value(summary, "forward_shape")
+    backward_shape = _summary_value(summary, "backward_shape")
+    week_key_domain = _summary_value(summary, "week_key_domain")
+    input_row_count = _summary_value(summary, "input_row_count")
+
+    messages: list[str] = ["Capacity runtime attachment: summary available."]
+    warnings: list[str] = []
+
+    if input_row_count is not None:
+        messages.append(
+            f"Capacity runtime attachment: WeeklyCapacityRow count = {input_row_count}."
+        )
+
+    if forward_present:
+        messages.append("Capacity runtime attachment: forward context attached.")
+    elif attached_forward:
+        message = "Capacity runtime attachment: forward context missing despite summary."
+        messages.append(message)
+        warnings.append(message)
+    else:
+        messages.append("Capacity runtime attachment: forward context missing.")
+
+    if backward_canonical_present:
+        messages.append(
+            "Capacity runtime attachment: backward canonical side context attached."
+        )
+    elif backward_canonical_attached:
+        message = (
+            "Capacity runtime attachment: backward canonical side context missing despite summary."
+        )
+        messages.append(message)
+        warnings.append(message)
+    else:
+        messages.append(
+            "Capacity runtime attachment: backward canonical side context missing."
+        )
+
+    if attached_rows and not rows_present:
+        message = "Capacity runtime attachment: WeeklyCapacityRow rows missing despite summary."
+        messages.append(message)
+        warnings.append(message)
+
+    if backward_consumer_replaced:
+        messages.append(
+            "Capacity runtime attachment: backward consumer-facing capability was replaced."
+        )
+        if not backward_consumer_present:
+            message = (
+                "Capacity runtime attachment: backward consumer-facing capability missing despite replacement summary."
+            )
+            messages.append(message)
+            warnings.append(message)
+    else:
+        messages.append(
+            "Capacity runtime attachment: backward consumer-facing capability was not replaced."
+        )
+
+    if week_key_domain == "preserve":
+        messages.append("Capacity runtime attachment: week keys preserved.")
+    elif week_key_domain is not None:
+        messages.append(
+            f"Capacity runtime attachment: week_key_domain = {week_key_domain}."
+        )
+
+    shape_message_value = None
+    if forward_shape and forward_shape == backward_shape:
+        shape_message_value = forward_shape
+    elif forward_shape:
+        shape_message_value = forward_shape
+    elif backward_shape:
+        shape_message_value = backward_shape
+    if shape_message_value is not None:
+        messages.append(f"Capacity runtime attachment: shape = {shape_message_value}.")
+
+    return {
+        "available": True,
+        "summary_available": True,
+        "summary": summary,
+        "consistency": {
+            "forward_env_attribute_present": forward_present,
+            "backward_canonical_env_attribute_present": backward_canonical_present,
+            "backward_consumer_env_attribute_present": backward_consumer_present,
+            "capacity_weekly_rows_present": rows_present,
+            "summary_matches_env": summary_matches_env,
+        },
+        "shape": {
+            "forward_shape_from_summary": forward_shape,
+            "backward_shape_from_summary": backward_shape,
+            "backward_consumer_attribute_replaced": backward_consumer_replaced,
+        },
+        "week_key_domain": week_key_domain,
+        "messages": messages,
+        "warnings": warnings,
+    }
+
+
 def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
     *,
     selected_product: str | None,
@@ -123,6 +268,7 @@ def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
     inbound_root: object | None = None,
     consumer_forward_capacity_shape_version: str = "product_node_type_week_list_v0",
     consumer_forward_week_domain: str = "integer_index",
+    env: object | None = None,
 ) -> dict:
     forward = forward_weekly_capacity if isinstance(forward_weekly_capacity, dict) else {}
     backward = backward_weekly_capability if isinstance(backward_weekly_capability, dict) else {}
@@ -250,6 +396,11 @@ def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
             f"Unmatched capacity nodes: {sorted(unmatched)[:_SAMPLE_LIMIT]}."
         )
 
+    runtime_attachment = build_capacity_runtime_attachment_diagnostic(
+        env if env is not None else object()
+    )
+    messages.extend(runtime_attachment.get("messages", []))
+
     severity = "info" if not messages else "warning"
 
     return {
@@ -293,6 +444,7 @@ def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
             "scenario_alignment": scenario_alignment,
             "effective_capacity_application": effective,
         },
+        "runtime_attachment": runtime_attachment,
         "messages": messages,
     }
 
@@ -328,6 +480,7 @@ def attach_explicit_pipeline_capacity_scenario_alignment_diagnostic_to_env(
             forward_weekly_capacity=forward_weekly_capacity,
             outbound_root=outbound_root,
             inbound_root=inbound_root,
+            env=env,
         )
     except Exception as exc:
         diagnostic = {
