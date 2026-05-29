@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from typing import Any
+
+from pysi.plan.explicit_pipeline_capacity_context import (
+    attach_capacity_runtime_contexts_to_env_from_weekly_rows,
+)
 
 _WEEK_LABEL_RE = re.compile(r"^\d{4}-W\d{2}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -257,6 +262,66 @@ def build_capacity_runtime_attachment_diagnostic(env) -> dict:
         "messages": messages,
         "warnings": warnings,
     }
+
+
+def apply_capacity_runtime_attachment_preflight(
+    env: Any,
+    *,
+    messages: list[str] | None = None,
+) -> dict[str, Any]:
+    """Apply safe WeeklyCapacityRow runtime capacity attachment preflight.
+
+    The preflight only consumes rows that are already present on
+    ``env.capacity_weekly_rows``.  When rows exist, it delegates all context
+    construction and env mutation to
+    ``attach_capacity_runtime_contexts_to_env_from_weekly_rows``; when the
+    attribute is missing, it skips attachment and still builds the read-only
+    runtime attachment diagnostic.  Planner-facing capacity behavior is not
+    changed here.
+    """
+    local_messages: list[str] = []
+
+    if hasattr(env, "capacity_weekly_rows"):
+        row_list = list(getattr(env, "capacity_weekly_rows"))
+        attachment_summary = attach_capacity_runtime_contexts_to_env_from_weekly_rows(
+            env,
+            row_list,
+        )
+        runtime_attachment = build_capacity_runtime_attachment_diagnostic(env)
+        local_messages.extend(attachment_summary.get("messages", []))
+        local_messages.extend(runtime_attachment.get("messages", []))
+
+        result = {
+            "applied": True,
+            "reason": None,
+            "row_source": "env.capacity_weekly_rows",
+            "input_row_count": len(row_list),
+            "attachment_summary": attachment_summary,
+            "runtime_attachment": runtime_attachment,
+            "messages": local_messages,
+        }
+    else:
+        local_messages.append(
+            "Capacity runtime attachment preflight: skipped because "
+            "env.capacity_weekly_rows is missing."
+        )
+        runtime_attachment = build_capacity_runtime_attachment_diagnostic(env)
+        local_messages.extend(runtime_attachment.get("messages", []))
+
+        result = {
+            "applied": False,
+            "reason": "capacity_weekly_rows_missing",
+            "row_source": "missing",
+            "input_row_count": 0,
+            "attachment_summary": None,
+            "runtime_attachment": runtime_attachment,
+            "messages": local_messages,
+        }
+
+    if messages is not None:
+        messages.extend(local_messages)
+
+    return result
 
 
 def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
