@@ -4,6 +4,8 @@ import csv
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from pysi.adapters.capacity_input_granularity import WeeklyCapacityRow
+
 
 def _to_text(value: Any) -> str:
     if value is None:
@@ -149,6 +151,32 @@ def build_explicit_pipeline_forward_weekly_capacity(
             continue
 
         context.setdefault(product, {}).setdefault(node, {}).setdefault(capacity_type, {})[week] = capacity_lots
+
+    return context
+
+
+def weekly_capacity_rows_to_explicit_forward_capacity(
+    rows: list[WeeklyCapacityRow],
+) -> dict[str, dict[str, dict[str, dict[Any, int | float]]]]:
+    """Convert canonical weekly capacity rows to explicit forward capacity context.
+
+    The returned context shape is
+    ``product_id -> capacity_owner_id -> capacity_type -> week -> capacity_qty``.
+    This adapter intentionally preserves each row's week key exactly, does not
+    filter by scenario, tree side, or cap mode, and ignores ``cap_mode`` because
+    the explicit forward context is quantity-only in this phase. Duplicate
+    product/node/capacity-type/week rows are represented by summing
+    ``capacity_qty`` values deterministically.
+    """
+    context: dict[str, dict[str, dict[str, dict[Any, int | float]]]] = {}
+
+    for row in rows:
+        week_map = (
+            context.setdefault(row.product_id, {})
+            .setdefault(row.capacity_owner_id, {})
+            .setdefault(row.capacity_type, {})
+        )
+        week_map[row.week] = week_map.get(row.week, 0) + row.capacity_qty
 
     return context
 
