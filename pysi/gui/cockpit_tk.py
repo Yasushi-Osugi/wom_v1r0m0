@@ -1924,6 +1924,27 @@ class WOMCockpit(tk.Tk):
 
         self._maybe_attach_explicit_pipeline_backward_weekly_capability()
         self._maybe_attach_explicit_pipeline_forward_weekly_capacity()
+
+        preflight_messages: list[str] = []
+        runtime_preflight_attach = getattr(
+            self,
+            "_maybe_apply_capacity_runtime_attachment_preflight",
+            None,
+        )
+        if callable(runtime_preflight_attach):
+            runtime_preflight_attach(messages=preflight_messages)
+        else:
+            from pysi.reporting.explicit_pipeline_capacity_scenario_alignment import (
+                apply_capacity_runtime_attachment_preflight,
+            )
+
+            self.env.capacity_runtime_attachment_preflight_result = (
+                apply_capacity_runtime_attachment_preflight(
+                    self.env,
+                    messages=preflight_messages,
+                )
+            )
+
         diagnostic_attach = getattr(
             self,
             "_maybe_attach_explicit_pipeline_capacity_scenario_alignment_diagnostic",
@@ -1957,6 +1978,22 @@ class WOMCockpit(tk.Tk):
         self.env.explicit_kpi_demo_flag_missing_ctx_keys = []
         self.env.explicit_kpi_demo_flag_guard_message = ""
         return applied
+
+    def _maybe_apply_capacity_runtime_attachment_preflight(
+        self,
+        *,
+        messages: list[str] | None = None,
+    ) -> dict[str, object]:
+        from pysi.reporting.explicit_pipeline_capacity_scenario_alignment import (
+            apply_capacity_runtime_attachment_preflight,
+        )
+
+        result = apply_capacity_runtime_attachment_preflight(
+            self.env,
+            messages=messages,
+        )
+        self.env.capacity_runtime_attachment_preflight_result = result
+        return result
 
     def _maybe_attach_explicit_pipeline_backward_weekly_capability(
         self,
