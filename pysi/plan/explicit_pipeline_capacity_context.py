@@ -207,6 +207,112 @@ def weekly_capacity_rows_to_explicit_backward_capability(
     return context
 
 
+_PRODUCT_NODE_TYPE_WEEK_QTY_SHAPE = "product_node_type_week_qty_v1"
+_BACKWARD_WEEKLY_ROWS_ATTR = "explicit_pipeline_backward_weekly_capability_from_weekly_rows"
+
+
+def _summarize_product_node_type_week_qty_context(
+    context: Mapping[str, Mapping[str, Mapping[str, Mapping[Any, Any]]]],
+) -> dict[str, int]:
+    products = set(context.keys())
+    nodes: set[str] = set()
+    capacity_types: set[str] = set()
+    week_keys: set[Any] = set()
+
+    for node_map in context.values():
+        nodes.update(node_map.keys())
+        for capacity_type_map in node_map.values():
+            capacity_types.update(capacity_type_map.keys())
+            for week_map in capacity_type_map.values():
+                week_keys.update(week_map.keys())
+
+    return {
+        "product_count": len(products),
+        "node_count": len(nodes),
+        "capacity_type_count": len(capacity_types),
+        "week_key_count": len(week_keys),
+    }
+
+
+def attach_capacity_runtime_contexts_to_env_from_weekly_rows(
+    env: Any,
+    rows: list[WeeklyCapacityRow],
+    *,
+    attach_forward: bool = True,
+    attach_backward: bool = True,
+    attach_rows: bool = True,
+    attach_summary: bool = True,
+) -> dict[str, Any]:
+    """Build and attach WeeklyCapacityRow-derived runtime capacity contexts.
+
+    This helper is intentionally planner-neutral: it only converts canonical
+    weekly capacity rows with the pure forward/backward adapters and attaches
+    requested diagnostic attributes to ``env``. Backward product-first context is
+    attached to a canonical side attribute so existing consumer-facing backward
+    capability shape is not replaced by this first switchyard helper. Week keys
+    are preserved by the pure adapters and are not normalized here.
+    """
+    row_list = list(rows)
+
+    forward_context = (
+        weekly_capacity_rows_to_explicit_forward_capacity(row_list)
+        if attach_forward
+        else None
+    )
+    backward_context = (
+        weekly_capacity_rows_to_explicit_backward_capability(row_list)
+        if attach_backward
+        else None
+    )
+
+    count_source = forward_context or backward_context or {}
+    context_counts = _summarize_product_node_type_week_qty_context(count_source)
+    forward_counts = (
+        _summarize_product_node_type_week_qty_context(forward_context)
+        if forward_context is not None
+        else {"product_count": 0}
+    )
+    backward_counts = (
+        _summarize_product_node_type_week_qty_context(backward_context)
+        if backward_context is not None
+        else {"product_count": 0}
+    )
+
+    messages: list[str] = []
+    if not row_list:
+        messages.append("No WeeklyCapacityRow rows provided.")
+
+    summary: dict[str, Any] = {
+        "available": bool(row_list),
+        "input_row_count": len(row_list),
+        "attached_rows": attach_rows,
+        "attached_forward": attach_forward,
+        "attached_backward": attach_backward,
+        "forward_shape": _PRODUCT_NODE_TYPE_WEEK_QTY_SHAPE if attach_forward else "not_attached",
+        "backward_shape": _PRODUCT_NODE_TYPE_WEEK_QTY_SHAPE if attach_backward else "not_attached",
+        "forward_product_count": forward_counts["product_count"],
+        "backward_product_count": backward_counts["product_count"],
+        "node_count": context_counts["node_count"],
+        "capacity_type_count": context_counts["capacity_type_count"],
+        "week_key_count": context_counts["week_key_count"],
+        "week_key_domain": "preserve",
+        "backward_consumer_attribute_replaced": False,
+        "backward_canonical_attribute_attached": attach_backward,
+        "messages": messages,
+    }
+
+    if attach_forward:
+        env.explicit_pipeline_forward_weekly_capacity = forward_context
+    if attach_backward:
+        setattr(env, _BACKWARD_WEEKLY_ROWS_ATTR, backward_context)
+    if attach_rows:
+        env.capacity_weekly_rows = row_list
+    if attach_summary:
+        env.capacity_runtime_attachment_summary = summary
+
+    return summary
+
+
 def load_explicit_pipeline_backward_weekly_capability_csv(
     path: str | Path,
     *,
