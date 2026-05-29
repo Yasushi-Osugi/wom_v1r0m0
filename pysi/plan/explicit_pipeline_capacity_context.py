@@ -181,6 +181,32 @@ def weekly_capacity_rows_to_explicit_forward_capacity(
     return context
 
 
+def weekly_capacity_rows_to_explicit_backward_capability(
+    rows: list[WeeklyCapacityRow],
+) -> dict[str, dict[str, dict[str, dict[Any, int | float]]]]:
+    """Convert canonical weekly capacity rows to explicit backward capability context.
+
+    The returned context shape is
+    ``product_id -> capacity_owner_id -> capacity_type -> week -> capacity_qty``.
+    This pure adapter intentionally preserves each row's week key exactly, does
+    not filter by scenario, tree side, capacity type, or cap mode, and ignores
+    ``cap_mode`` because the explicit backward capability context is
+    quantity-only in this phase. Duplicate product/node/capacity-type/week rows
+    are represented by summing ``capacity_qty`` values deterministically.
+    """
+    context: dict[str, dict[str, dict[str, dict[Any, int | float]]]] = {}
+
+    for row in rows:
+        week_map = (
+            context.setdefault(row.product_id, {})
+            .setdefault(row.capacity_owner_id, {})
+            .setdefault(row.capacity_type, {})
+        )
+        week_map[row.week] = week_map.get(row.week, 0) + row.capacity_qty
+
+    return context
+
+
 def load_explicit_pipeline_backward_weekly_capability_csv(
     path: str | Path,
     *,
