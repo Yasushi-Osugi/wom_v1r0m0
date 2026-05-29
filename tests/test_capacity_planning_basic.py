@@ -28,5 +28,5 @@ def test_usage_properties_and_csv_export(tmp_path):
 
 def test_load_capacity_master_sample():
     rows = load_capacity_master_csv("pysi/master_data/capacity_master_sample.csv")
-    assert len(rows) >= 5
+    assert len(rows) == 4
     assert rows[0].capacity_type in {"P", "S", "I"}

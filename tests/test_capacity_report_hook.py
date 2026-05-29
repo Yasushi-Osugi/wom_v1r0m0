@@ -24,9 +24,10 @@ class HookTreeNode:
 
 def _write_capacity_master(path: Path, rows: list[str]) -> None:
     header = (
-        "scenario_id,node_name,product_name,week,capacity_type,capacity_qty,"
+        "scenario_id,tree_side,node_name,product_name,week,capacity_type,capacity_qty,"
         "cap_mode,unit,priority,calendar_id,comment\n"
     )
+    rows = [row.replace(",", ",OUTBOUND,", 1) for row in rows]
     path.write_text(header + "\n".join(rows) + "\n", encoding="utf-8")
 
 

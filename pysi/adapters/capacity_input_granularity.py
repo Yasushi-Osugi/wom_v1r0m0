@@ -21,6 +21,18 @@ class WeeklyCapacityRow:
     source_granularity: str = "weekly"
     source_id: str = ""
     comment: str = ""
+    tree_side: str = ""
+    priority: str | None = None
+    calendar_id: str | None = None
+    source_file: str = ""
+
+    @property
+    def node_name(self) -> str:
+        return self.capacity_owner_id
+
+    @property
+    def product_name(self) -> str:
+        return self.product_id
 
 
 @dataclass

@@ -62,9 +62,10 @@ def _write_capacity_master_smoke_csv(path: Path) -> None:
         "BASE,MOM_IN_TEST,TEST_PRODUCT,2026-W01,I,3,soft,LOT,100,STD_CAL,smoke inbound MOM I cap",
     ]
     header = (
-        "scenario_id,node_name,product_name,week,capacity_type,capacity_qty,"
+        "scenario_id,tree_side,node_name,product_name,week,capacity_type,capacity_qty,"
         "cap_mode,unit,priority,calendar_id,comment\n"
     )
+    rows = [row.replace(",", ",OUTBOUND,", 1) for row in rows]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(header + "\n".join(rows) + "\n", encoding="utf-8")
 
