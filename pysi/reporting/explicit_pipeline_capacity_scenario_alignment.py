@@ -125,6 +125,144 @@ def _summary_value(summary: object, key: str, default=None):
     return getattr(summary, key, default)
 
 
+def _safe_len(value):
+    try:
+        return len(value)
+    except TypeError:
+        return None
+
+
+def _append_unique(messages: list[str], message: str | None) -> None:
+    if message and message not in messages:
+        messages.append(message)
+
+
+def _summary_messages(summary: object) -> list[str]:
+    messages = _summary_value(summary, "messages", [])
+    if not isinstance(messages, Iterable) or isinstance(messages, (str, bytes)):
+        return []
+    return [str(message) for message in messages]
+
+
+def build_capacity_weekly_rows_source_diagnostic(env) -> dict:
+    """Build a read-only diagnostic for the WeeklyCapacityRow source load summary."""
+    env_rows_present = hasattr(env, "capacity_weekly_rows")
+    env_rows = getattr(env, "capacity_weekly_rows", None) if env_rows_present else None
+    env_row_count = _safe_len(env_rows) if env_rows_present else 0
+    env_source_kind = getattr(env, "capacity_weekly_rows_source_kind", None)
+    env_source_path = getattr(env, "capacity_weekly_rows_source_path", None)
+
+    summary_available = hasattr(env, "capacity_weekly_rows_load_summary")
+    if not summary_available:
+        messages = ["Capacity weekly rows source: load summary missing."]
+        if env_rows_present:
+            messages.append(
+                "Capacity weekly rows source: env.capacity_weekly_rows present without load summary."
+            )
+
+        return {
+            "available": False,
+            "summary_available": False,
+            "source_kind": env_source_kind or "unknown",
+            "source_path": env_source_path,
+            "row_count": 0,
+            "attached_to_env": False,
+            "env_rows_present": env_rows_present,
+            "env_row_count": env_row_count,
+            "source_path_matches_env": None,
+            "source_kind_matches_env": None,
+            "row_count_matches_env": None,
+            "reason": "missing_capacity_weekly_rows_load_summary",
+            "messages": messages,
+        }
+
+    summary = getattr(env, "capacity_weekly_rows_load_summary")
+    available = bool(_summary_value(summary, "available", False))
+    source_kind = (
+        _summary_value(summary, "source_kind", None) or env_source_kind or "unknown"
+    )
+    source_path = _summary_value(summary, "source_path", None) or env_source_path
+    row_count = _summary_value(summary, "row_count", 0)
+    attached_to_env = bool(_summary_value(summary, "attached_to_env", False))
+
+    source_path_matches_env = (
+        str(source_path) == str(env_source_path)
+        if source_path is not None and env_source_path is not None
+        else None
+    )
+    source_kind_matches_env = (
+        source_kind == env_source_kind if env_source_kind is not None else None
+    )
+    row_count_matches_env = (
+        row_count == env_row_count
+        if env_rows_present and env_row_count is not None
+        else None
+    )
+
+    messages: list[str] = ["Capacity weekly rows source: load summary available."]
+    for message in _summary_messages(summary):
+        _append_unique(messages, message)
+
+    if env_rows_present:
+        _append_unique(
+            messages, "Capacity weekly rows source: env.capacity_weekly_rows present."
+        )
+    else:
+        _append_unique(
+            messages, "Capacity weekly rows source: env.capacity_weekly_rows missing."
+        )
+
+    if available:
+        _append_unique(
+            messages, f"Capacity weekly rows source: loaded {row_count} rows."
+        )
+    elif source_kind == "missing":
+        _append_unique(
+            messages,
+            "Capacity weekly rows source: no capacity master source found.",
+        )
+
+    warnings: list[str] = []
+    if attached_to_env and not env_rows_present:
+        warning = (
+            "Capacity weekly rows source: summary says rows attached, but "
+            "env.capacity_weekly_rows is missing."
+        )
+        _append_unique(messages, warning)
+        warnings.append(warning)
+    if row_count_matches_env is False:
+        warning = "Capacity weekly rows source: summary row_count differs from env row count."
+        _append_unique(messages, warning)
+        warnings.append(warning)
+    if source_path_matches_env is False:
+        warning = "Capacity weekly rows source: summary source path differs from env source path."
+        _append_unique(messages, warning)
+        warnings.append(warning)
+    if source_kind_matches_env is False:
+        warning = "Capacity weekly rows source: summary source kind differs from env source kind."
+        _append_unique(messages, warning)
+        warnings.append(warning)
+
+    diagnostic = {
+        "available": available,
+        "summary_available": True,
+        "summary": summary,
+        "source_kind": source_kind,
+        "source_path": source_path,
+        "row_count": row_count,
+        "attached_to_env": attached_to_env,
+        "env_rows_present": env_rows_present,
+        "env_row_count": env_row_count,
+        "source_path_matches_env": source_path_matches_env,
+        "source_kind_matches_env": source_kind_matches_env,
+        "row_count_matches_env": row_count_matches_env,
+        "messages": messages,
+        "warnings": warnings,
+    }
+    if not available and source_kind == "missing":
+        diagnostic["reason"] = "capacity_weekly_rows_source_missing"
+    return diagnostic
+
 def build_capacity_runtime_attachment_diagnostic(env) -> dict:
     """Build a read-only diagnostic for WeeklyCapacityRow runtime env attachment."""
     summary_available = hasattr(env, "capacity_runtime_attachment_summary")
@@ -436,35 +574,38 @@ def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
     else:
         effective = "not_applied"
 
-    messages: list[str] = []
+    alignment_messages: list[str] = []
     if selected_product and forward_weekly_capacity is not None and not fwd_match:
-        messages.append(
+        alignment_messages.append(
             f"Selected product {selected_product} is not present in forward capacity context product set {sorted(forward_products)}."
         )
     if selected_product and backward_weekly_capability is not None and not bwd_match:
-        messages.append(
+        alignment_messages.append(
             f"Selected product {selected_product} is not present in backward capability context product set {sorted(backward_products)}."
         )
     if week_alignment == "mismatch":
-        messages.append(
+        alignment_messages.append(
             "Forward capacity uses week-key domain "
             f"{forward_week_domain}, while consumer expects {consumer_forward_week_domain}."
         )
     if shape_alignment == "mismatch":
-        messages.append(
+        alignment_messages.append(
             f"Forward capacity producer shape appears to be {forward_shape}, while consumer expectation is "
             f"{consumer_forward_capacity_shape_version}."
         )
     if node_alignment == "mismatch":
-        messages.append(
+        alignment_messages.append(
             "Capacity nodes do not match runtime tree nodes. "
             f"Unmatched capacity nodes: {sorted(unmatched)[:_SAMPLE_LIMIT]}."
         )
 
-    runtime_attachment = build_capacity_runtime_attachment_diagnostic(
-        env if env is not None else object()
-    )
+    diagnostic_env = env if env is not None else object()
+    source_diagnostic = build_capacity_weekly_rows_source_diagnostic(diagnostic_env)
+    runtime_attachment = build_capacity_runtime_attachment_diagnostic(diagnostic_env)
+    messages: list[str] = []
+    messages.extend(source_diagnostic.get("messages", []))
     messages.extend(runtime_attachment.get("messages", []))
+    messages.extend(alignment_messages)
 
     severity = "info" if not messages else "warning"
 
@@ -509,6 +650,7 @@ def build_explicit_pipeline_capacity_scenario_alignment_diagnostic(
             "scenario_alignment": scenario_alignment,
             "effective_capacity_application": effective,
         },
+        "capacity_weekly_rows_source": source_diagnostic,
         "runtime_attachment": runtime_attachment,
         "messages": messages,
     }
