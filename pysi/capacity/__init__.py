@@ -1,5 +1,6 @@
 from pysi.capacity.capacity_exporter import export_capacity_usage_csv, export_capacity_violation_csv
 from pysi.capacity.capacity_master_loader import load_capacity_master_csv
+from pysi.capacity.capacity_weekly_rows_source import load_capacity_weekly_rows_to_env
 from pysi.capacity.capacity_model import CapacityBucket, CapacityUsage, CapacityViolation
 from pysi.capacity.capacity_planning import with_capacity_forward_planning
 from pysi.capacity.capacity_report_hook import run_capacity_report_hook
@@ -9,6 +10,7 @@ __all__ = [
     "CapacityUsage",
     "CapacityViolation",
     "load_capacity_master_csv",
+    "load_capacity_weekly_rows_to_env",
     "export_capacity_usage_csv",
     "export_capacity_violation_csv",
     "with_capacity_forward_planning",
