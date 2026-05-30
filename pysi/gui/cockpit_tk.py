@@ -1922,10 +1922,18 @@ class WOMCockpit(tk.Tk):
             include_exports=False,
         )
 
+        preflight_messages: list[str] = []
+        source_preflight_load = getattr(
+            self,
+            "_maybe_load_capacity_weekly_rows_source_for_explicit_kpi_preflight",
+            None,
+        )
+        if callable(source_preflight_load):
+            source_preflight_load(messages=preflight_messages)
+
         self._maybe_attach_explicit_pipeline_backward_weekly_capability()
         self._maybe_attach_explicit_pipeline_forward_weekly_capacity()
 
-        preflight_messages: list[str] = []
         runtime_preflight_attach = getattr(
             self,
             "_maybe_apply_capacity_runtime_attachment_preflight",
@@ -1944,6 +1952,14 @@ class WOMCockpit(tk.Tk):
                     messages=preflight_messages,
                 )
             )
+
+        runtime_preflight_result = getattr(
+            self.env,
+            "capacity_runtime_attachment_preflight_result",
+            None,
+        )
+        if preflight_messages and isinstance(runtime_preflight_result, dict):
+            runtime_preflight_result["messages"] = list(preflight_messages)
 
         diagnostic_attach = getattr(
             self,
@@ -1978,6 +1994,57 @@ class WOMCockpit(tk.Tk):
         self.env.explicit_kpi_demo_flag_missing_ctx_keys = []
         self.env.explicit_kpi_demo_flag_guard_message = ""
         return applied
+
+    def _maybe_load_capacity_weekly_rows_source_for_explicit_kpi_preflight(
+        self,
+        *,
+        messages: list[str],
+    ) -> dict[str, object] | None:
+        env = self.env
+
+        def first_hint(*values):
+            for value in values:
+                if value is not None:
+                    return value
+            return None
+
+        capacity_master_path = first_hint(
+            getattr(env, "capacity_master_path", None),
+            getattr(self, "capacity_master_path", None),
+        )
+        scenario_root = first_hint(
+            getattr(env, "scenario_root", None),
+            getattr(self, "scenario_root", None),
+            getattr(self, "current_scenario_root", None),
+        )
+        scenario_config = first_hint(
+            getattr(env, "scenario_config", None),
+            getattr(self, "scenario_config", None),
+            getattr(self, "current_scenario_config", None),
+        )
+
+        if (
+            capacity_master_path is None
+            and scenario_root is None
+            and scenario_config is None
+        ):
+            return None
+
+        from pysi.capacity.capacity_weekly_rows_source import (
+            load_capacity_weekly_rows_to_env,
+        )
+
+        summary = load_capacity_weekly_rows_to_env(
+            env,
+            capacity_master_path=capacity_master_path,
+            scenario_root=scenario_root,
+            scenario_config=scenario_config,
+            required=False,
+        )
+        summary_messages = summary.get("messages", [])
+        if isinstance(summary_messages, list):
+            messages.extend(summary_messages)
+        return summary
 
     def _maybe_apply_capacity_runtime_attachment_preflight(
         self,
