@@ -1,0 +1,4 @@
+scenario_id,demand_node,product_name,week,demand_qty,unit,source_granularity,priority,calendar_id,comment
+JAPANESE_RICE_VSLICE_001,MARKET_TOKYO,JAPANESE_RICE_STANDARD,2027-W40,80,lot,weekly,1,CAL_JP_STD,Tokyo market demand week 40
+JAPANESE_RICE_VSLICE_001,MARKET_TOKYO,JAPANESE_RICE_STANDARD,2027-W41,95,lot,weekly,1,CAL_JP_STD,Tokyo market demand week 41
+JAPANESE_RICE_VSLICE_001,MARKET_TOKYO,JAPANESE_RICE_STANDARD,2027-W42,110,lot,weekly,1,CAL_JP_STD,Tokyo market demand week 42
