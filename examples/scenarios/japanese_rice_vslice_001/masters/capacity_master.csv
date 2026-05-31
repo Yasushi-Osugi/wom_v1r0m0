@@ -1,0 +1,10 @@
+scenario_id,tree_side,node_name,product_name,week,capacity_type,capacity_qty,cap_mode,unit,priority,calendar_id,comment
+JAPANESE_RICE_VSLICE_001,inbound,FARM_REGION_A,JAPANESE_RICE_STANDARD,2027-W40,P,120,hard,lot,1,CAL_JP_STD,Harvest availability for week 40
+JAPANESE_RICE_VSLICE_001,inbound,FARM_REGION_A,JAPANESE_RICE_STANDARD,2027-W41,P,120,hard,lot,1,CAL_JP_STD,Harvest availability for week 41
+JAPANESE_RICE_VSLICE_001,inbound,FARM_REGION_A,JAPANESE_RICE_STANDARD,2027-W42,P,120,hard,lot,1,CAL_JP_STD,Harvest availability for week 42
+JAPANESE_RICE_VSLICE_001,inbound,RICE_MILL_A,JAPANESE_RICE_STANDARD,2027-W40,P,100,hard,lot,1,CAL_JP_STD,Milling capacity for week 40
+JAPANESE_RICE_VSLICE_001,inbound,RICE_MILL_A,JAPANESE_RICE_STANDARD,2027-W41,P,100,hard,lot,1,CAL_JP_STD,Milling capacity for week 41
+JAPANESE_RICE_VSLICE_001,inbound,RICE_MILL_A,JAPANESE_RICE_STANDARD,2027-W42,P,100,hard,lot,1,CAL_JP_STD,Milling capacity for week 42
+JAPANESE_RICE_VSLICE_001,outbound,DC_KANTO,JAPANESE_RICE_STANDARD,2027-W40,S,90,hard,lot,1,CAL_JP_STD,Outbound shipment capacity for week 40
+JAPANESE_RICE_VSLICE_001,outbound,DC_KANTO,JAPANESE_RICE_STANDARD,2027-W41,S,90,hard,lot,1,CAL_JP_STD,Outbound shipment capacity for week 41
+JAPANESE_RICE_VSLICE_001,outbound,DC_KANTO,JAPANESE_RICE_STANDARD,2027-W42,S,90,hard,lot,1,CAL_JP_STD,Outbound shipment capacity for week 42
