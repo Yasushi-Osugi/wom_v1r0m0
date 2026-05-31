@@ -951,3 +951,7 @@ Those lot IDs sit in the demand PSI S slot.
 This is the next test flight after the capacity master slice.
 
 The Rice Case now gets not only cargo capacity, but actual final-market demand.
+
+# additional comment
+Important clarification:
+DemandAnchoredLot should be anchored at the final demand leaf plan_node of the product-specific outbound_tree. In business terms, this represents the actual point where real demand occurs, such as OTC retail counters, dealer stores, sales outlets, EC channels, or other final market channels. Therefore, WeeklyDemandRow.demand_node must resolve to an outbound-tree leaf plan_node for product_name, and generated lot IDs should be attached to that plan_node's demand PSI S slot: plan_node.psi4demand[week][0] or the symbolic equivalent plan_node.psi4demand[week]["S"].
