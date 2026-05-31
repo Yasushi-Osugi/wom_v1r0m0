@@ -12,6 +12,13 @@ from pysi.demand import (
     load_weekly_demand_master_csv,
 )
 from pysi.network import find_node, has_path, load_network_master_package
+from pysi.plan.capacity_constrained_first_flow import (
+    run_japanese_rice_capacity_constrained_first_flow,
+)
+from pysi.plan.plan_node_tree_instantiation import (
+    LEGACY_PSI_DEMAND_S_INDEX,
+    instantiate_japanese_rice_plan_node_tree_and_attach_demand,
+)
 from pysi.reporting.explicit_pipeline_capacity_scenario_alignment import (
     apply_capacity_runtime_attachment_preflight,
 )
@@ -94,6 +101,48 @@ def _extract_capacity_context_summary(preflight_result: dict[str, Any]) -> dict[
         "runtime_attachment_applied": preflight_result.get("applied") is True,
         "input_row_count": preflight_result.get("input_row_count", 0),
         "row_source": preflight_result.get("row_source"),
+    }
+
+
+def _build_actual_plan_node_tree_diagnostic(
+    scenario_root: Path,
+) -> dict[str, Any]:
+    tree_result = instantiate_japanese_rice_plan_node_tree_and_attach_demand(scenario_root)
+    summary = tree_result["summary"]
+    market_tokyo = tree_result["market_tokyo"]
+    weekly_s_slot_counts = {
+        week: len(market_tokyo.psi4demand[week][LEGACY_PSI_DEMAND_S_INDEX])
+        for week in EXPECTED_WEEKS
+    }
+
+    return {
+        "available": True,
+        "product_name": PRODUCT_NAME,
+        "inbound_node_count": summary["inbound_node_count"],
+        "outbound_node_count": summary["outbound_node_count"],
+        "demand_node": DEMAND_NODE,
+        "demand_lot_source": "MARKET_TOKYO.psi4demand[week][0]",
+        "weekly_s_slot_counts": weekly_s_slot_counts,
+    }
+
+
+def _build_capacity_constrained_first_flow_diagnostic(
+    scenario_root: Path,
+) -> dict[str, Any]:
+    flow_result = run_japanese_rice_capacity_constrained_first_flow(scenario_root)
+    flow = flow_result["flow"]
+
+    return {
+        "available": flow_result["available"],
+        "run_mode": flow_result["run_mode"],
+        "full_psi_plan": flow_result["full_psi_plan"],
+        "capacity_node": flow["capacity_node"],
+        "demand_node": flow["demand_node"],
+        "capacity_type": flow["capacity_type"],
+        "demand_lot_source": flow["demand_lot_source"],
+        "weeks": flow_result["weeks"],
+        "weekly": flow_result["weekly"],
+        "totals": flow_result["totals"],
     }
 
 
@@ -213,6 +262,8 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
         weekly_lot_counts=weekly_lot_counts,
         capacity_rows=capacity_rows,
     )
+    actual_plan_node_tree = _build_actual_plan_node_tree_diagnostic(root)
+    capacity_constrained_first_flow = _build_capacity_constrained_first_flow_diagnostic(root)
 
     return {
         "scenario_id": SCENARIO_ID,
@@ -246,6 +297,8 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
             "supply_source": SUPPLY_SOURCE_NODE,
         },
         "capacity": _extract_capacity_context_summary(capacity_preflight),
+        "actual_plan_node_tree": actual_plan_node_tree,
+        "capacity_constrained_first_flow": capacity_constrained_first_flow,
         "balance": balance,
         "most_restrictive_node": DAD_NODE,
         "messages": [
@@ -254,6 +307,9 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
             "Japanese Rice first PSI vertical slice: capacity runtime context attached.",
             "Japanese Rice first PSI vertical slice: network hammock paths verified.",
             "Japanese Rice first PSI vertical slice: simple weekly balance computed.",
+            "Japanese Rice first PSI vertical slice: actual ProductPlanNode tree instantiated.",
+            "Japanese Rice first PSI vertical slice: MARKET_TOKYO.psi4demand[week][0] verified.",
+            "Japanese Rice first PSI vertical slice: DC_KANTO capacity-constrained first flow attached.",
         ],
     }
 
