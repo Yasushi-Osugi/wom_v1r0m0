@@ -1,0 +1,10 @@
+scenario_id,node_name,display_name,node_character,node_role,tree_side,product_name,is_root,is_supply_point,is_mom,is_dad,is_leaf,is_supplier_leaf,is_market_leaf,is_procurement_center,is_global_sales_office,position_group,partner_key,e2e_stage,priority,comment
+JAPANESE_RICE_VSLICE_001,supply_side_root,Supply side root,SUPPLY_SIDE_ROOT,root,inbound,JAPANESE_RICE_STANDARD,true,false,false,false,false,false,false,false,false,GLOBAL_CONTROL,,0,1,Inbound root
+JAPANESE_RICE_VSLICE_001,demand_side_root,Demand side root,DEMAND_SIDE_ROOT,root,outbound,JAPANESE_RICE_STANDARD,true,false,false,false,false,false,false,false,false,GLOBAL_CONTROL,,0,1,Outbound root
+JAPANESE_RICE_VSLICE_001,supply_point,Supply point,SUPPLY_POINT,hinge,both,JAPANESE_RICE_STANDARD,false,true,false,false,false,false,false,false,false,RICE_CORE,RICE_CORE,0,1,E2E hammock hinge
+JAPANESE_RICE_VSLICE_001,RICE_MILL_A,Rice mill A,MOM,processing,inbound,JAPANESE_RICE_STANDARD,false,false,true,false,false,false,false,false,false,RICE_CORE,RICE_CORE,,1,Rice milling MOM role node
+JAPANESE_RICE_VSLICE_001,FARM_REGION_A,Farm region A,SUPPLIER_LEAF,supply_source,inbound,JAPANESE_RICE_STANDARD,false,false,false,false,true,true,false,false,false,RICE_SUPPLY,RICE_CORE,,1,Rice producing region
+JAPANESE_RICE_VSLICE_001,Procurement_Center,Procurement Center,PROCUREMENT_CENTER,control,inbound,JAPANESE_RICE_STANDARD,false,false,false,false,true,false,false,true,false,GLOBAL_CONTROL,,,1,Global procurement endpoint
+JAPANESE_RICE_VSLICE_001,DC_KANTO,Kanto DC,DAD,distribution,outbound,JAPANESE_RICE_STANDARD,false,false,false,true,false,false,false,false,false,RICE_CORE,RICE_CORE,,1,Distribution DAD role node
+JAPANESE_RICE_VSLICE_001,MARKET_TOKYO,Tokyo market,MARKET_LEAF,final_demand,outbound,JAPANESE_RICE_STANDARD,false,false,false,false,true,false,true,false,false,KANTO_MARKET,RICE_CORE,,1,Tokyo final demand leaf
+JAPANESE_RICE_VSLICE_001,Global_Sales_Office,Global Sales Office,GLOBAL_SALES_OFFICE,control,outbound,JAPANESE_RICE_STANDARD,false,false,false,false,true,false,false,false,true,GLOBAL_CONTROL,,,1,Global sales endpoint

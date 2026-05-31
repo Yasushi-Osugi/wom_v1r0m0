@@ -1,0 +1,9 @@
+scenario_id,product_name,tree_side,parent_node,child_node,edge_type,edge_role,leadtime,process_capa,transport_capacity_qty,unit,priority,calendar_id,comment
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,inbound,supply_side_root,supply_point,root_to_supply_point,hammock_structure,0,,,lot,1,CAL_JP_STD,Inbound root to supply point
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,inbound,supply_point,RICE_MILL_A,supply_point_to_mom,hammock_structure,1,100,,lot,1,CAL_JP_STD,Supply point to rice mill MOM
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,inbound,RICE_MILL_A,FARM_REGION_A,mom_to_supplier_leaf,hammock_structure,1,120,,lot,1,CAL_JP_STD,Rice mill to farm region supplier leaf
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,inbound,FARM_REGION_A,Procurement_Center,supplier_leaf_to_procurement_center,control_endpoint,1,,,lot,1,CAL_JP_STD,Farm region to procurement endpoint
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,outbound,demand_side_root,supply_point,root_to_supply_point,hammock_structure,0,,,lot,1,CAL_JP_STD,Outbound root to supply point
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,outbound,supply_point,DC_KANTO,supply_point_to_dad,hammock_structure,1,90,,lot,1,CAL_JP_STD,Supply point to Kanto DC DAD
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,outbound,DC_KANTO,MARKET_TOKYO,dad_to_market_leaf,hammock_structure,1,90,,lot,1,CAL_JP_STD,Kanto DC to Tokyo market leaf
+JAPANESE_RICE_VSLICE_001,JAPANESE_RICE_STANDARD,outbound,MARKET_TOKYO,Global_Sales_Office,market_leaf_to_global_sales,control_endpoint,1,,,lot,1,CAL_JP_STD,Tokyo market to global sales endpoint
