@@ -588,6 +588,59 @@ def add_capacity_gate_chart_to_window(parent: Any, dataset: dict[str, Any]) -> A
     return frame
 
 
+def _create_scrollable_frame(parent: Any) -> tuple[Any, Any, Any]:
+    """Create a vertically scrollable Tkinter frame for the GUI content."""
+
+    import tkinter as tk
+    from tkinter import ttk
+
+    outer = ttk.Frame(parent)
+    outer.pack(fill=tk.BOTH, expand=True)
+
+    canvas = tk.Canvas(outer, borderwidth=0, highlightthickness=0)
+    scrollbar = ttk.Scrollbar(outer, orient=tk.VERTICAL, command=canvas.yview)
+    scrollable_frame = ttk.Frame(canvas, padding=12)
+    canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor=tk.NW)
+
+    def _refresh_scrollregion(_event: Any = None) -> None:
+        canvas.configure(scrollregion=canvas.bbox(tk.ALL))
+
+    def _fit_frame_width(event: Any) -> None:
+        canvas.itemconfigure(canvas_window, width=event.width)
+
+    def _on_mousewheel(event: Any) -> str:
+        if getattr(event, "num", None) == 4:
+            delta = -1
+        elif getattr(event, "num", None) == 5:
+            delta = 1
+        else:
+            delta = -int(event.delta / 120) if event.delta else 0
+        if delta:
+            canvas.yview_scroll(delta, "units")
+        return "break"
+
+    def _bind_mousewheel(_event: Any = None) -> None:
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_mousewheel)
+        canvas.bind_all("<Button-5>", _on_mousewheel)
+
+    def _unbind_mousewheel(_event: Any = None) -> None:
+        canvas.unbind_all("<MouseWheel>")
+        canvas.unbind_all("<Button-4>")
+        canvas.unbind_all("<Button-5>")
+
+    scrollable_frame.bind("<Configure>", _refresh_scrollregion)
+    canvas.bind("<Configure>", _fit_frame_width)
+    canvas.bind("<Enter>", _bind_mousewheel)
+    canvas.bind("<Leave>", _unbind_mousewheel)
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    return scrollable_frame, canvas, scrollbar
+
+
 def _launch_model_window(model: dict[str, Any]) -> None:
     import tkinter as tk
     from tkinter import ttk
@@ -595,10 +648,9 @@ def _launch_model_window(model: dict[str, Any]) -> None:
 
     root = tk.Tk()
     root.title(model.get("title", TITLE))
-    root.geometry("920x760")
+    root.geometry("1280x900")
 
-    container = ttk.Frame(root, padding=12)
-    container.pack(fill=tk.BOTH, expand=True)
+    container, _canvas, _scrollbar = _create_scrollable_frame(root)
 
     title = ttk.Label(
         container,
@@ -625,7 +677,7 @@ def _launch_model_window(model: dict[str, Any]) -> None:
     summary = ScrolledText(container, height=8, wrap=tk.WORD)
     summary.insert(tk.END, model.get("summary_text", ""))
     summary.configure(state=tk.DISABLED)
-    summary.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+    summary.pack(fill=tk.X, pady=(0, 10))
 
     chart_dataset = build_japanese_rice_capacity_gate_chart_dataset(model)
     add_capacity_gate_chart_to_window(container, chart_dataset)

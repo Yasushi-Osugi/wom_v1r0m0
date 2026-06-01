@@ -18,7 +18,13 @@ SCENARIO_ROOT = REPO_ROOT / "examples" / "scenarios" / "japanese_rice_vslice_001
 EXPECTED_WEEKLY_ROWS = [
     {"week": "2027-W40", "requested": 80, "capacity": 90, "accepted": 80, "blocked": 0},
     {"week": "2027-W41", "requested": 95, "capacity": 90, "accepted": 90, "blocked": 5},
-    {"week": "2027-W42", "requested": 110, "capacity": 90, "accepted": 90, "blocked": 20},
+    {
+        "week": "2027-W42",
+        "requested": 110,
+        "capacity": 90,
+        "accepted": 90,
+        "blocked": 20,
+    },
 ]
 EXPECTED_TOTALS = {
     "requested": 285,
@@ -38,6 +44,8 @@ def test_module_import_smoke_does_not_open_gui_window() -> None:
     assert hasattr(module, "extract_japanese_rice_first_runner_gui_model")
     assert hasattr(module, "build_japanese_rice_weekly_capacity_gate_rows")
     assert hasattr(module, "format_japanese_rice_gui_summary_text")
+    assert hasattr(module, "_create_scrollable_frame")
+    assert hasattr(module, "_launch_model_window")
 
 
 def test_gui_model_extraction_reports_runner_identity() -> None:
