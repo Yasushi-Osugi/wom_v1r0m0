@@ -65,6 +65,108 @@ def build_japanese_rice_weekly_capacity_gate_rows(result: dict[str, Any]) -> lis
     return rows
 
 
+def _ratio(numerator: Any, denominator: Any) -> float | int:
+    if denominator > 0:
+        return numerator / denominator
+    return 0
+
+
+def _capacity_gate_chart_row(row: dict[str, Any]) -> dict[str, Any]:
+    requested = _safe_number(row.get("requested", 0))
+    capacity = _safe_number(row.get("capacity", 0))
+    accepted = _safe_number(row.get("accepted", 0))
+    blocked = _safe_number(row.get("blocked", 0))
+    capacity_usage_ratio = _ratio(accepted, capacity)
+    blocked_ratio = _ratio(blocked, requested)
+
+    return {
+        "week": row.get("week", ""),
+        "requested": requested,
+        "capacity": capacity,
+        "accepted": accepted,
+        "blocked": blocked,
+        "shortage": blocked,
+        "unused_capacity": max(capacity - accepted, 0),
+        "capacity_usage_ratio": capacity_usage_ratio,
+        "blocked_ratio": blocked_ratio,
+        "capacity_usage_pct": capacity_usage_ratio * 100,
+        "blocked_pct": blocked_ratio * 100,
+    }
+
+
+def _capacity_gate_chart_totals(
+    rows: list[dict[str, Any]], totals: dict[str, Any]
+) -> dict[str, Any]:
+    requested = _safe_number(
+        totals.get("requested", sum(row.get("requested", 0) for row in rows))
+    )
+    capacity = _safe_number(
+        totals.get("capacity", sum(row.get("capacity", 0) for row in rows))
+    )
+    accepted = _safe_number(
+        totals.get("accepted", sum(row.get("accepted", 0) for row in rows))
+    )
+    blocked = _safe_number(
+        totals.get("blocked", sum(row.get("blocked", 0) for row in rows))
+    )
+    capacity_usage_ratio = _ratio(accepted, capacity)
+    blocked_ratio = _ratio(blocked, requested)
+
+    return {
+        "requested": requested,
+        "capacity": capacity,
+        "accepted": accepted,
+        "blocked": blocked,
+        "shortage": blocked,
+        "unused_capacity": max(capacity - accepted, 0),
+        "capacity_usage_ratio": capacity_usage_ratio,
+        "blocked_ratio": blocked_ratio,
+        "capacity_usage_pct": capacity_usage_ratio * 100,
+        "blocked_pct": blocked_ratio * 100,
+    }
+
+
+def build_japanese_rice_capacity_gate_chart_dataset(
+    model_or_result: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a stable chart-ready capacity-gate dataset from the GUI model.
+
+    The chart dataset intentionally mirrors the existing GUI weekly table and adds
+    only presentation-neutral derived metrics. If a runner result is supplied
+    instead of a GUI model, convert it through the GUI model extractor rather
+    than duplicating runner summary logic.
+    """
+
+    source = model_or_result
+    if not isinstance(source, dict):
+        source = {}
+    if "weekly_rows" not in source:
+        source = extract_japanese_rice_first_runner_gui_model(source)
+
+    weekly_rows = source.get("weekly_rows", [])
+    if not isinstance(weekly_rows, list):
+        weekly_rows = []
+    rows = [
+        _capacity_gate_chart_row(row)
+        for row in weekly_rows
+        if isinstance(row, dict)
+    ]
+
+    totals = source.get("totals", {})
+    if not isinstance(totals, dict):
+        totals = {}
+
+    return {
+        "title": "Japanese Rice DC_KANTO capacity gate",
+        "x_key": "week",
+        "series": ["requested", "capacity", "accepted", "blocked"],
+        "rows": rows,
+        "totals": _capacity_gate_chart_totals(rows, totals),
+        "unit": "lot",
+        "chart_hint": "line_or_grouped_bar",
+    }
+
+
 def format_japanese_rice_gui_summary_text(result: dict[str, Any]) -> str:
     """Format the GUI summary text directly from the stable CLI summary lines."""
 
@@ -231,6 +333,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 __all__ = [
+    "build_japanese_rice_capacity_gate_chart_dataset",
     "build_japanese_rice_weekly_capacity_gate_rows",
     "extract_japanese_rice_first_runner_gui_model",
     "format_japanese_rice_gui_summary_text",
