@@ -35,7 +35,9 @@ def _safe_number(value: Any) -> Any:
     return value
 
 
-def build_japanese_rice_weekly_capacity_gate_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
+def build_japanese_rice_weekly_capacity_gate_rows(
+    result: dict[str, Any],
+) -> list[dict[str, Any]]:
     """Build GUI table rows from the runner's stable capacity-gate demo summary."""
 
     demo_summary = result.get("demo_summary", {})
@@ -147,9 +149,7 @@ def build_japanese_rice_capacity_gate_chart_dataset(
     if not isinstance(weekly_rows, list):
         weekly_rows = []
     rows = [
-        _capacity_gate_chart_row(row)
-        for row in weekly_rows
-        if isinstance(row, dict)
+        _capacity_gate_chart_row(row) for row in weekly_rows if isinstance(row, dict)
     ]
 
     totals = source.get("totals", {})
@@ -165,6 +165,223 @@ def build_japanese_rice_capacity_gate_chart_dataset(
         "unit": "lot",
         "chart_hint": "line_or_grouped_bar",
     }
+
+
+def build_capacity_override_chart_dataset(
+    base_dataset: dict[str, Any],
+    *,
+    capacity_value: int,
+    scenario_label: str = "Capacity-up",
+) -> dict[str, Any]:
+    """Build a deterministic capacity-override variant from a base chart dataset.
+
+    This helper intentionally stays presentation-neutral and does not mutate any
+    scenario master data or planner state. It reuses the requested lots by week
+    from the supplied base dataset, replaces same-week capacity with the given
+    override, and recalculates the simple capacity-gate metrics.
+    """
+
+    if not isinstance(base_dataset, dict):
+        base_dataset = {}
+
+    base_rows = base_dataset.get("rows", [])
+    if not isinstance(base_rows, list):
+        base_rows = []
+
+    rows: list[dict[str, Any]] = []
+    for row in base_rows:
+        if not isinstance(row, dict):
+            continue
+        requested = _safe_number(row.get("requested", 0))
+        capacity = _safe_number(capacity_value)
+        accepted = min(requested, capacity)
+        blocked = max(requested - capacity, 0)
+        rows.append(
+            _capacity_gate_chart_row(
+                {
+                    "week": row.get("week", ""),
+                    "requested": requested,
+                    "capacity": capacity,
+                    "accepted": accepted,
+                    "blocked": blocked,
+                }
+            )
+        )
+
+    return {
+        "title": f"Japanese Rice DC_KANTO capacity gate - {scenario_label}",
+        "scenario_label": scenario_label,
+        "capacity_override": _safe_number(capacity_value),
+        "unit": base_dataset.get("unit", "lot"),
+        "x_key": base_dataset.get("x_key", "week"),
+        "series": base_dataset.get(
+            "series", ["requested", "capacity", "accepted", "blocked"]
+        ),
+        "rows": rows,
+        "totals": _capacity_gate_chart_totals(rows, {}),
+        "chart_hint": base_dataset.get("chart_hint", "line_or_grouped_bar"),
+    }
+
+
+def _capacity_gate_totals_from_dataset(dataset: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(dataset, dict):
+        dataset = {}
+    rows = dataset.get("rows", [])
+    if not isinstance(rows, list):
+        rows = []
+    totals = dataset.get("totals", {})
+    if not isinstance(totals, dict):
+        totals = {}
+    return _capacity_gate_chart_totals(
+        [row for row in rows if isinstance(row, dict)], totals
+    )
+
+
+def build_capacity_gate_scenario_comparison(
+    base_dataset: dict[str, Any],
+    variant_dataset: dict[str, Any],
+    *,
+    base_label: str = "Base",
+    variant_label: str = "Capacity-up",
+) -> dict[str, Any]:
+    """Compare two capacity-gate datasets week-by-week and in total."""
+
+    if not isinstance(base_dataset, dict):
+        base_dataset = {}
+    if not isinstance(variant_dataset, dict):
+        variant_dataset = {}
+
+    base_rows_raw = base_dataset.get("rows", [])
+    variant_rows_raw = variant_dataset.get("rows", [])
+    base_rows = (
+        [row for row in base_rows_raw if isinstance(row, dict)]
+        if isinstance(base_rows_raw, list)
+        else []
+    )
+    variant_rows = (
+        [row for row in variant_rows_raw if isinstance(row, dict)]
+        if isinstance(variant_rows_raw, list)
+        else []
+    )
+    variant_by_week = {row.get("week", ""): row for row in variant_rows}
+
+    comparison_rows: list[dict[str, Any]] = []
+    seen_weeks: set[Any] = set()
+    ordered_base_weeks = [row.get("week", "") for row in base_rows]
+    ordered_variant_only_weeks = [
+        row.get("week", "")
+        for row in variant_rows
+        if row.get("week", "") not in ordered_base_weeks
+    ]
+
+    for week in [*ordered_base_weeks, *ordered_variant_only_weeks]:
+        if week in seen_weeks:
+            continue
+        seen_weeks.add(week)
+        base_row = next((row for row in base_rows if row.get("week", "") == week), {})
+        variant_row = variant_by_week.get(week, {})
+
+        base_requested = _safe_number(base_row.get("requested", 0))
+        base_capacity = _safe_number(base_row.get("capacity", 0))
+        base_accepted = _safe_number(base_row.get("accepted", 0))
+        base_blocked = _safe_number(base_row.get("blocked", 0))
+        variant_requested = _safe_number(variant_row.get("requested", 0))
+        variant_capacity = _safe_number(variant_row.get("capacity", 0))
+        variant_accepted = _safe_number(variant_row.get("accepted", 0))
+        variant_blocked = _safe_number(variant_row.get("blocked", 0))
+
+        comparison_rows.append(
+            {
+                "week": week,
+                "base_requested": base_requested,
+                "base_capacity": base_capacity,
+                "base_accepted": base_accepted,
+                "base_blocked": base_blocked,
+                "variant_requested": variant_requested,
+                "variant_capacity": variant_capacity,
+                "variant_accepted": variant_accepted,
+                "variant_blocked": variant_blocked,
+                "delta_capacity": variant_capacity - base_capacity,
+                "delta_accepted": variant_accepted - base_accepted,
+                "delta_blocked": variant_blocked - base_blocked,
+            }
+        )
+
+    base_totals = _capacity_gate_totals_from_dataset(base_dataset)
+    variant_totals = _capacity_gate_totals_from_dataset(variant_dataset)
+    delta_totals = {
+        "capacity": variant_totals["capacity"] - base_totals["capacity"],
+        "accepted": variant_totals["accepted"] - base_totals["accepted"],
+        "blocked": variant_totals["blocked"] - base_totals["blocked"],
+    }
+    blocked_reduction = base_totals["blocked"] - variant_totals["blocked"]
+    blocked_reduction_ratio = _ratio(blocked_reduction, base_totals["blocked"])
+
+    totals = {
+        "base": {
+            "requested": base_totals["requested"],
+            "capacity": base_totals["capacity"],
+            "accepted": base_totals["accepted"],
+            "blocked": base_totals["blocked"],
+        },
+        "variant": {
+            "requested": variant_totals["requested"],
+            "capacity": variant_totals["capacity"],
+            "accepted": variant_totals["accepted"],
+            "blocked": variant_totals["blocked"],
+        },
+        "delta": delta_totals,
+        "blocked_reduction": blocked_reduction,
+        "blocked_reduction_ratio": blocked_reduction_ratio,
+        "blocked_reduction_pct": blocked_reduction_ratio * 100,
+    }
+    comparison = {
+        "title": "Japanese Rice DC_KANTO capacity scenario comparison",
+        "base_label": base_label,
+        "variant_label": variant_label,
+        "rows": comparison_rows,
+        "totals": totals,
+        "management_message": "",
+    }
+    comparison["management_message"] = format_capacity_gate_scenario_comparison_text(
+        comparison
+    )
+    return comparison
+
+
+def format_capacity_gate_scenario_comparison_text(comparison: dict[str, Any]) -> str:
+    """Format a concise management summary for the Base vs Capacity-up comparison."""
+
+    if not isinstance(comparison, dict):
+        comparison = {}
+    totals = comparison.get("totals", {})
+    if not isinstance(totals, dict):
+        totals = {}
+    base = totals.get("base", {}) if isinstance(totals.get("base", {}), dict) else {}
+    variant = (
+        totals.get("variant", {}) if isinstance(totals.get("variant", {}), dict) else {}
+    )
+    base_label = comparison.get("base_label", "Base")
+    variant_label = comparison.get("variant_label", "Capacity-up")
+    base_capacity = base.get("capacity", 0)
+    variant_capacity = variant.get("capacity", 0)
+    rows = comparison.get("rows", [])
+    row_count = len(rows) if isinstance(rows, list) else 0
+    if row_count > 0:
+        base_capacity = _safe_number(base_capacity / row_count)
+        variant_capacity = _safe_number(variant_capacity / row_count)
+
+    return "\n".join(
+        [
+            "Scenario variation:",
+            f"  {base_label} DC_KANTO capacity: {base_capacity}",
+            f"  {variant_label} capacity: {variant_capacity}",
+            f"  blocked lots: {base.get('blocked', 0)} -> {variant.get('blocked', 0)}",
+            f"  blocked reduction: {totals.get('blocked_reduction', 0)} lots",
+            f"  blocked reduction: {totals.get('blocked_reduction_pct', 0):.1f}%",
+            f"  accepted lots: {base.get('accepted', 0)} -> {variant.get('accepted', 0)}",
+        ]
+    )
 
 
 def build_japanese_rice_capacity_gate_chart_series(
@@ -220,7 +437,9 @@ def format_japanese_rice_gui_summary_text(result: dict[str, Any]) -> str:
     return "\n".join(str(line) for line in lines)
 
 
-def extract_japanese_rice_first_runner_gui_model(result: dict[str, Any]) -> dict[str, Any]:
+def extract_japanese_rice_first_runner_gui_model(
+    result: dict[str, Any],
+) -> dict[str, Any]:
     """Extract a small GUI model from the stable Japanese Rice runner contract.
 
     GUI display code should not need to understand runner internals. This helper
@@ -358,16 +577,12 @@ def add_capacity_gate_chart_to_window(parent: Any, dataset: dict[str, Any]) -> A
             numeric_value = value if isinstance(value, (int, float)) else 0
             y = plot_bottom - ((numeric_value / y_max) * plot_height)
             points.extend([x, y])
-            canvas.create_oval(
-                x - 3, y - 3, x + 3, y + 3, fill=color, outline=color
-            )
+            canvas.create_oval(x - 3, y - 3, x + 3, y + 3, fill=color, outline=color)
         if len(points) >= 4:
             canvas.create_line(*points, fill=color, width=2)
         elif len(points) == 2:
             x, y = points
-            canvas.create_oval(
-                x - 3, y - 3, x + 3, y + 3, fill=color, outline=color
-            )
+            canvas.create_oval(x - 3, y - 3, x + 3, y + 3, fill=color, outline=color)
 
     frame.pack(fill=tk.X, pady=(0, 10))
     return frame
@@ -415,9 +630,7 @@ def _launch_model_window(model: dict[str, Any]) -> None:
     chart_dataset = build_japanese_rice_capacity_gate_chart_dataset(model)
     add_capacity_gate_chart_to_window(container, chart_dataset)
 
-    table = ttk.Treeview(
-        container, columns=_WEEKLY_COLUMNS, show="headings", height=4
-    )
+    table = ttk.Treeview(container, columns=_WEEKLY_COLUMNS, show="headings", height=4)
     headings = {
         "week": "Week",
         "requested": "Requested",
@@ -459,6 +672,18 @@ def _launch_model_window(model: dict[str, Any]) -> None:
         font=("TkDefaultFont", 10, "bold"),
     ).pack(anchor=tk.W)
 
+    variant_dataset = build_capacity_override_chart_dataset(
+        chart_dataset, capacity_value=100, scenario_label="Capacity-up"
+    )
+    scenario_comparison = build_capacity_gate_scenario_comparison(
+        chart_dataset, variant_dataset
+    )
+    ttk.Label(
+        container,
+        justify=tk.LEFT,
+        text=scenario_comparison["management_message"],
+    ).pack(anchor=tk.W, pady=(8, 0))
+
     root.mainloop()
 
 
@@ -487,7 +712,9 @@ def main(argv: list[str] | None = None) -> int:
         result = run_japanese_rice_first_psi_vslice(args.scenario_root)
         model = extract_japanese_rice_first_runner_gui_model(result)
         if not model.get("available"):
-            print(model.get("summary_text", "Japanese Rice first PSI smoke unavailable."))
+            print(
+                model.get("summary_text", "Japanese Rice first PSI smoke unavailable.")
+            )
             return 1
         _launch_model_window(model)
     except Exception as exc:
@@ -498,10 +725,13 @@ def main(argv: list[str] | None = None) -> int:
 
 __all__ = [
     "add_capacity_gate_chart_to_window",
+    "build_capacity_gate_scenario_comparison",
+    "build_capacity_override_chart_dataset",
     "build_japanese_rice_capacity_gate_chart_dataset",
     "build_japanese_rice_capacity_gate_chart_series",
     "build_japanese_rice_weekly_capacity_gate_rows",
     "extract_japanese_rice_first_runner_gui_model",
+    "format_capacity_gate_scenario_comparison_text",
     "format_japanese_rice_gui_summary_text",
     "launch_japanese_rice_first_runner_view",
     "main",
