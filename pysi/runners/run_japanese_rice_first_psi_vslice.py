@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import json
 from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
@@ -32,6 +34,7 @@ DAD_NODE = "DC_KANTO"
 SUPPLY_SOURCE_NODE = "FARM_REGION_A"
 SUPPLY_POINT_NODE = "supply_point"
 PARTNER_KEY = "RICE_CORE"
+CONTRACT_VERSION = "japanese_rice_first_runner_output_v0r1"
 
 INBOUND_HAMMOCK_PATH = [
     "supply_side_root",
@@ -96,7 +99,9 @@ def _compute_weekly_balance(
     return balance
 
 
-def _extract_capacity_context_summary(preflight_result: dict[str, Any]) -> dict[str, Any]:
+def _extract_capacity_context_summary(
+    preflight_result: dict[str, Any],
+) -> dict[str, Any]:
     return {
         "runtime_attachment_applied": preflight_result.get("applied") is True,
         "input_row_count": preflight_result.get("input_row_count", 0),
@@ -107,7 +112,9 @@ def _extract_capacity_context_summary(preflight_result: dict[str, Any]) -> dict[
 def _build_actual_plan_node_tree_diagnostic(
     scenario_root: Path,
 ) -> dict[str, Any]:
-    tree_result = instantiate_japanese_rice_plan_node_tree_and_attach_demand(scenario_root)
+    tree_result = instantiate_japanese_rice_plan_node_tree_and_attach_demand(
+        scenario_root
+    )
     summary = tree_result["summary"]
     market_tokyo = tree_result["market_tokyo"]
     weekly_s_slot_counts = {
@@ -139,11 +146,175 @@ def _build_capacity_constrained_first_flow_diagnostic(
         "capacity_node": flow["capacity_node"],
         "demand_node": flow["demand_node"],
         "capacity_type": flow["capacity_type"],
+        "unit": flow["unit"],
         "demand_lot_source": flow["demand_lot_source"],
         "weeks": flow_result["weeks"],
         "weekly": flow_result["weekly"],
         "totals": flow_result["totals"],
     }
+
+
+def build_japanese_rice_first_runner_demo_summary(
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the stable demo-facing summary for the first Japanese Rice runner."""
+
+    actual_tree = result["actual_plan_node_tree"]
+    first_flow = result["capacity_constrained_first_flow"]
+    totals = first_flow["totals"]
+
+    weekly_gate = {
+        week: {
+            "requested": first_flow["weekly"][week]["requested"],
+            "capacity": first_flow["weekly"][week]["capacity"],
+            "accepted": first_flow["weekly"][week]["accepted"],
+            "blocked": first_flow["weekly"][week]["blocked"],
+        }
+        for week in result["weeks"]
+    }
+
+    return {
+        "title": "Japanese Rice first PSI smoke",
+        "scenario_id": result["scenario_id"],
+        "product_name": result["product_name"],
+        "runner_mode": result["run_mode"],
+        "full_psi_plan": result["full_psi_plan"],
+        "weeks": list(result["weeks"]),
+        "master_counts": dict(result["masters"]),
+        "plan_node_summary": {
+            "inbound_node_count": actual_tree["inbound_node_count"],
+            "outbound_node_count": actual_tree["outbound_node_count"],
+            "demand_node": actual_tree["demand_node"],
+            "demand_lot_source": actual_tree["demand_lot_source"],
+            "weekly_s_slot_counts": dict(actual_tree["weekly_s_slot_counts"]),
+        },
+        "capacity_gate_summary": {
+            "capacity_node": first_flow["capacity_node"],
+            "capacity_type": first_flow["capacity_type"],
+            "unit": first_flow["unit"],
+            "weekly": weekly_gate,
+            "totals": {
+                "requested": totals["requested"],
+                "capacity": totals["capacity"],
+                "accepted": totals["accepted"],
+                "blocked": totals["blocked"],
+            },
+        },
+        "management_message": (
+            f'{first_flow["capacity_node"]} accepts {totals["accepted"]} lots and '
+            f'blocks {totals["blocked"]} lots over the three-week smoke horizon.'
+        ),
+    }
+
+
+def format_japanese_rice_first_runner_cli_summary(result: dict[str, Any]) -> list[str]:
+    """Format the stable first-runner demo summary as plain CLI-ready lines."""
+
+    demo_summary = result.get(
+        "demo_summary"
+    ) or build_japanese_rice_first_runner_demo_summary(result)
+    master_counts = demo_summary["master_counts"]
+    plan_node = demo_summary["plan_node_summary"]
+    gate = demo_summary["capacity_gate_summary"]
+    totals = gate["totals"]
+
+    lines = [
+        "WOM Japanese Rice first PSI smoke",
+        f'Scenario: {demo_summary["scenario_id"]}',
+        f'Product: {demo_summary["product_name"]}',
+        f'Mode: {demo_summary["runner_mode"]}',
+        f'Full PSI plan: {demo_summary["full_psi_plan"]}',
+        "",
+        "Masters:",
+        (
+            f'  capacity_rows={master_counts["capacity_rows"]}, '
+            f'demand_rows={master_counts["demand_rows"]}, '
+            f'demand_lots={master_counts["demand_lots"]}, '
+            f'network_nodes={master_counts["network_nodes"]}, '
+            f'network_edges={master_counts["network_edges"]}'
+        ),
+        "",
+        "Actual ProductPlanNode:",
+        (
+            f'  inbound_nodes={plan_node["inbound_node_count"]}, '
+            f'outbound_nodes={plan_node["outbound_node_count"]}'
+        ),
+        f'  demand_node={plan_node["demand_node"]}',
+        f'  demand_lot_source={plan_node["demand_lot_source"]}',
+        "",
+        "Weekly demand S-slot:",
+    ]
+
+    for week in demo_summary["weeks"]:
+        lines.append(f'  {week}: {plan_node["weekly_s_slot_counts"][week]}')
+
+    lines.extend(
+        [
+            "",
+            f'{gate["capacity_node"]} {gate["capacity_type"]} capacity gate:',
+        ]
+    )
+    for week in demo_summary["weeks"]:
+        weekly = gate["weekly"][week]
+        lines.append(
+            f'  {week}: requested={weekly["requested"]}, '
+            f'capacity={weekly["capacity"]}, '
+            f'accepted={weekly["accepted"]}, blocked={weekly["blocked"]}'
+        )
+
+    lines.extend(
+        [
+            "",
+            "Totals:",
+            (
+                f'  requested={totals["requested"]}, capacity={totals["capacity"]}, '
+                f'accepted={totals["accepted"]}, blocked={totals["blocked"]}'
+            ),
+        ]
+    )
+    return lines
+
+
+def _json_default(value: Any) -> Any:
+    if hasattr(value, "__dict__"):
+        return vars(value)
+    return str(value)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the Japanese Rice first PSI smoke from the command line."""
+
+    parser = argparse.ArgumentParser(
+        description="Run the Japanese Rice first PSI smoke."
+    )
+    parser.add_argument(
+        "--scenario-root",
+        required=True,
+        help="Path to the Japanese Rice scenario root.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("summary", "json"),
+        default="summary",
+        help="Output format.",
+    )
+    args = parser.parse_args(argv)
+
+    try:
+        result = run_japanese_rice_first_psi_vslice(args.scenario_root)
+    except Exception as exc:
+        print(f"Japanese Rice first PSI smoke failed: {exc}")
+        return 1
+
+    if not result.get("available"):
+        print("Japanese Rice first PSI smoke unavailable.")
+        return 1
+
+    if args.format == "json":
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=_json_default))
+    else:
+        print("\n".join(result["cli_summary_lines"]))
+    return 0
 
 
 def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, Any]:
@@ -178,7 +349,10 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
         f"demand node is missing from network: {DEMAND_NODE}",
     )
     for node_name in (SUPPLY_SOURCE_NODE, MOM_NODE, DAD_NODE):
-        _require(node_name in node_names, f"capacity node is missing from network: {node_name}")
+        _require(
+            node_name in node_names,
+            f"capacity node is missing from network: {node_name}",
+        )
 
     _require(
         {row.scenario_id for row in demand_rows} == {SCENARIO_ID},
@@ -247,11 +421,12 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
     _require(outbound_path_exists, "outbound hammock path is missing")
 
     weekly_lot_counts = dict(Counter(lot.demand_week for lot in demand_lots))
-    weekly_lot_counts = {week: weekly_lot_counts.get(week, 0) for week in EXPECTED_WEEKS}
+    weekly_lot_counts = {
+        week: weekly_lot_counts.get(week, 0) for week in EXPECTED_WEEKS
+    }
     leaf_plan_node = leaf_compatibility[PRODUCT_NAME][DEMAND_NODE]
     psi4demand_counts = {
-        week: len(leaf_plan_node["psi4demand"][week]["S"])
-        for week in EXPECTED_WEEKS
+        week: len(leaf_plan_node["psi4demand"][week]["S"]) for week in EXPECTED_WEEKS
     }
     _require(
         psi4demand_counts == weekly_lot_counts,
@@ -263,10 +438,13 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
         capacity_rows=capacity_rows,
     )
     actual_plan_node_tree = _build_actual_plan_node_tree_diagnostic(root)
-    capacity_constrained_first_flow = _build_capacity_constrained_first_flow_diagnostic(root)
+    capacity_constrained_first_flow = _build_capacity_constrained_first_flow_diagnostic(
+        root
+    )
 
-    return {
+    result = {
         "scenario_id": SCENARIO_ID,
+        "contract_version": CONTRACT_VERSION,
         "product_name": PRODUCT_NAME,
         "available": True,
         "run_mode": "diagnostic_first_psi_smoke",
@@ -313,5 +491,19 @@ def run_japanese_rice_first_psi_vslice(scenario_root: str | Path) -> dict[str, A
         ],
     }
 
+    result["demo_summary"] = build_japanese_rice_first_runner_demo_summary(result)
+    result["cli_summary_lines"] = format_japanese_rice_first_runner_cli_summary(result)
+    return result
 
-__all__ = ["run_japanese_rice_first_psi_vslice"]
+
+__all__ = [
+    "CONTRACT_VERSION",
+    "build_japanese_rice_first_runner_demo_summary",
+    "format_japanese_rice_first_runner_cli_summary",
+    "main",
+    "run_japanese_rice_first_psi_vslice",
+]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
