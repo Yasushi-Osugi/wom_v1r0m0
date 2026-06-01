@@ -167,6 +167,50 @@ def build_japanese_rice_capacity_gate_chart_dataset(
     }
 
 
+def build_japanese_rice_capacity_gate_chart_series(
+    dataset: dict[str, Any],
+) -> dict[str, Any]:
+    """Convert a capacity-gate chart dataset into x values and numeric series.
+
+    This helper is intentionally presentation-neutral: it consumes the stable
+    chart dataset rows and returns arrays that can be plotted by Tkinter,
+    Matplotlib, or another renderer without re-reading runner internals.
+    """
+
+    if not isinstance(dataset, dict):
+        dataset = {}
+
+    x_key = dataset.get("x_key", "week")
+    if not isinstance(x_key, str) or not x_key:
+        x_key = "week"
+
+    series_names = dataset.get("series", list(_WEEKLY_COLUMNS[1:]))
+    if not isinstance(series_names, list) or not series_names:
+        series_names = list(_WEEKLY_COLUMNS[1:])
+    series_names = [str(name) for name in series_names]
+
+    rows = dataset.get("rows", [])
+    if not isinstance(rows, list):
+        rows = []
+
+    weeks: list[Any] = []
+    series = {name: [] for name in series_names}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        weeks.append(row.get(x_key, ""))
+        for name in series_names:
+            series[name].append(_safe_number(row.get(name, 0)))
+
+    return {
+        "title": dataset.get("title", "Japanese Rice DC_KANTO capacity gate"),
+        "x_key": x_key,
+        "unit": dataset.get("unit", "lot"),
+        "weeks": weeks,
+        "series": series,
+    }
+
+
 def format_japanese_rice_gui_summary_text(result: dict[str, Any]) -> str:
     """Format the GUI summary text directly from the stable CLI summary lines."""
 
@@ -220,6 +264,115 @@ def extract_japanese_rice_first_runner_gui_model(result: dict[str, Any]) -> dict
         return _unavailable_model(str(exc))
 
 
+def add_capacity_gate_chart_to_window(parent: Any, dataset: dict[str, Any]) -> Any:
+    """Add a simple Tkinter line chart for requested/capacity/accepted/blocked lots."""
+
+    import tkinter as tk
+    from tkinter import ttk
+
+    chart = build_japanese_rice_capacity_gate_chart_series(dataset)
+    frame = ttk.LabelFrame(parent, text=chart["title"], padding=8)
+
+    canvas_width = 780
+    canvas_height = 220
+    canvas = tk.Canvas(
+        frame, width=canvas_width, height=canvas_height, background="white"
+    )
+    canvas.pack(fill=tk.X, expand=True)
+
+    margin_left = 56
+    margin_right = 24
+    margin_top = 20
+    margin_bottom = 44
+    plot_left = margin_left
+    plot_right = canvas_width - margin_right
+    plot_top = margin_top
+    plot_bottom = canvas_height - margin_bottom
+    plot_width = max(plot_right - plot_left, 1)
+    plot_height = max(plot_bottom - plot_top, 1)
+
+    weeks = [str(week) for week in chart["weeks"]]
+    series = chart["series"]
+    values = [
+        value
+        for values in series.values()
+        for value in values
+        if isinstance(value, (int, float))
+    ]
+    max_value = max(values) if values else 0
+    y_max = max(max_value, 1)
+
+    canvas.create_line(plot_left, plot_bottom, plot_right, plot_bottom, fill="#666666")
+    canvas.create_line(plot_left, plot_top, plot_left, plot_bottom, fill="#666666")
+    canvas.create_text(
+        plot_left,
+        6,
+        anchor=tk.W,
+        text=f'{chart["x_key"].title()} / {str(chart["unit"]).title()}s',
+        fill="#444444",
+    )
+
+    for tick in range(0, 5):
+        ratio = tick / 4
+        y = plot_bottom - (ratio * plot_height)
+        label_value = round(y_max * ratio)
+        canvas.create_line(plot_left, y, plot_right, y, fill="#eeeeee")
+        canvas.create_text(
+            plot_left - 8, y, anchor=tk.E, text=str(label_value), fill="#666666"
+        )
+
+    if len(weeks) <= 1:
+        x_positions = [plot_left + (plot_width / 2)] if weeks else []
+    else:
+        x_positions = [
+            plot_left + (idx * plot_width / (len(weeks) - 1))
+            for idx in range(len(weeks))
+        ]
+
+    for x, week in zip(x_positions, weeks, strict=True):
+        canvas.create_line(x, plot_bottom, x, plot_bottom + 4, fill="#666666")
+        canvas.create_text(x, plot_bottom + 16, text=week, fill="#444444")
+
+    colors = {
+        "requested": "#1f77b4",
+        "capacity": "#ff7f0e",
+        "accepted": "#2ca02c",
+        "blocked": "#d62728",
+    }
+    legend_x = plot_left
+    legend_y = plot_bottom + 31
+    for name in series:
+        color = colors.get(name, "#444444")
+        canvas.create_line(
+            legend_x, legend_y, legend_x + 18, legend_y, fill=color, width=2
+        )
+        canvas.create_text(
+            legend_x + 24, legend_y, anchor=tk.W, text=name, fill="#333333"
+        )
+        legend_x += 118
+
+    for name, raw_values in series.items():
+        color = colors.get(name, "#444444")
+        points: list[float] = []
+        for x, value in zip(x_positions, raw_values, strict=True):
+            numeric_value = value if isinstance(value, (int, float)) else 0
+            y = plot_bottom - ((numeric_value / y_max) * plot_height)
+            points.extend([x, y])
+            canvas.create_oval(
+                x - 3, y - 3, x + 3, y + 3, fill=color, outline=color
+            )
+        if len(points) >= 4:
+            canvas.create_line(*points, fill=color, width=2)
+        elif len(points) == 2:
+            x, y = points
+            canvas.create_oval(
+                x - 3, y - 3, x + 3, y + 3, fill=color, outline=color
+            )
+
+    frame.pack(fill=tk.X, pady=(0, 10))
+    return frame
+
+
 def _launch_model_window(model: dict[str, Any]) -> None:
     import tkinter as tk
     from tkinter import ttk
@@ -227,7 +380,7 @@ def _launch_model_window(model: dict[str, Any]) -> None:
 
     root = tk.Tk()
     root.title(model.get("title", TITLE))
-    root.geometry("860x620")
+    root.geometry("920x760")
 
     container = ttk.Frame(root, padding=12)
     container.pack(fill=tk.BOTH, expand=True)
@@ -254,12 +407,17 @@ def _launch_model_window(model: dict[str, Any]) -> None:
     )
     info.pack(anchor=tk.W, pady=(0, 8))
 
-    summary = ScrolledText(container, height=13, wrap=tk.WORD)
+    summary = ScrolledText(container, height=8, wrap=tk.WORD)
     summary.insert(tk.END, model.get("summary_text", ""))
     summary.configure(state=tk.DISABLED)
     summary.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-    table = ttk.Treeview(container, columns=_WEEKLY_COLUMNS, show="headings", height=4)
+    chart_dataset = build_japanese_rice_capacity_gate_chart_dataset(model)
+    add_capacity_gate_chart_to_window(container, chart_dataset)
+
+    table = ttk.Treeview(
+        container, columns=_WEEKLY_COLUMNS, show="headings", height=4
+    )
     headings = {
         "week": "Week",
         "requested": "Requested",
@@ -278,7 +436,11 @@ def _launch_model_window(model: dict[str, Any]) -> None:
         table.heading(column, text=headings[column])
         table.column(column, width=widths[column], anchor=tk.CENTER)
     for row in model.get("weekly_rows", []):
-        table.insert("", tk.END, values=tuple(row.get(column, "") for column in _WEEKLY_COLUMNS))
+        table.insert(
+            "",
+            tk.END,
+            values=tuple(row.get(column, "") for column in _WEEKLY_COLUMNS),
+        )
     table.pack(fill=tk.X, pady=(0, 10))
 
     totals = model.get("totals", {})
@@ -287,7 +449,9 @@ def _launch_model_window(model: dict[str, Any]) -> None:
         for key in ("requested", "capacity", "accepted", "blocked")
         if key in totals
     )
-    ttk.Label(container, justify=tk.LEFT, text=totals_text).pack(anchor=tk.W, pady=(0, 8))
+    ttk.Label(container, justify=tk.LEFT, text=totals_text).pack(
+        anchor=tk.W, pady=(0, 8)
+    )
     ttk.Label(
         container,
         justify=tk.LEFT,
@@ -333,7 +497,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 __all__ = [
+    "add_capacity_gate_chart_to_window",
     "build_japanese_rice_capacity_gate_chart_dataset",
+    "build_japanese_rice_capacity_gate_chart_series",
     "build_japanese_rice_weekly_capacity_gate_rows",
     "extract_japanese_rice_first_runner_gui_model",
     "format_japanese_rice_gui_summary_text",
