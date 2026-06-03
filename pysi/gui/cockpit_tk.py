@@ -66,6 +66,14 @@ except Exception:
 # consumer node CSV input
 from pysi.bridge.event_rules import initialize_consumer_experience_inputs
 
+from pysi.gui.wom_main_cockpit_run_full_plan_viewer_action import (
+    DEFAULT_COCKPIT_VIEWER_SCENARIO_ROOT,
+    DEFAULT_OUTPUT_DIR as RUN_FULL_PLAN_VIEWER_OUTPUT_DIR,
+    DEFAULT_SCENARIO_ID as RUN_FULL_PLAN_VIEWER_SCENARIO_ID,
+    build_cockpit_viewer_run_config,
+    run_full_plan_and_open_viewer,
+)
+
 # ISSUE MANAGEMENT
 try:
     from wom_cockpit.adapters.bridge_snapshot_adapter import (
@@ -1125,6 +1133,11 @@ class WOMCockpit(tk.Tk):
         ttk.Button(action_row, text="PSI累計+利益率", command=self.open_psi_profit_animation).pack(side="left", padx=(0, 6))
         ttk.Button(action_row, text="Animation Viewer", command=self.open_animation_viewer).pack(side="left", padx=(0, 6))
 
+        ttk.Button(
+            action_row,
+            text="Run Full Plan → Viewer",
+            command=self.on_run_full_plan_viewer_clicked,
+        ).pack(side="right", padx=(6, 0))
         ttk.Button(action_row, text="Run Full Plan", command=self.run_full_plan).pack(side="right", padx=(6, 0))
         ttk.Button(action_row, text="Run Step", command=self.run_step).pack(side="right")
 
@@ -2122,6 +2135,73 @@ class WOMCockpit(tk.Tk):
             outbound_root=outbound_root,
             inbound_root=inbound_root,
         )
+
+
+    def _set_run_full_plan_viewer_status(self, message: str) -> None:
+        print(f"[run-full-plan-viewer] {message}")
+        try:
+            self.management_cockpit_status_var.set(message)
+        except Exception:
+            pass
+
+    def _resolve_run_full_plan_viewer_scenario_root(self) -> str:
+        for value in (
+            getattr(self.env, "scenario_root", None),
+            getattr(self, "scenario_root", None),
+            getattr(self, "current_scenario_root", None),
+        ):
+            if value:
+                scenario_root = os.fspath(value)
+                if os.path.exists(scenario_root):
+                    return scenario_root
+
+        if os.path.exists(DEFAULT_COCKPIT_VIEWER_SCENARIO_ROOT):
+            return DEFAULT_COCKPIT_VIEWER_SCENARIO_ROOT
+
+        raise FileNotFoundError(
+            "No cockpit scenario root was available and default scenario root "
+            f"was not found: {DEFAULT_COCKPIT_VIEWER_SCENARIO_ROOT}"
+        )
+
+    def _resolve_run_full_plan_viewer_scenario_id(self) -> str:
+        for value in (
+            getattr(self.env, "scenario_id", None),
+            getattr(self.env, "current_scenario_id", None),
+            getattr(self, "scenario_id", None),
+            getattr(self, "current_scenario_id", None),
+        ):
+            if value:
+                return str(value)
+        return RUN_FULL_PLAN_VIEWER_SCENARIO_ID
+
+    def on_run_full_plan_viewer_clicked(self):
+        try:
+            scenario_root = self._resolve_run_full_plan_viewer_scenario_root()
+            scenario_id = self._resolve_run_full_plan_viewer_scenario_id()
+            config = build_cockpit_viewer_run_config(
+                scenario_root=scenario_root,
+                scenario_id=scenario_id,
+                output_dir=RUN_FULL_PLAN_VIEWER_OUTPUT_DIR,
+            )
+            run_dir = os.path.join(config.output_dir, config.run_id)
+
+            self._set_run_full_plan_viewer_status("Running Run Full Plan → Viewer...")
+            exit_code = run_full_plan_and_open_viewer(config)
+            if exit_code != 0:
+                raise RuntimeError(
+                    "Result viewer did not open successfully; "
+                    f"run output was written to {run_dir}"
+                )
+            self._set_run_full_plan_viewer_status(
+                f"Run Full Plan → Viewer completed: {config.run_id}"
+            )
+        except Exception as e:
+            message = f"Run Full Plan → Viewer failed: {e}"
+            self._set_run_full_plan_viewer_status(message)
+            try:
+                messagebox.showerror("Run Full Plan → Viewer failed", message)
+            except Exception:
+                print("[ERROR] Run Full Plan → Viewer:", e)
 
 
     def run_full_plan(self):
