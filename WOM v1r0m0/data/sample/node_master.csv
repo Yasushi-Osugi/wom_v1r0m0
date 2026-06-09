@@ -1,0 +1,10 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+GP-001,Global Procurement HQ,procurement,31.2304,121.4737,,,"Shanghai – sourcing hub"
+MP-001,Mother Plant,mother_plant,34.6937,135.5023,,,"Osaka – main production"
+SUP-A001,SKU-A001 Supplier,sku_supplier,22.5431,114.0579,SKU-A001,,"Shenzhen – component supply"
+SUP-B002,SKU-B002 Supplier,sku_supplier,25.0330,121.5654,SKU-B002,,"Taipei – component supply"
+SUP-C001,SKU-C001 Supplier,sku_supplier,37.5665,126.9780,SKU-C001,,"Seoul – component supply"
+DC-AMER,AMER Distribution Center,region_dc,33.9425,-118.4081,,AMER,"Los Angeles – AMER hub"
+DC-EMEA,EMEA Distribution Center,region_dc,52.3676,4.9041,,EMEA,"Amsterdam – EMEA hub"
+DC-APAC,APAC Distribution Center,region_dc,1.3521,103.8198,,APAC,"Singapore – APAC hub"
+MKT-001,Global Marketing HQ,marketing,40.7128,-74.0060,,,"New York – sales HQ"

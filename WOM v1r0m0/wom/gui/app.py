@@ -1725,6 +1725,377 @@ class SCNetworkPanel(tk.Frame):
 
 
 # ──────────────────────────────────────────────────────────────────────
+# World Map Panel  (tkintermapview-based SC node visualizer)
+# ──────────────────────────────────────────────────────────────────────
+
+# Node type → (marker circle color, marker outside color, label prefix)
+_MAP_NODE_STYLE = {
+    "procurement":  ("#FF9800", "#E65100", "📦"),
+    "mother_plant": ("#9C27B0", "#4A148C", "🏭"),
+    "sku_supplier": ("#4CAF50", "#1B5E20", "🔩"),
+    "region_dc":    ("#2196F3", "#0D47A1", "🏬"),
+    "marketing":    ("#F44336", "#B71C1C", "🌎"),
+}
+
+# SC links to draw between node types (src_type → dst_type)
+_MAP_LINKS = [
+    ("procurement",  "sku_supplier"),   # procurement → each supplier
+    ("sku_supplier", "mother_plant"),   # suppliers → mother plant
+    ("mother_plant", "region_dc"),      # plant → each DC
+    ("region_dc",    "marketing"),      # DCs → marketing HQ
+]
+
+
+class WorldMapPanel(tk.Frame):
+    """
+    🗺 World Map tab — interactive SC node map using tkintermapview.
+
+    Shows SC nodes as coloured markers on a world map.
+    After "Run Planning Engine", overlays lot-flow animation per week.
+    """
+
+    def __init__(self, parent, **kw):
+        super().__init__(parent, bg=BG_DARK, **kw)
+        self._nodes: list = []           # list of dicts from node_master.csv
+        self._markers: list = []         # active TkinterMapView marker objects
+        self._paths:   list = []         # active TkinterMapView path objects
+        self._timeline = None            # EventTimeline (set after planning)
+        self._anim_running  = False
+        self._anim_week     = 0
+        self._anim_speed_ms = 1000
+        self._anim_after_id = None
+        self._map_widget    = None
+        self._build()
+
+    # ── Layout ───────────────────────────────────────────────────────────
+
+    def _build(self):
+        try:
+            from tkintermapview import TkinterMapView
+            HAS_MAP = True
+        except ImportError:
+            HAS_MAP = False
+
+        if not HAS_MAP:
+            tk.Label(self,
+                     text="tkintermapview not installed.\nRun:  pip install tkintermapview",
+                     bg=BG_DARK, fg="#FF6B6B",
+                     font=("Segoe UI", 11)).pack(expand=True)
+            return
+
+        # Control bar
+        bar = tk.Frame(self, bg=BG_MID, pady=4)
+        bar.pack(fill="x", side="top")
+
+        tk.Label(bar, text="Node Master:", bg=BG_MID, fg=FG_WHITE,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(8, 2))
+        self._file_var = tk.StringVar(value="")
+        self._file_entry = tk.Entry(bar, textvariable=self._file_var,
+                                    width=38, bg=BG_LIGHT, fg=FG_WHITE,
+                                    font=("Segoe UI", 8), relief="flat")
+        self._file_entry.pack(side="left", padx=2)
+        tk.Button(bar, text="Browse…",
+                  command=self._browse_node_master,
+                  bg=BG_LIGHT, fg=FG_WHITE, font=("Segoe UI", 8),
+                  relief="flat").pack(side="left", padx=2)
+        tk.Button(bar, text="⟳ Reload",
+                  command=self._reload,
+                  bg="#1565C0", fg="white", font=("Segoe UI", 8),
+                  relief="flat").pack(side="left", padx=(6, 2))
+
+        # Animation controls (enabled after planning)
+        tk.Label(bar, text="  |", bg=BG_MID, fg="#546E7A").pack(side="left")
+        self._map_play_btn = tk.Button(
+            bar, text="▶", width=3, command=self._anim_play,
+            bg="#1B5E20", fg="white", font=("Segoe UI", 9, "bold"),
+            relief="flat", state="disabled")
+        self._map_play_btn.pack(side="left", padx=(6, 2))
+        self._map_pause_btn = tk.Button(
+            bar, text="⏸", width=3, command=self._anim_pause,
+            bg=BG_LIGHT, fg=FG_WHITE, font=("Segoe UI", 9),
+            relief="flat", state="disabled")
+        self._map_pause_btn.pack(side="left", padx=2)
+        self._map_stop_btn = tk.Button(
+            bar, text="⏹", width=3, command=self._anim_stop,
+            bg=BG_LIGHT, fg=FG_WHITE, font=("Segoe UI", 9),
+            relief="flat", state="disabled")
+        self._map_stop_btn.pack(side="left", padx=2)
+
+        self._map_week_var = tk.StringVar(value="Run Planning Engine to enable animation")
+        tk.Label(bar, textvariable=self._map_week_var,
+                 bg=BG_MID, fg=FG_ACC,
+                 font=("Segoe UI", 8, "italic")).pack(side="left", padx=10)
+
+        # Main split: map (left) + info panel (right)
+        paned = tk.PanedWindow(self, orient="horizontal", bg=BG_DARK,
+                               sashwidth=5, sashrelief="flat")
+        paned.pack(fill="both", expand=True)
+
+        # Map widget
+        map_frame = tk.Frame(paned, bg=BG_DARK)
+        paned.add(map_frame, minsize=820)
+
+        from tkintermapview import TkinterMapView
+        self._map_widget = TkinterMapView(
+            map_frame, width=700, height=520,
+            corner_radius=0)
+        self._map_widget.pack(fill="both", expand=True)
+        # Center on world view
+        self._map_widget.set_position(20.0, 10.0)
+        self._map_widget.set_zoom(2)
+
+        # Info panel (right)
+        info_frame = tk.Frame(paned, bg=BG_DARK)
+        paned.add(info_frame, minsize=180)
+
+        tk.Label(info_frame, text="Node Info",
+                 bg=BG_DARK, fg=FG_ACC,
+                 font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=8, pady=(8, 2))
+
+        self._info_text = tk.Text(
+            info_frame, bg=BG_MID, fg=FG_WHITE,
+            font=("Segoe UI", 9), relief="flat",
+            wrap="word", state="disabled", width=28)
+        self._info_text.pack(fill="both", expand=True, padx=6, pady=4)
+
+        # Legend
+        leg = tk.LabelFrame(info_frame, text=" Legend ",
+                            bg=BG_DARK, fg=FG_ACC,
+                            font=("Segoe UI", 8, "bold"),
+                            relief="groove", bd=1)
+        leg.pack(fill="x", padx=6, pady=4)
+        for ntype, (cc, co, icon) in _MAP_NODE_STYLE.items():
+            row = tk.Frame(leg, bg=BG_DARK)
+            row.pack(fill="x", padx=4, pady=1)
+            tk.Label(row, text="●", fg=cc, bg=BG_DARK,
+                     font=("Segoe UI", 10)).pack(side="left")
+            tk.Label(row, text=f"{icon} {ntype.replace('_', ' ').title()}",
+                     bg=BG_DARK, fg=FG_WHITE,
+                     font=("Segoe UI", 8)).pack(side="left", padx=4)
+
+    # ── File operations ───────────────────────────────────────────────────
+
+    def _browse_node_master(self):
+        path = filedialog.askopenfilename(
+            title="Select node_master.csv",
+            filetypes=[("CSV", "*.csv"), ("All", "*.*")])
+        if path:
+            self._file_var.set(path)
+            self._reload()
+
+    def load_default(self, csv_path: str) -> None:
+        """Load a node master CSV path without user interaction."""
+        self._file_var.set(csv_path)
+        self._reload()
+
+    def _reload(self):
+        path = self._file_var.get()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            df = pd.read_csv(path)
+            self._nodes = df.to_dict("records")
+            self._draw_nodes()
+        except Exception as exc:
+            messagebox.showerror("World Map", f"Failed to load {path}:\n{exc}")
+
+    # ── Map drawing ───────────────────────────────────────────────────────
+
+    def _draw_nodes(self):
+        if self._map_widget is None:
+            return
+        # Clear existing
+        for m in self._markers:
+            try: m.delete()
+            except Exception: pass
+        for p in self._paths:
+            try: p.delete()
+            except Exception: pass
+        self._markers.clear()
+        self._paths.clear()
+
+        # Group nodes by type for link drawing
+        by_type: dict = {}
+        for node in self._nodes:
+            ntype = str(node.get("node_type", ""))
+            by_type.setdefault(ntype, []).append(node)
+
+        # Draw SC link paths first (beneath markers)
+        link_color = "#546E7A"
+        for src_type, dst_type in _MAP_LINKS:
+            src_nodes = by_type.get(src_type, [])
+            dst_nodes = by_type.get(dst_type, [])
+            for src in src_nodes:
+                for dst in dst_nodes:
+                    try:
+                        path = self._map_widget.set_path(
+                            [(float(src["lat"]), float(src["lon"])),
+                             (float(dst["lat"]), float(dst["lon"]))],
+                            color=link_color, width=2)
+                        self._paths.append(path)
+                    except Exception:
+                        pass
+
+        # Draw node markers
+        for node in self._nodes:
+            ntype  = str(node.get("node_type", ""))
+            style  = _MAP_NODE_STYLE.get(ntype, ("#607D8B", "#455A64", "📍"))
+            cc, co, icon = style
+            label  = f"{icon} {node.get('node_name', node.get('node_id', ''))}"
+            try:
+                marker = self._map_widget.set_marker(
+                    float(node["lat"]), float(node["lon"]),
+                    text=label,
+                    marker_color_circle=cc,
+                    marker_color_outside=co,
+                    command=lambda m, n=node: self._on_marker_click(m, n),
+                    text_color=FG_WHITE,
+                    font=("Segoe UI", 8, "bold"))
+                self._markers.append(marker)
+            except Exception:
+                pass
+
+    def _on_marker_click(self, marker, node: dict):
+        """Show node info in the right panel."""
+        info = []
+        info.append(f"🏷  {node.get('node_name', node.get('node_id', ''))}")
+        info.append(f"Type:  {node.get('node_type', '')}")
+        info.append(f"Lat:   {node.get('lat', '')}")
+        info.append(f"Lon:   {node.get('lon', '')}")
+        if node.get("sku_id"):
+            info.append(f"SKU:   {node['sku_id']}")
+        if node.get("region"):
+            info.append(f"Region: {node['region']}")
+        if node.get("description"):
+            info.append(f"\n{node['description']}")
+        text = "\n".join(info)
+        self._info_text.config(state="normal")
+        self._info_text.delete("1.0", "end")
+        self._info_text.insert("end", text)
+        self._info_text.config(state="disabled")
+
+    # ── EventTimeline animation ───────────────────────────────────────────
+
+    def set_timeline(self, timeline) -> None:
+        """Enable lot-flow animation once planning is complete."""
+        self._timeline     = timeline
+        self._anim_week    = 0
+        self._anim_running = False
+        if hasattr(self, "_map_play_btn"):
+            self._map_play_btn.config(state="normal")
+            self._map_stop_btn.config(state="normal")
+        n = len(timeline)
+        self._map_week_var.set(f"Week 0/{n}  ←  press ▶ to animate")
+
+    def _anim_play(self):
+        if not self._timeline:
+            return
+        self._anim_running = True
+        self._map_play_btn.config(state="disabled")
+        self._map_pause_btn.config(state="normal")
+        self._map_stop_btn.config(state="normal")
+        self._map_tick()
+
+    def _anim_pause(self):
+        self._anim_running = False
+        self._map_play_btn.config(state="normal")
+        self._map_pause_btn.config(state="disabled")
+
+    def _anim_stop(self):
+        self._anim_running = False
+        self._anim_week    = 0
+        if self._anim_after_id:
+            self.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        self._map_play_btn.config(state="normal")
+        self._map_pause_btn.config(state="disabled")
+        # Restore static paths
+        self._draw_nodes()
+        n = len(self._timeline) if self._timeline else 0
+        self._map_week_var.set(f"Week 0/{n}  ←  press ▶ to animate")
+
+    def _map_tick(self):
+        if not self._anim_running or not self._timeline:
+            return
+        n = len(self._timeline)
+        if self._anim_week >= n:
+            self._anim_week = 0
+        snap = self._timeline[self._anim_week]
+        self._draw_animated_paths(snap)
+        self._map_week_var.set(
+            f"Week {self._anim_week + 1}/{n}  |  {snap.week_label}")
+        self._anim_week += 1
+        self._anim_after_id = self.after(self._anim_speed_ms, self._map_tick)
+
+    def _draw_animated_paths(self, snap):
+        """Redraw SC paths with widths proportional to this week's lot flows."""
+        if self._map_widget is None or not self._nodes:
+            return
+        # Clear old paths only
+        for p in self._paths:
+            try: p.delete()
+            except Exception: pass
+        self._paths.clear()
+
+        # Build lot-flow lookup from snapshot: gui_label -> flow count
+        # GUI labels: "Region:{reg}", "Mother Plant", "SKU:{sku}"
+        max_flow = snap.max_flow or 1
+
+        # Node position lookup
+        node_pos: dict = {}
+        for node in self._nodes:
+            ntype = str(node.get("node_type", ""))
+            if ntype == "mother_plant":
+                node_pos["Mother\nPlant"] = (float(node["lat"]), float(node["lon"]))
+            elif ntype == "region_dc":
+                reg = str(node.get("region", ""))
+                node_pos[f"Region:{reg}"] = (float(node["lat"]), float(node["lon"]))
+            elif ntype == "sku_supplier":
+                sku = str(node.get("sku_id", ""))
+                node_pos[f"SKU:{sku}"] = (float(node["lat"]), float(node["lon"]))
+            elif ntype == "procurement":
+                node_pos["Global\nProcurement"] = (float(node["lat"]), float(node["lon"]))
+
+        # Draw flows
+        for ef in snap.edge_flows:
+            src_pos = node_pos.get(ef.src)
+            dst_pos = node_pos.get(ef.dst)
+            if src_pos is None or dst_pos is None:
+                continue
+            ratio = ef.lot_count / max_flow
+            width = max(2, int(2 + 8 * ratio))
+            color = "#66BB6A" if ef.direction == "supply" else "#42A5F5"
+            if ef.bucket == "CO":
+                color = "#FF9800"
+            try:
+                path = self._map_widget.set_path(
+                    [src_pos, dst_pos],
+                    color=color, width=width)
+                self._paths.append(path)
+            except Exception:
+                pass
+
+        # Static dim lines for inactive edges
+        for src_type, dst_type in _MAP_LINKS:
+            for src_node in self._nodes:
+                if src_node.get("node_type") != src_type:
+                    continue
+                for dst_node in self._nodes:
+                    if dst_node.get("node_type") != dst_type:
+                        continue
+                    # Check if this edge already has a flow path
+                    s_pos = (float(src_node["lat"]), float(src_node["lon"]))
+                    d_pos = (float(dst_node["lat"]), float(dst_node["lon"]))
+                    # Add dim background line
+                    try:
+                        path = self._map_widget.set_path(
+                            [s_pos, d_pos],
+                            color="#263238", width=1)
+                        self._paths.insert(0, path)  # behind flow paths
+                    except Exception:
+                        pass
+
+# ──────────────────────────────────────────────────────────────────────
 # Main application window
 # ──────────────────────────────────────────────────────────────────────
 
@@ -1825,6 +2196,8 @@ class WOMApp(tk.Tk):
         self._f_inv.pack(fill="x", padx=6, pady=2)
         self._f_cap  = FileEntry(fsec, "Capacity Plan:")
         self._f_cap.pack(fill="x", padx=6, pady=2)
+        self._f_node = FileEntry(fsec, "Node Master:")
+        self._f_node.pack(fill="x", padx=6, pady=2)
 
         # ── Scenarios ────────────────────────────────────────────────
         scsec = tk.LabelFrame(parent, text="  Scenarios  ",
@@ -1945,6 +2318,9 @@ class WOMApp(tk.Tk):
         self._network_panel = SCNetworkPanel(nb)
         nb.add(self._network_panel, text="  \U0001f310 Network  ")
 
+        self._worldmap_panel = WorldMapPanel(nb)
+        nb.add(self._worldmap_panel, text="  \U0001f5fa World Map  ")
+
     def _build_risk_tab(self, parent):
         cols = [Cols.SCENARIO, Cols.SKU_ID, Cols.REGION, Cols.WEEK,
                 Cols.FILL_RATE, Cols.INV_COVER_WKS, Cols.STOCKOUT_QTY]
@@ -1974,6 +2350,7 @@ class WOMApp(tk.Tk):
             ("_f_dem",  "demand_forecast.csv"),
             ("_f_inv",  "inventory_master.csv"),
             ("_f_cap",  "capacity_plan.csv"),
+            ("_f_node", "node_master.csv"),
         ]:
             path = os.path.join(sd, fname)
             if os.path.exists(path):
@@ -2062,6 +2439,13 @@ class WOMApp(tk.Tk):
         self._load_delta_tab(mgr)
         self._mgmt_panel.load(mgr)
         self._network_panel.load(mgr)
+        # Load node_master into World Map panel
+        node_path = self._f_node.get() if hasattr(self, '_f_node') else ""
+        if not node_path:
+            # fallback to sample
+            node_path = os.path.join(self._sample_dir, "node_master.csv")
+        if os.path.exists(node_path):
+            self._worldmap_panel.load_default(node_path)
 
     def _on_simulation_error(self, tb: str):
         self._progress.stop()
@@ -2283,6 +2667,7 @@ class WOMApp(tk.Tk):
             from wom.engine.event_timeline import build_event_timeline
             timeline = build_event_timeline(sc_tree)
             self._network_panel.set_timeline(timeline)
+            self._worldmap_panel.set_timeline(timeline)
         except Exception as exc:
             import traceback
             print(f"[EventTimeline] build failed: {exc}")
