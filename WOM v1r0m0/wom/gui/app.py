@@ -1017,6 +1017,12 @@ class SCNetworkPanel(tk.Frame):
         self._pos: dict = {}           # node_label → (x, y) data coords
         self._scenario_var = tk.StringVar(value="Base")
         self._sc_tree = None           # Step 9: lot-based planning tree (SCTree)
+        # ── Event Flow Tracing state ──────────────────────────────────
+        self._timeline       = None    # list[WeekSnapshot] after planning
+        self._anim_running   = False
+        self._anim_week      = 0
+        self._anim_speed_ms  = 1000   # ms per week tick
+        self._anim_after_id  = None
         self._build()
 
     # ── Layout ──────────────────────────────────────────────────────
@@ -1059,6 +1065,46 @@ class SCNetworkPanel(tk.Frame):
         self._net_canvas = FigureCanvasTkAgg(self._net_fig, master=lf)
         self._net_canvas.get_tk_widget().pack(fill="both", expand=True)
         self._net_canvas.mpl_connect("button_press_event", self._on_node_click)
+
+        # ── Event Flow animation controls ─────────────────────────────
+        anim_bar = tk.Frame(lf, bg=BG_MID, pady=3)
+        anim_bar.pack(fill="x", side="bottom")
+
+        self._anim_play_btn = tk.Button(
+            anim_bar, text="▶", width=3,
+            command=self._anim_play,
+            bg="#1B5E20", fg="white", font=("Segoe UI", 9, "bold"),
+            relief="flat", state="disabled")
+        self._anim_play_btn.pack(side="left", padx=(6, 2))
+
+        self._anim_pause_btn = tk.Button(
+            anim_bar, text="⏸", width=3,
+            command=self._anim_pause,
+            bg=BG_LIGHT, fg=FG_WHITE, font=("Segoe UI", 9),
+            relief="flat", state="disabled")
+        self._anim_pause_btn.pack(side="left", padx=2)
+
+        self._anim_stop_btn = tk.Button(
+            anim_bar, text="⏹", width=3,
+            command=self._anim_stop,
+            bg=BG_LIGHT, fg=FG_WHITE, font=("Segoe UI", 9),
+            relief="flat", state="disabled")
+        self._anim_stop_btn.pack(side="left", padx=2)
+
+        tk.Label(anim_bar, text="Speed:", bg=BG_MID, fg=FG_WHITE,
+                 font=("Segoe UI", 8)).pack(side="left", padx=(8, 2))
+        self._speed_var = tk.StringVar(value="1×")
+        speed_cb = ttk.Combobox(anim_bar, textvariable=self._speed_var,
+                                values=["0.5×", "1×", "2×", "4×"],
+                                width=5, state="readonly",
+                                font=("Segoe UI", 8))
+        speed_cb.pack(side="left", padx=2)
+        speed_cb.bind("<<ComboboxSelected>>", self._on_speed_change)
+
+        self._week_lbl_var = tk.StringVar(value="Event Flow Tracing  (Run Planning Engine first)")
+        tk.Label(anim_bar, textvariable=self._week_lbl_var,
+                 bg=BG_MID, fg=FG_ACC,
+                 font=("Segoe UI", 8, "italic")).pack(side="left", padx=10)
 
         # ── Right: sub-notebook (PSI Chart | PSI List) ─────────────
         rf = tk.Frame(paned, bg=BG_DARK)
@@ -1408,6 +1454,187 @@ class SCNetworkPanel(tk.Frame):
         self._cost_canvas.draw()
     # ── Step 9: Planning tree (lot-based PSI) ────────────────────────
 
+    # ── Event Flow Tracing ───────────────────────────────────────────
+
+    def set_timeline(self, timeline) -> None:
+        """Called after planning completes with the built EventTimeline."""
+        from wom.engine.event_timeline import max_activity
+        self._timeline      = timeline
+        self._anim_week     = 0
+        self._anim_max_act  = max_activity(timeline)
+        self._anim_running  = False
+        if hasattr(self, "_anim_play_btn"):
+            self._anim_play_btn.config(state="normal")
+            self._anim_stop_btn.config(state="normal")
+        n = len(timeline)
+        self._week_lbl_var.set(
+            f"Week 0/{n}  ←  press ▶ to animate")
+
+    def _anim_play(self):
+        if not self._timeline:
+            return
+        self._anim_running = True
+        self._anim_play_btn.config(state="disabled")
+        self._anim_pause_btn.config(state="normal")
+        self._anim_stop_btn.config(state="normal")
+        self._anim_tick()
+
+    def _anim_pause(self):
+        self._anim_running = False
+        self._anim_play_btn.config(state="normal")
+        self._anim_pause_btn.config(state="disabled")
+
+    def _anim_stop(self):
+        self._anim_running = False
+        self._anim_week    = 0
+        if self._anim_after_id:
+            self.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        self._anim_play_btn.config(state="normal")
+        self._anim_pause_btn.config(state="disabled")
+        # Redraw static graph
+        self._draw_graph(highlight=self._selected_node)
+        n = len(self._timeline) if self._timeline else 0
+        self._week_lbl_var.set(f"Week 0/{n}  ←  press ▶ to animate")
+
+    def _on_speed_change(self, _event=None):
+        speed_map = {"0.5×": 2000, "1×": 1000, "2×": 500, "4×": 250}
+        self._anim_speed_ms = speed_map.get(self._speed_var.get(), 1000)
+
+    def _anim_tick(self):
+        if not self._anim_running or not self._timeline:
+            return
+        n = len(self._timeline)
+        if self._anim_week >= n:
+            # Loop back to start
+            self._anim_week = 0
+        snap = self._timeline[self._anim_week]
+        self._draw_graph_animated(snap)
+        self._week_lbl_var.set(
+            f"Week {self._anim_week + 1}/{n}  |  {snap.week_label}")
+        self._anim_week += 1
+        self._anim_after_id = self.after(self._anim_speed_ms, self._anim_tick)
+
+    def _draw_graph_animated(self, snap):
+        """Redraw the network graph overlaid with one week's activity snapshot."""
+        if not hasattr(self, "_G"):
+            return
+        from wom.engine.event_timeline import max_activity
+
+        G   = self._G
+        pos = self._pos
+        max_act = self._anim_max_act or 1
+
+        self._net_fig.clf()
+        ax = self._net_fig.add_subplot(111)
+        ax.set_facecolor(BG_DARK)
+        self._net_fig.patch.set_facecolor(BG_DARK)
+        ax.axis("off")
+
+        # ── Node colours and sizes ────────────────────────────────────
+        node_colors, node_sizes = [], []
+        for node in G.nodes:
+            kind = G.nodes[node].get("kind", "sku")
+            na   = snap.node_activity.get(node)
+            if na and na.flow > 0:
+                # Active: brighten + scale size
+                scale = 1.0 + 2.0 * (na.flow / max_act)
+                node_colors.append("#FFEB3B")  # bright yellow when active
+                node_sizes.append(int(1400 * min(scale, 3.0)))
+            else:
+                # Inactive: dim the base colour
+                base = self._NCOLOUR.get(kind, "#607D8B")
+                node_colors.append(base)
+                node_sizes.append(1000)
+
+        # ── Edge colours and widths from edge_flows ───────────────────
+        # Build lookup: (src, dst) → EdgeFlow
+        flow_map: dict = {}
+        for ef in snap.edge_flows:
+            key = (ef.src, ef.dst)
+            flow_map[key] = flow_map.get(key, 0) + ef.lot_count
+
+        max_flow = snap.max_flow or 1
+        edge_colors, edge_widths = [], []
+        for u, v in G.edges():
+            cnt = flow_map.get((u, v), 0)
+            if cnt > 0:
+                # Supply: green, Demand: blue-ish
+                # Determine direction from graph topology (inbound nodes left of mother)
+                u_x = G.nodes[u].get("x", 0)
+                v_x = G.nodes[v].get("x", 0)
+                if v_x >= u_x:
+                    edge_colors.append("#66BB6A")  # supply green
+                else:
+                    edge_colors.append("#42A5F5")  # demand blue
+                edge_widths.append(1.5 + 6.0 * (cnt / max_flow))
+            else:
+                edge_colors.append("#37474F")  # dim grey
+                edge_widths.append(0.8)
+
+        # Draw edges
+        edges = list(G.edges())
+        for i, (u, v) in enumerate(edges):
+            nx.draw_networkx_edges(
+                G, pos, edgelist=[(u, v)], ax=ax,
+                edge_color=[edge_colors[i]],
+                width=edge_widths[i],
+                arrows=True, arrowsize=12,
+                arrowstyle="-|>", alpha=0.85,
+                connectionstyle="arc3,rad=0.08")
+
+        # Draw nodes
+        nx.draw_networkx_nodes(G, pos, ax=ax,
+                               node_color=node_colors,
+                               node_size=node_sizes,
+                               alpha=0.93)
+
+        # Labels
+        labels = {}
+        for node in G.nodes:
+            if node.startswith("SKU:"):   labels[node] = node[4:]
+            elif node.startswith("Region:"): labels[node] = node[7:]
+            else:                            labels[node] = node
+        nx.draw_networkx_labels(G, pos, labels=labels, ax=ax,
+                                font_color=FG_WHITE,
+                                font_size=8, font_weight="bold")
+
+        # Lot-count labels on active edges
+        edge_labels = {(u, v): str(flow_map[(u, v)])
+                       for u, v in G.edges() if (u, v) in flow_map}
+        if edge_labels:
+            nx.draw_networkx_edge_labels(
+                G, pos, edge_labels=edge_labels, ax=ax,
+                font_color="#FFEB3B", font_size=7,
+                bbox=dict(boxstyle="round,pad=0.2",
+                          fc=BG_MID, ec="none", alpha=0.75))
+
+        # Week label overlay
+        ax.set_title(
+            f"SC Network  –  {snap.week_label}",
+            color=FG_WHITE, fontsize=10, pad=6, fontweight="bold")
+
+        # Inventory bar: show I-count as small text on active nodes
+        for node in G.nodes:
+            na = snap.node_activity.get(node)
+            if na and na.i_count > 0:
+                x, y = pos[node]
+                ax.text(x, y - 0.28, f"I:{na.i_count}",
+                        color="#B0BEC5", fontsize=6, ha="center", va="top")
+
+        # CO warning
+        co_nodes = [n for n in G.nodes
+                    if snap.node_activity.get(n) and
+                    snap.node_activity[n].co_count > 0]
+        if co_nodes:
+            for cn in co_nodes:
+                x, y = pos[cn]
+                ax.text(x, y + 0.3, f"CO:{snap.node_activity[cn].co_count}",
+                        color="#FF9800", fontsize=6, ha="center", va="bottom",
+                        fontweight="bold")
+
+        self._net_canvas.draw()
+
     def load_planning_tree(self, sc_tree) -> None:
         """
         Load a post-planning SCTree into the PSI List tab.
@@ -1655,6 +1882,37 @@ class WOMApp(tk.Tk):
         self._progress = ttk.Progressbar(parent, mode="indeterminate")
         self._progress.pack(fill="x", padx=8, pady=(8, 0))
 
+        # ── Plugin panel ──────────────────────────────────────────────
+        self._build_plugin_panel(parent)
+
+    def _build_plugin_panel(self, parent):
+        """Build the Plugin ON/OFF checklist below the progress bar."""
+        from wom.plugins import ALL_BUILTIN_PLUGINS
+
+        sec = tk.LabelFrame(parent, text=" Plugins ",
+                            bg=BG_DARK, fg="#CE93D8",
+                            font=("Segoe UI", 9, "bold"),
+                            relief="groove", bd=1)
+        sec.pack(fill="x", padx=8, pady=(6, 4))
+
+        self._plugin_vars: dict = {}   # name -> BooleanVar
+        self._plugin_instances: dict = {}  # name -> WOMPlugin instance
+
+        for cls in ALL_BUILTIN_PLUGINS:
+            inst = cls()
+            var  = tk.BooleanVar(value=False)
+            self._plugin_vars[inst.name]     = var
+            self._plugin_instances[inst.name] = inst
+
+            row = tk.Frame(sec, bg=BG_DARK)
+            row.pack(fill="x", padx=4, pady=1)
+            tk.Checkbutton(row, variable=var, bg=BG_DARK,
+                           fg=FG_WHITE, selectcolor=BG_MID,
+                           activebackground=BG_DARK,
+                           activeforeground=FG_WHITE).pack(side="left")
+            tk.Label(row, text=inst.label, bg=BG_DARK, fg=FG_WHITE,
+                     font=("Segoe UI", 8), anchor="w").pack(side="left", fill="x")
+
     def _build_right_panel(self, parent):
         nb = ttk.Notebook(parent)
         nb.pack(fill="both", expand=True)
@@ -1878,6 +2136,11 @@ class WOMApp(tk.Tk):
         """Build SCTree from input files (or demo data) and run the lot-based planning pipeline."""
         self._progress.start(10)
         self._status("Running Planning Engine (lot-based PSI)…")
+        # Build list of active (checked) plugin instances
+        self._active_plugins = [
+            inst for name, inst in getattr(self, '_plugin_instances', {}).items()
+            if self._plugin_vars.get(name, tk.BooleanVar(value=False)).get()
+        ]
         threading.Thread(target=self._planning_thread, daemon=True).start()
 
     def _planning_thread(self):
@@ -1889,6 +2152,9 @@ class WOMApp(tk.Tk):
             from wom.engine.backward_planner import BackwardPlanner
             from wom.engine.plan_copy        import copy_demand_to_supply
             from wom.engine.forward_planner  import ForwardPlanner
+            from wom.engine.hook_bus         import (HookBus,
+                HOOK_PRE_PLAN, HOOK_POST_BACKWARD,
+                HOOK_POST_COPY, HOOK_POST_FORWARD, HOOK_POST_PLAN)
 
             # ── Build week labels ──────────────────────────────────
             n_weeks = int(self._e_weeks.get() or 26)
@@ -1917,6 +2183,13 @@ class WOMApp(tk.Tk):
 
             sc_tree = build_demo_sc_tree(sku_df, weeks,
                                          lt_wks_ot=1, lt_wks_in=2)
+
+            # ── Build HookBus and register active plugins ──────────────
+            _bus = HookBus()
+            _cfg = {"n_weeks": n_weeks, "start_week": start,
+                    "cap_path": self._f_cap.get() if hasattr(self, '_f_cap') else ""}
+            for _plugin in getattr(self, '_active_plugins', []):
+                _plugin.register(_bus)
 
             # ── Demand ─────────────────────────────────────────────
             demand_dict = {}
@@ -1971,11 +2244,21 @@ class WOMApp(tk.Tk):
                     pass   # capacity load failure is non-fatal
 
             # ── Run planning pipeline ─────────────────────────────
+            _bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree,
+                      weeks=weeks, config=_cfg)
             for prod_nm in sc_tree.products:
                 BackwardPlanner(sc_tree).run(prod_nm)
+                _bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree,
+                          prod_nm=prod_nm, weeks=weeks, config=_cfg)
                 copy_demand_to_supply(sc_tree, prod_nm)
+                _bus.fire(HOOK_POST_COPY, sc_tree=sc_tree,
+                          prod_nm=prod_nm, weeks=weeks, config=_cfg)
                 ForwardPlanner(sc_tree).run(prod_nm)
+                _bus.fire(HOOK_POST_FORWARD, sc_tree=sc_tree,
+                          prod_nm=prod_nm, weeks=weeks, config=_cfg)
 
+            _bus.fire(HOOK_POST_PLAN, sc_tree=sc_tree,
+                      weeks=weeks, config=_cfg)
             self.after(0, lambda: self._on_planning_done(sc_tree))
 
         except Exception:
@@ -1994,6 +2277,16 @@ class WOMApp(tk.Tk):
             f"│  Open 🌐 Network tab → PSI List to explore"
         )
         self._network_panel.load_planning_tree(sc_tree)
+
+        # ── Build EventTimeline for animation ─────────────────────────
+        try:
+            from wom.engine.event_timeline import build_event_timeline
+            timeline = build_event_timeline(sc_tree)
+            self._network_panel.set_timeline(timeline)
+        except Exception as exc:
+            import traceback
+            print(f"[EventTimeline] build failed: {exc}")
+            traceback.print_exc()
 
     def _on_planning_error(self, tb: str):
         self._progress.stop()
