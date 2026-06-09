@@ -1,0 +1,4 @@
+[
+  "tests/test_step10_hooks.py::TestDemandSmoothingPlugin::test_smoothing_preserves_total",
+  "tests/test_step10_hooks.py::TestDemandSmoothingPlugin::test_smoothing_reduces_spike"
+]
