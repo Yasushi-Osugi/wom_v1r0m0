@@ -1,0 +1,16 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+SKU-A001,Wireless Headphones,APAC,EA,165.27,1.5,5,10,0,0,True,305.75,6,8
+SKU-A001,Wireless Headphones,EMEA,EA,67.45,2.6,3,100,0,0,True,124.78,6,8
+SKU-A001,Wireless Headphones,AMER,EA,22.47,1.6,4,1,0,0,True,41.57,6,8
+SKU-A002,Laptop Stand,APAC,EA,146.89,2.6,6,10,0,0,True,249.71,5,7
+SKU-A002,Laptop Stand,EMEA,EA,120.56,1.9,3,10,0,0,True,204.95,5,7
+SKU-A002,Laptop Stand,AMER,EA,179.06,2.0,4,10,0,0,True,304.4,5,7
+SKU-B001,USB-C Hub,APAC,EA,239.95,2.0,3,100,0,0,True,491.9,5,9
+SKU-B001,USB-C Hub,EMEA,EA,37.73,2.8,5,1,0,0,True,77.35,5,9
+SKU-B001,USB-C Hub,AMER,EA,186.49,2.3,6,1,0,0,True,382.3,5,9
+SKU-B002,Mechanical Keyboard,APAC,EA,144.73,2.7,5,10,0,0,True,238.8,6,8
+SKU-B002,Mechanical Keyboard,EMEA,EA,180.57,1.6,4,50,0,0,True,297.94,6,8
+SKU-B002,Mechanical Keyboard,AMER,EA,246.53,2.8,3,100,0,0,True,406.77,6,8
+SKU-C001,Monitor Arm,APAC,EA,80.32,2.5,5,10,0,0,True,144.58,7,8
+SKU-C001,Monitor Arm,EMEA,EA,101.99,1.8,5,1,0,0,True,183.58,7,8
+SKU-C001,Monitor Arm,AMER,EA,158.15,1.8,4,10,0,0,True,284.67,7,8
