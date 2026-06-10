@@ -1343,11 +1343,15 @@ class SCNetworkPanel(tk.Frame):
         self._scen_cb["values"] = scenarios
         if scenarios:
             self._scenario_var.set(scenarios[0])
-        self._build_graph()
-        # Auto-select first Region node
-        region_nodes = [k for k in self._node_map if k.startswith("Region:")]
-        if region_nodes:
-            self._select_node(region_nodes[0])
+        if getattr(self, "_hammock_mode", False):
+            # Hammock mode: Planning Engine drew the tree — redraw to keep it
+            self._redraw_hammock()
+        else:
+            self._build_graph()
+            # Auto-select first Region node
+            region_nodes = [k for k in self._node_map if k.startswith("Region:")]
+            if region_nodes:
+                self._select_node(region_nodes[0])
 
     # ── Graph construction ───────────────────────────────────────────
 
@@ -1516,9 +1520,12 @@ class SCNetworkPanel(tk.Frame):
         # Try to refresh right PSI chart if simulation data available
         if self._mgr and node_obj:
             region = None
-            if ":" in node_obj.node_id:
+            # Only extract region for leaf_out nodes (node_id="OUT:leaf_out:REGION:PROD")
+            # For dad/mom/supply_point, show all regions (region=None)
+            from wom.model.plan_node import NODE_TYPE_LEAF_OUT
+            if node_obj.node_type == NODE_TYPE_LEAF_OUT and ":" in node_obj.node_id:
                 parts = node_obj.node_id.split(":")
-                if len(parts) >= 4 and parts[0] == "OUT":
+                if len(parts) >= 4:
                     region = parts[2]
             flt  = {"sku": node_obj.product, "region": region}
             scen = self._scenario_var.get()
@@ -2467,10 +2474,34 @@ class WOMApp(tk.Tk):
         main = tk.Frame(self, bg=BG_DARK)
         main.pack(fill="both", expand=True, padx=0, pady=0)
 
-        # Left panel
-        left = tk.Frame(main, bg=BG_MID, width=280)
-        left.pack(side="left", fill="y")
-        left.pack_propagate(False)
+        # Left panel — scrollable canvas wrapper
+        left_outer = tk.Frame(main, bg=BG_MID, width=284)
+        left_outer.pack(side="left", fill="y")
+        left_outer.pack_propagate(False)
+
+        _lcanvas = tk.Canvas(left_outer, bg=BG_MID, highlightthickness=0, width=262)
+        _lvsb = ttk.Scrollbar(left_outer, orient="vertical", command=_lcanvas.yview)
+        _lcanvas.configure(yscrollcommand=_lvsb.set)
+        _lvsb.pack(side="right", fill="y")
+        _lcanvas.pack(side="left", fill="both", expand=True)
+
+        left = tk.Frame(_lcanvas, bg=BG_MID)
+        _lcwin = _lcanvas.create_window((0, 0), window=left, anchor="nw")
+
+        def _left_frame_cfg(event, _c=_lcanvas, _w=_lcwin):
+            _c.configure(scrollregion=_c.bbox("all"))
+        def _left_canvas_cfg(event, _c=_lcanvas, _w=_lcwin):
+            _c.itemconfig(_w, width=event.width)
+        def _left_mousewheel(event, _c=_lcanvas):
+            _c.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        left.bind("<Configure>", _left_frame_cfg)
+        _lcanvas.bind("<Configure>", _left_canvas_cfg)
+        _lcanvas.bind("<Enter>",
+            lambda e, _c=_lcanvas: _c.bind_all("<MouseWheel>", _left_mousewheel))
+        _lcanvas.bind("<Leave>",
+            lambda e, _c=_lcanvas: _c.unbind_all("<MouseWheel>"))
+
         self._build_left_panel(left)
 
         # Right panel (notebook)
@@ -2520,16 +2551,49 @@ class WOMApp(tk.Tk):
                              relief="groove", bd=1)
         fsec.pack(fill="x", padx=8, pady=4)
 
-        self._f_sku  = FileEntry(fsec, "SKU Master:")
+        # Load Model Folder button
+        _folder_btn_fr = tk.Frame(fsec, bg=BG_MID)
+        _folder_btn_fr.pack(fill="x", padx=6, pady=(4, 2))
+        tk.Button(_folder_btn_fr, text="📂  Load Model Folder…",
+                  command=self._load_model_folder,
+                  bg="#1565C0", fg="white", relief="flat",
+                  font=("Segoe UI", 9, "bold"), cursor="hand2",
+                  pady=4).pack(fill="x")
+
+        # Compact folder display (visible after folder is loaded)
+        self._folder_disp_fr = tk.Frame(fsec, bg=BG_MID)
+        self._folder_disp_var = tk.StringVar(value="")
+        tk.Label(self._folder_disp_fr, textvariable=self._folder_disp_var,
+                 bg=BG_MID, fg="#81D4FA",
+                 font=("Segoe UI", 8, "bold")).pack(side="left", padx=(6, 0))
+        self._files_toggle_btn = tk.Button(
+            self._folder_disp_fr, text="▼ 詳細",
+            command=self._toggle_file_entries,
+            bg=BG_DARK, fg="#78909C", relief="flat",
+            font=("Segoe UI", 8), cursor="hand2", pady=0)
+        self._files_toggle_btn.pack(side="right", padx=(0, 4))
+        # hidden initially — shown when folder is loaded
+
+        # Individual file entries frame (collapsible)
+        self._file_entries_fr = tk.Frame(fsec, bg=BG_MID)
+        self._file_entries_fr.pack(fill="x")
+
+        self._f_sku  = FileEntry(self._file_entries_fr, "SKU Master:")
         self._f_sku.pack(fill="x", padx=6, pady=2)
-        self._f_dem  = FileEntry(fsec, "Demand Forecast:")
+        self._f_dem  = FileEntry(self._file_entries_fr, "Demand Forecast:")
         self._f_dem.pack(fill="x", padx=6, pady=2)
-        self._f_inv  = FileEntry(fsec, "Inventory Master:")
+        self._f_inv  = FileEntry(self._file_entries_fr, "Inventory Master:")
         self._f_inv.pack(fill="x", padx=6, pady=2)
-        self._f_cap  = FileEntry(fsec, "Capacity Plan:")
+        self._f_cap  = FileEntry(self._file_entries_fr, "Capacity Plan:")
         self._f_cap.pack(fill="x", padx=6, pady=2)
-        self._f_node = FileEntry(fsec, "Node Master:")
+        self._f_push = FileEntry(self._file_entries_fr, "Push Config:")
+        self._f_push.pack(fill="x", padx=6, pady=2)
+        self._f_lane = FileEntry(self._file_entries_fr, "Lane Assignment:")
+        self._f_lane.pack(fill="x", padx=6, pady=2)
+        self._f_node = FileEntry(self._file_entries_fr, "Node Master:")
         self._f_node.pack(fill="x", padx=6, pady=2)
+
+        self._files_collapsed = False  # track state
 
         # ── SC Tree Master (Phase B multi-tier) ───────────────────────
         stsec = tk.LabelFrame(parent, text="  SC Tree Master (Multi-tier)  ",
@@ -2538,9 +2602,11 @@ class WOMApp(tk.Tk):
         stsec.pack(fill="x", padx=8, pady=4)
         self._f_sc_tree = FileEntry(stsec, "SC Tree Master:")
         self._f_sc_tree.pack(fill="x", padx=6, pady=2)
-        tk.Label(stsec,
-                 text="(省略時は Demo 2-tier tree を自動生成)",
-                 bg=BG_MID, fg="#78909C", font=("Segoe UI", 8)).pack(anchor="w", padx=6)
+        self._sc_tree_hint_var = tk.StringVar(value="（省略時は Demo 2-tier tree を自動生成）")
+        self._sc_tree_hint_lbl = tk.Label(
+            stsec, textvariable=self._sc_tree_hint_var,
+            bg=BG_MID, fg="#78909C", font=("Segoe UI", 8))
+        self._sc_tree_hint_lbl.pack(anchor="w", padx=6)
 
         # ── Tariff & FX files ─────────────────────────────────────────
         lcsec = tk.LabelFrame(parent, text="  Tariff & FX (Landed Cost)  ",
@@ -2703,6 +2769,8 @@ class WOMApp(tk.Tk):
             ("_f_dem",       "demand_forecast.csv"),
             ("_f_inv",       "inventory_master.csv"),
             ("_f_cap",       "capacity_plan.csv"),
+            ("_f_push",      "push_config.csv"),
+            ("_f_lane",      "lane_assignment.csv"),
             ("_f_node",      "node_master.csv"),
             ("_f_edge_cost", "edge_cost_master.csv"),
             ("_f_route",     "route_master.csv"),
@@ -2711,6 +2779,82 @@ class WOMApp(tk.Tk):
             path = os.path.join(sd, fname)
             if os.path.exists(path):
                 getattr(self, attr).set(path)
+
+    # ------------------------------------------------------------------ #
+    # Load Model Folder + Auto-detect Period
+    # ------------------------------------------------------------------ #
+
+    def _load_model_folder(self):
+        """Open folder dialog; fill all 8 FileEntry fields from standard filenames."""
+        folder = filedialog.askdirectory(title="モデルフォルダを選択 (CSVファイルが入ったフォルダ)")
+        if not folder:
+            return
+        FILE_MAP = [
+            ("_f_sku",       "sku_master.csv"),
+            ("_f_dem",       "demand_forecast.csv"),
+            ("_f_inv",       "inventory_master.csv"),
+            ("_f_cap",       "capacity_plan.csv"),
+            ("_f_push",      "push_config.csv"),
+            ("_f_lane",      "lane_assignment.csv"),
+            ("_f_node",      "node_master.csv"),
+            ("_f_edge_cost", "edge_cost_master.csv"),
+            ("_f_route",     "route_master.csv"),
+            ("_f_sc_tree",   "sc_tree_master.csv"),
+        ]
+        loaded, missing = [], []
+        for attr, fname in FILE_MAP:
+            path = os.path.join(folder, fname)
+            if os.path.exists(path):
+                getattr(self, attr).set(path)
+                loaded.append(fname)
+            else:
+                missing.append(fname)
+        # Auto-detect planning period from demand file
+        self._auto_detect_planning_period()
+
+        # Compact folder display: hide individual entries, show folder name
+        base = os.path.basename(folder)
+        self._folder_disp_var.set(f"📁  {base}/")
+        self._folder_disp_fr.pack(fill="x", padx=6, pady=(0, 2))
+        self._file_entries_fr.pack_forget()
+        self._files_toggle_btn.config(text="▼ 詳細")
+        self._files_collapsed = True
+
+        msg = f"📂 {base}: {len(loaded)} files loaded"
+        if missing:
+            msg += f"  (not found: {', '.join(missing)})"
+        self._status(msg)
+
+    def _toggle_file_entries(self):
+        """Toggle collapse/expand of the 5 individual FileEntry widgets."""
+        if getattr(self, "_files_collapsed", False):
+            self._file_entries_fr.pack(fill="x", before=self._folder_disp_fr)
+            self._files_toggle_btn.config(text="▲ 閉じる")
+            self._files_collapsed = False
+        else:
+            self._file_entries_fr.pack_forget()
+            self._files_toggle_btn.config(text="▼ 詳細")
+            self._files_collapsed = True
+
+    def _auto_detect_planning_period(self):
+        """Read demand_forecast.csv and auto-set Start Week / # Weeks."""
+        dem_path = self._f_dem.get() if hasattr(self, "_f_dem") else ""
+        if not dem_path or not os.path.exists(dem_path):
+            return
+        try:
+            dem_df = pd.read_csv(dem_path)
+            if "week" not in dem_df.columns:
+                return
+            weeks_sorted = sorted(dem_df["week"].dropna().unique().tolist())
+            if not weeks_sorted:
+                return
+            start_wk = weeks_sorted[0]
+            n_weeks  = len(weeks_sorted)
+            self._e_start.set(start_wk)
+            self._e_weeks.set(str(n_weeks))
+            print(f"[AutoDetect] period: {start_wk}  ×  {n_weeks} weeks")
+        except Exception as exc:
+            print(f"[AutoDetect] failed: {exc}")
 
     # ------------------------------------------------------------------ #
     # Simulation
@@ -2909,9 +3053,10 @@ class WOMApp(tk.Tk):
             import datetime
             from wom.model.sc_tree       import build_demo_sc_tree
             from wom.model.lot_generator import assign_demand_lots_from_dict
-            from wom.engine.backward_planner import BackwardPlanner
-            from wom.engine.plan_copy        import copy_demand_to_supply
-            from wom.engine.forward_planner  import ForwardPlanner
+            from wom.engine.backward_planner  import BackwardPlanner
+            from wom.engine.plan_copy         import copy_demand_to_supply
+            from wom.engine.forward_planner   import ForwardPlanner
+            from wom.engine.lane_assignment   import LaneTable
             from wom.engine.hook_bus         import (HookBus,
                 HOOK_PRE_PLAN, HOOK_POST_BACKWARD,
                 HOOK_POST_COPY, HOOK_POST_FORWARD, HOOK_POST_PLAN)
@@ -2951,6 +3096,11 @@ class WOMApp(tk.Tk):
                     sc_tree = build_sc_tree_from_master(sc_tree_df, weeks)
                     print(f"[SCTreeBuilder] Loaded multi-tier tree from {sc_tree_path}")
                     print(f"  Products: {sc_tree.products}")
+                    def _reset_sc_hint():
+                        if hasattr(self, "_sc_tree_hint_var"):
+                            self._sc_tree_hint_var.set("✅ SC Tree Master 使用中")
+                            self._sc_tree_hint_lbl.config(fg="#A5D6A7")
+                    self.after(0, _reset_sc_hint)
                 except Exception as _stb_exc:
                     import traceback
                     print(f"[SCTreeBuilder] Failed: {_stb_exc}")
@@ -2960,6 +3110,13 @@ class WOMApp(tk.Tk):
             else:
                 sc_tree = build_demo_sc_tree(sku_df, weeks,
                                              lt_wks_ot=1, lt_wks_in=2)
+                # Show warning that demo tree is being used
+                def _warn_demo_tree():
+                    self._status("⚠ SC Tree Master 未指定 — Demo 2-tier tree で実行")
+                    if hasattr(self, "_sc_tree_hint_var"):
+                        self._sc_tree_hint_var.set("⚠ Demo 2-tier tree 使用中（SC Tree Master 未指定）")
+                        self._sc_tree_hint_lbl.config(fg="#FFA726")
+                self.after(0, _warn_demo_tree)
 
             # ── Build HookBus and register active plugins ──────────────
             _bus = HookBus()
@@ -2991,46 +3148,101 @@ class WOMApp(tk.Tk):
 
             assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
 
-            # ── Apply capacity from CSV → MOM nodes (cap_hard) ───
+            # ── Apply capacity from CSV → nodes (cap_hard) ─────────
+            # If node_name column present: apply to any named node (harvest pulse etc.)
+            # Otherwise: sum by sku_id+week → apply to primary MOM (legacy behaviour)
             cap_path = self._f_cap.get()
             if cap_path and os.path.exists(cap_path):
                 try:
                     cap_df = pd.read_csv(cap_path)
                     req_cap = {"sku_id", "week", "max_supply"}
                     if req_cap.issubset(set(cap_df.columns)):
-                        # Sum max_supply across regions → total MOM production cap
-                        cap_agg = (cap_df
-                                   .groupby(["sku_id", "week"])["max_supply"]
-                                   .sum().reset_index())
                         week_idx_map = {wk: i for i, wk in enumerate(weeks)}
-                        for prod_nm in sc_tree.products:
-                            try:
-                                mom = sc_tree.get_in_root(prod_nm)
-                                sku_cap = cap_agg[
-                                    cap_agg["sku_id"] == prod_nm
-                                ]
-                                for _, row in sku_cap.iterrows():
-                                    w_idx = week_idx_map.get(str(row["week"]))
-                                    if w_idx is not None:
-                                        mom.set_capacity(
-                                            w_idx,
-                                            cap_hard=float(row["max_supply"]))
-                            except Exception:
-                                pass
+                        has_node_name = "node_name" in cap_df.columns
+                        if has_node_name:
+                            # Build (prod_nm, node_name) → PlanNode index
+                            _node_lookup = {}
+                            for _pn in sc_tree.products:
+                                for _nd in sc_tree.iter_all_nodes(_pn):
+                                    _node_lookup[(_pn, _nd.node_name)] = _nd
+                            for _, row in cap_df.iterrows():
+                                _nd = _node_lookup.get(
+                                    (str(row["sku_id"]), str(row["node_name"])))
+                                if _nd is None:
+                                    continue
+                                w_idx = week_idx_map.get(str(row["week"]))
+                                if w_idx is not None:
+                                    _nd.set_capacity(
+                                        w_idx,
+                                        cap_hard=float(row["max_supply"]))
+                        else:
+                            # Legacy: sum across regions → primary MOM only
+                            cap_agg = (cap_df
+                                       .groupby(["sku_id", "week"])["max_supply"]
+                                       .sum().reset_index())
+                            for prod_nm in sc_tree.products:
+                                try:
+                                    mom = sc_tree.get_in_root(prod_nm)
+                                    sku_cap = cap_agg[
+                                        cap_agg["sku_id"] == prod_nm
+                                    ]
+                                    for _, row in sku_cap.iterrows():
+                                        w_idx = week_idx_map.get(str(row["week"]))
+                                        if w_idx is not None:
+                                            mom.set_capacity(
+                                                w_idx,
+                                                cap_hard=float(row["max_supply"]))
+                                except Exception:
+                                    pass
                 except Exception:
                     pass   # capacity load failure is non-fatal
+
+            # ── Load Lane Assignment (optional) ───────────────────
+            _lane_path = self._f_lane.get() if hasattr(self, "_f_lane") else ""
+            _lane_table = (LaneTable.from_csv(_lane_path)
+                           if _lane_path and os.path.exists(_lane_path)
+                           else LaneTable.empty())
+            if not _lane_table.is_empty():
+                print(f"[LaneAssignment] Loaded: {_lane_table}")
 
             # ── Run planning pipeline ─────────────────────────────
             _bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree,
                       weeks=weeks, config=_cfg)
             for prod_nm in sc_tree.products:
-                BackwardPlanner(sc_tree).run(prod_nm)
+                BackwardPlanner(sc_tree, lane_table=_lane_table).run(prod_nm)
                 _bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree,
                           prod_nm=prod_nm, weeks=weeks, config=_cfg)
                 copy_demand_to_supply(sc_tree, prod_nm)
                 _bus.fire(HOOK_POST_COPY, sc_tree=sc_tree,
                           prod_nm=prod_nm, weeks=weeks, config=_cfg)
-                ForwardPlanner(sc_tree).run(prod_nm)
+                # Step 8: PUSH/PULL — apply before ForwardPlanner if push_config.csv provided
+                _push_path = self._f_push.get() if hasattr(self, "_f_push") else ""
+                if _push_path and os.path.exists(_push_path):
+                    import csv as _csv
+                    from wom.engine.push_pull import PushProductionPlanner, PushConfig
+                    _push_cfgs = {}
+                    with open(_push_path, newline="", encoding="utf-8") as _pf:
+                        for _pr in _csv.DictReader(_pf):
+                            _pn = _pr.get("sku_id", "").strip()
+                            if _pn == prod_nm:
+                                _push_cfgs[_pn] = PushConfig(
+                                    node_id=_pr.get("node_id", "").strip(),
+                                    push_qty_per_week=int(_pr.get("push_qty_per_week") or 0),
+                                    buffer_lots=int(_pr.get("buffer_lots") or 0),
+                                    sku_id=_pn,
+                                )
+                    if _push_cfgs:
+                        PushProductionPlanner(sc_tree).setup_all(_push_cfgs)
+                # Collect opening_inv from HarvestBatchPlugin if active
+                _harvest_plugin = getattr(self, '_plugin_instances', {}).get('harvest_batch')
+                _opening_inv = (
+                    _harvest_plugin.opening_inv
+                    if _harvest_plugin is not None
+                    and self._plugin_vars.get('harvest_batch',
+                        __import__('tkinter').BooleanVar(value=False)).get()
+                    else {}
+                )
+                ForwardPlanner(sc_tree, opening_inv=_opening_inv).run(prod_nm)
                 _bus.fire(HOOK_POST_FORWARD, sc_tree=sc_tree,
                           prod_nm=prod_nm, weeks=weeks, config=_cfg)
 
@@ -3061,6 +3273,16 @@ class WOMApp(tk.Tk):
             import traceback
             print(f"[EventTimeline] build failed: {exc}")
             traceback.print_exc()
+
+        # -- Load node_master into World Map (same logic as _on_simulation_done)
+        try:
+            node_path = self._f_node.get() if hasattr(self, "_f_node") else ""
+            if not node_path:
+                node_path = os.path.join(self._sample_dir, "node_master.csv")
+            if os.path.exists(node_path):
+                self._worldmap_panel.load_default(node_path)
+        except Exception as _wm_exc:
+            print(f"[WorldMap] node load failed: {_wm_exc}")
 
         # -- Integrate Planning results into KPI/Management tabs
         planning_status = ""
@@ -3109,7 +3331,9 @@ class WOMApp(tk.Tk):
                 from wom.engine.strategic_kpi import compute_strategic_kpi
                 self._mgr.strategic_kpi = compute_strategic_kpi(sc_tree)
             except Exception as _skpi_exc:
+                import traceback
                 print(f"[StrategicKPI] compute failed: {_skpi_exc}")
+                traceback.print_exc()
 
             # Compute Landed Cost comparison
             try:
