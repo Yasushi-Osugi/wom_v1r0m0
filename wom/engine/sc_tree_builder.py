@@ -232,13 +232,19 @@ def _build_product_tree(
             f"Product {prod_nm!r}: multiple supply_point roots found: "
             f"{[n.node_name for n in ot_roots]}"
         )
-    if len(in_roots) > 1:
-        raise ValueError(
-            f"Product {prod_nm!r}: multiple inbound mom roots found: "
-            f"{[n.node_name for n in in_roots]}"
-        )
+    # Multiple top-level MOM roots are allowed for multi-factory scenarios
+    # (Production Allocation Policy).  The first MOM (lowest node_id
+    # alphabetically, for determinism) is registered as the primary.
+    # Additional MOMs are registered via register_extra_mom() and will be
+    # routed to by LaneTable during BackwardPlanner Phase 2.
+    in_roots_sorted = sorted(in_roots, key=lambda n: n.node_id)
+    primary_in_root = in_roots_sorted[0]
 
-    tree.register(prod_nm, ot_root=ot_roots[0], in_root=in_roots[0])
+    tree.register(prod_nm, ot_root=ot_roots[0], in_root=primary_in_root)
+
+    for extra_mom in in_roots_sorted[1:]:
+        tree.register_extra_mom(prod_nm, extra_mom)
+        print(f"[SCTreeBuilder] {prod_nm}: extra MOM root registered: {extra_mom.node_id}")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -253,7 +259,8 @@ def print_sc_tree_structure(tree: SCTree) -> None:
         print("  OutBound:")
         _print_node(tree.get_ot_root(prod_nm), indent=4)
         print("  InBound:")
-        _print_node(tree.get_in_root(prod_nm), indent=4)
+        for mom in tree.get_in_roots(prod_nm).values():
+            _print_node(mom, indent=4)
 
 
 def _print_node(node: PlanNode, indent: int = 0) -> None:

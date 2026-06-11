@@ -21,18 +21,25 @@ Preparation
     Clear psi4supply[w][P] on derived nodes (rebuilt during forward pass).
     Source P kept: leaf_in (push or pull), supply_point (filled by bridge).
 
-Phase 1 — InBound POST-ORDER (leaf_in -> tier-1 -> MOM)
+Phase 1 -- InBound POST-ORDER (leaf_in -> tier-1 -> MOM)
     Step 0a: CapHard seal P[w]; excess -> CO[w+1]
     Step 0b: CapSoft check (flag only)
     PSI:
         push_sub: s_plan = available (ship everything upward)
         others  : normal CO+S demand calculation
 
-Phase 2 — Bridge MOM -> supply_point
+Phase 2 -- Bridge MOM -> supply_point
     SP.psi4supply[w][P] = list(MOM.psi4supply[w][S])
 
-Phase 3 — OutBound PRE-ORDER (supply_point -> DAD -> leaf_out)
+Phase 3 -- OutBound PRE-ORDER (supply_point -> DAD -> leaf_out)
     Same capacity + PSI logic as Phase 1 (all OT nodes are "pull").
+
+Lot routing (OutBound)
+----------------------
+Each lot is Demand Anchored: its destination leaf_out is fixed at lot-generation
+time and encoded in the lot_id.  _propagate_to_child routes each lot by walking
+the lot's leaf_out node upward via .parent pointers until it reaches the direct
+child of the current parent node.  No node_id parsing is required.
 """
 
 from __future__ import annotations
@@ -90,16 +97,19 @@ class ForwardPlanner:
         result = fp.run("SKU-A")
         results = fp.run_all()
 
-    opening_inv: {node_id: [lot_id, ...]} — pre-horizon inventory seed.
+    opening_inv: {node_id: [lot_id, ...]} -- pre-horizon inventory seed.
     """
 
     def __init__(
         self,
-        sc_tree:     SCTree,
-        opening_inv: Optional[Dict[str, List[str]]] = None,
+        sc_tree:              SCTree,
+        opening_inv:          Optional[Dict[str, List[str]]] = None,
+        decouple_node_ids:    Optional[set]                  = None,
     ) -> None:
-        self.sc_tree     = sc_tree
-        self.opening_inv = opening_inv or {}
+        self.sc_tree             = sc_tree
+        self.opening_inv         = opening_inv or {}
+        self.decouple_node_ids   = decouple_node_ids  # None = auto-detect (dad nodes)
+        self._lot_leaf_index: Dict[str, PlanNode] = {}
 
     def run(self, prod_nm: str) -> ForwardPlanResult:
         result  = ForwardPlanResult(prod_nm=prod_nm)
@@ -124,18 +134,76 @@ class ForwardPlanner:
             ot_root.psi4supply[w][P] = mom_s
             result.bridge_lots += len(mom_s)
 
-        # Phase 3: OutBound PRE-ORDER
-        for node in ot_root.walk_preorder():
-            opening = list(self.opening_inv.get(node.node_id, []))
-            self._process_node(node, n_weeks, result, opening_lots=opening)
-            result.ot_processed += 1
-            for child in node.children:
-                self._propagate_to_child(node, child, n_weeks)
+        # Phase 3: OutBound PUSH/PULL
+        # Build lot -> leaf_out index once before traversal.
+        self._lot_leaf_index = self._build_lot_leaf_index(ot_root)
+
+        # Resolve decouple nodes: explicit set, or auto-detect (all 'dad' nodes)
+        if self.decouple_node_ids is not None:
+            decouple_ids = set(self.decouple_node_ids)
+        else:
+            decouple_ids = {
+                n.node_id for n in ot_root.walk_preorder()
+                if n.node_type == "dad"
+            }
+
+        self._run_ot_push_pull(ot_root, decouple_ids, n_weeks, result)
 
         return result
 
     def run_all(self) -> Dict[str, ForwardPlanResult]:
         return {p: self.run(p) for p in self.sc_tree.products}
+
+    # ------------------------------------------------------------------
+    # Phase 3: OutBound PUSH / PULL (push_pull_all_psi2i_decouple4supply5)
+    # ------------------------------------------------------------------
+
+    def _run_ot_push_pull(self, ot_root, decouple_ids, n_weeks, result):
+        """
+        Apply push_pull_all_psi2i_decouple4supply5 logic to the OT tree.
+
+        Non-decouple (PUSH) nodes (e.g. supply_point):
+            calcPS2I (ship demand-driven s_plan, buffer surplus in I)
+            propagate S to children via lot routing, recurse
+
+        Decouple (BUFFER) nodes (e.g. dad/DC):
+            calcPS2I (absorbs P from parent, ships flat demand s_plan, CO if short)
+            PULL all children: copy psi4demand[w][P] -> psi4supply[w][P]
+            then calcPS2I (P=demand, S=demand -> I=0 at leaf_out)
+        """
+        self._push_pull_node(ot_root, decouple_ids, n_weeks, result)
+
+    def _push_pull_node(self, node, decouple_ids, n_weeks, result):
+        opening = list(self.opening_inv.get(node.node_id, []))
+        self._process_node(node, n_weeks, result, opening_lots=opening)
+        result.ot_processed += 1
+
+        if node.node_id in decouple_ids:
+            # DECOUPLE: PULL all children (copy demand P directly)
+            for child in node.children:
+                self._pull_subtree(child, n_weeks, result)
+        else:
+            # PUSH: route S to children, recurse
+            for child in node.children:
+                self._propagate_to_child(node, child, n_weeks)
+                self._push_pull_node(child, decouple_ids, n_weeks, result)
+
+    def _pull_subtree(self, node, n_weeks, result):
+        """
+        PULL mode: overwrite psi4supply[w][P] with psi4demand[w][P]
+        (the backward-planned demand lots, P=S at each node from _ot_propagate),
+        then calcPS2I.  For leaf_out: P = demand = S -> I = 0, flat demand PSI.
+        Recurse for deeper subtrees.
+        """
+        for w in range(n_weeks):
+            node.psi4supply[w][P] = list(node.psi4demand[w][P])
+
+        opening = list(self.opening_inv.get(node.node_id, []))
+        self._process_node(node, n_weeks, result, opening_lots=opening)
+        result.ot_processed += 1
+
+        for child in node.children:
+            self._pull_subtree(child, n_weeks, result)
 
     # ------------------------------------------------------------------
     # Preparation
@@ -145,8 +213,8 @@ class ForwardPlanner:
         """
         Clear P on derived nodes (rebuilt by forward propagation).
         Source nodes whose P is KEPT:
-            leaf_in  — external supply (PULL demand or PUSH schedule)
-            supply_point — P filled by bridge in Phase 2
+            leaf_in  -- external supply (PULL demand or PUSH schedule)
+            supply_point -- P filled by bridge in Phase 2
         """
         for node in in_root.walk_preorder():
             if node.node_type != NODE_TYPE_LEAF_IN:
@@ -176,7 +244,7 @@ class ForwardPlanner:
             Case 2: avail >= CO     -> S=remaining, CO[w+1]+=shortfall_S
             Case 3: avail < CO      -> S=available, CO[w+1]+=all_remaining
 
-        PSI formula (push_sub — InBound pass-through):
+        PSI formula (push_sub -- InBound pass-through):
             s_plan = available          (ship ALL supply upward)
             -> always Case 1, I=0, no CO generated
         """
@@ -272,22 +340,47 @@ class ForwardPlanner:
     def _propagate_to_child(self, parent, child, n_weeks):
         """
         OutBound: parent S[w] -> child P[w + child.lt_wks].
-        Region-filters lots when parent has multiple children.
-        """
-        child_region = _infer_region_from_node_id(child.node_id)
 
+        Each lot is Demand Anchored - its destination leaf_out is fixed at
+        lot-generation time.  Routing uses parent pointers:
+
+            leaf_out  ->  .parent  ->  ...  ->  child  ->  parent
+
+        For each lot, walk up from its leaf_out node via .parent until
+        reaching the direct child of parent.  If that node IS child,
+        the lot belongs to this child's subtree and is routed here.
+
+        When parent has only one child, all lots flow through unconditionally
+        (no routing decision needed).
+        """
+        if len(parent.children) == 1:
+            # Single child: all lots belong here -- no routing needed
+            for w in range(n_weeks):
+                confirmed_s = parent.psi4supply[w][S]
+                if not confirmed_s:
+                    continue
+                target_w = w + child.lt_wks
+                if 0 <= target_w < n_weeks:
+                    child.psi4supply[target_w][P].extend(confirmed_s)
+            return
+
+        # Multiple children: route by walking parent pointers from each lot's leaf_out
         for w in range(n_weeks):
             confirmed_s = parent.psi4supply[w][S]
             if not confirmed_s:
                 continue
 
-            if child_region and len(parent.children) > 1:
-                matched = [
-                    lot for lot in confirmed_s
-                    if _lot_region(lot) == child_region
-                ]
-            else:
-                matched = list(confirmed_s)
+            matched = []
+            for lot in confirmed_s:
+                leaf = self._lot_leaf_index.get(lot)
+                if leaf is None:
+                    continue
+                # Walk up from leaf_out until we find the node whose parent IS parent
+                node = leaf
+                while node is not None and node.parent is not parent:
+                    node = node.parent
+                if node is child:
+                    matched.append(lot)
 
             if not matched:
                 continue
@@ -295,25 +388,24 @@ class ForwardPlanner:
             if 0 <= target_w < n_weeks:
                 child.psi4supply[target_w][P].extend(matched)
 
+    # ------------------------------------------------------------------
+    # Lot-leaf index (built once per product before Phase 3)
+    # ------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Module-level helpers
-# ---------------------------------------------------------------------------
+    @staticmethod
+    def _build_lot_leaf_index(ot_root: PlanNode) -> Dict[str, PlanNode]:
+        """
+        Build {lot_id: leaf_out_node} from psi4demand[w][S] of all leaf_out nodes.
 
-def _lot_region(lot_id):
-    """Extract region from lot ID: {sku}:{region}:{week}:{seq}"""
-    try:
-        parts = lot_id.rsplit(":", 1)
-        prefix = parts[0].rsplit(":", 1)
-        sku_region = prefix[0].split(":", 1)
-        return sku_region[1]
-    except (ValueError, IndexError):
-        return None
-
-
-def _infer_region_from_node_id(node_id):
-    """Extract region from node_id: OUT:Sales:{region}:{sku}"""
-    parts = node_id.split(":")
-    if len(parts) >= 4 and parts[0] in ("OUT", "IN"):
-        return parts[2]
-    return None
+        psi4demand is the stable demand truth (never modified by forward planning),
+        so all original demand lot_ids are reliably found here.
+        CO lots are always deferred copies of original demand lot_ids,
+        so they are covered by the same index.
+        """
+        index: Dict[str, PlanNode] = {}
+        for node in ot_root.walk_preorder():
+            if not node.children:  # leaf_out has no children
+                for w_psi in node.psi4demand:
+                    for lot_id in w_psi[S]:
+                        index[lot_id] = node
+        return index

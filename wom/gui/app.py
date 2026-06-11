@@ -1517,20 +1517,18 @@ class SCNetworkPanel(tk.Frame):
         if node_obj and hasattr(self, "_psi_node_cb"):
             self._psi_node_var.set(node_obj.node_id)
             self._on_psi_node_select(None)
-        # Try to refresh right PSI chart if simulation data available
-        if self._mgr and node_obj:
-            region = None
-            # Only extract region for leaf_out nodes (node_id="OUT:leaf_out:REGION:PROD")
-            # For dad/mom/supply_point, show all regions (region=None)
-            from wom.model.plan_node import NODE_TYPE_LEAF_OUT
-            if node_obj.node_type == NODE_TYPE_LEAF_OUT and ":" in node_obj.node_id:
-                parts = node_obj.node_id.split(":")
-                if len(parts) >= 4:
-                    region = parts[2]
-            flt  = {"sku": node_obj.product, "region": region}
-            scen = self._scenario_var.get()
+        scen = self._scenario_var.get()
+        # Draw PSI directly from psi4supply when plan node is available
+        if node_obj:
+            self._draw_psi_from_plan_node(node_obj, scen)
+        elif self._mgr:
+            flt = {}
             self._draw_psi(flt, scen)
-            self._draw_cost(flt, scen)
+        # Cost/Revenue chart: compute per-node from psi4supply × price
+        if node_obj:
+            self._draw_cost_from_plan_node(node_obj, scen)
+        elif self._mgr:
+            self._draw_cost({}, scen)
 
     def _select_node(self, node_label: str):
         self._selected_node = node_label
@@ -1621,6 +1619,191 @@ class SCNetworkPanel(tk.Frame):
                   fontsize=7, loc="upper right")
 
         self._psi_canvas.draw()
+
+    def _draw_psi_from_plan_node(self, node_obj, scen: str):
+        """
+        Draw PSI chart directly from node_obj.psi4supply (lot-level data).
+        Shows P (Supply Receipt), S (Sales/Fulfilled), CO (Carry-Over),
+        and I (Inventory) for the selected PlanNode.
+        """
+        from wom.model.plan_node import S as S_, CO as CO_, I as I_, P as P_
+
+        self._psi_fig.clf()
+        ax = self._psi_fig.add_subplot(111)
+        ax.set_facecolor(BG_MID)
+        self._psi_fig.patch.set_facecolor(BG_DARK)
+
+        psi     = node_obj.psi4supply
+        n_weeks = len(psi)
+        if n_weeks == 0:
+            ax.text(0.5, 0.5, "No PSI data", color=FG_WHITE,
+                    ha="center", va="center", transform=ax.transAxes)
+            self._psi_canvas.draw()
+            return
+
+        week_labels = node_obj.week_labels or [str(w) for w in range(n_weeks)]
+
+        p_vals  = [len(psi[w][P_])  for w in range(n_weeks)]
+        s_vals  = [len(psi[w][S_])  for w in range(n_weeks)]
+        co_vals = [len(psi[w][CO_]) for w in range(n_weeks)]
+        i_vals  = [len(psi[w][I_])  for w in range(n_weeks)]
+
+        x = list(range(n_weeks))
+        w = 0.28
+
+        ax.bar([xi - w     for xi in x], p_vals,  width=w, label="P: Supply Receipt",  color="#4CAF50", alpha=0.85)
+        ax.bar([xi         for xi in x], s_vals,  width=w, label="S: Sales/Fulfilled", color="#2196F3", alpha=0.85)
+        if any(v > 0 for v in co_vals):
+            ax.bar([xi + w for xi in x], co_vals, width=w, label="CO: Carry-Over",     color="#F44336", alpha=0.85)
+
+        ax2 = ax.twinx()
+        ax2.fill_between(x, i_vals, alpha=0.18, color="#FF9800")
+        ax2.plot(x, i_vals, color="#FF9800", linewidth=1.5,
+                 marker="o", markersize=2, label="I: Inventory")
+        ax2.set_ylabel("Inventory", color="#FF9800", fontsize=7)
+        ax2.tick_params(colors=FG_WHITE, labelsize=6)
+        ax2.set_facecolor(BG_MID)
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(week_labels, rotation=45, ha="right", fontsize=5)
+        ax.set_ylabel("Units", color=FG_ACC, fontsize=7)
+        ax.tick_params(colors=FG_WHITE, labelsize=6)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(BG_LIGHT)
+
+        ax.set_title(f"PSI  ─  {node_obj.node_id}  [{scen}]",
+                     color=FG_WHITE, fontsize=9, pad=6)
+
+        h1, l1 = ax.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
+        ax.legend(h1 + h2, l1 + l2,
+                  facecolor=BG_LIGHT, labelcolor=FG_WHITE,
+                  fontsize=7, loc="upper right")
+
+        self._psi_canvas.draw()
+
+    def _draw_cost_from_plan_node(self, node_obj, scen: str):
+        """
+        Cost/Revenue chart from psi4supply S counts x per-node lot price.
+        Revenue      = len(psi4supply[w][S]) x selling_price_per_lot
+        COGS         = len(psi4supply[w][S]) x unit_cost_per_lot
+        Gross Profit = Revenue - COGS
+
+        Price lookup order:
+          1. node_cost_master.csv  (product x node_name, per-node price chain)
+          2. sku_master.csv        (product x region, leaf_out only fallback)
+        """
+        from wom.model.plan_node import S as S_
+        import pandas as _pd
+        import os as _os
+
+        self._cost_fig.clf()
+        ax = self._cost_fig.add_subplot(111)
+        ax.set_facecolor(BG_MID)
+        self._cost_fig.patch.set_facecolor(BG_DARK)
+
+        psi     = node_obj.psi4supply
+        n_weeks = len(psi)
+
+        if n_weeks == 0:
+            ax.text(0.5, 0.5, "No PSI data", color=FG_WHITE,
+                    ha="center", va="center", transform=ax.transAxes)
+            self._cost_canvas.draw()
+            return
+
+        # ── derive model folder (multiple fallbacks) ─────────────────
+        import glob as _glob
+        model_dir = getattr(self, "_model_dir", "")
+        if not model_dir and hasattr(self, "_f_sc_tree"):
+            _scp = self._f_sc_tree.get()
+            model_dir = _os.path.dirname(_scp) if _scp else ""
+        if not model_dir:
+            # Fallback: glob search in data/sample subdirectories
+            _cands = _glob.glob(_os.path.join("data", "sample", "*", "node_cost_master.csv"))
+            if _cands:
+                model_dir = _os.path.dirname(_cands[0])
+
+        selling_price = 0.0
+        unit_cost     = 0.0
+
+        # ── 1st: node_cost_master.csv (per-node price chain) ──────────
+        if model_dir:
+            nc_path = _os.path.join(model_dir, "node_cost_master.csv")
+            if _os.path.exists(nc_path):
+                nc_cache = getattr(self, "_node_cost_master", None)
+                if nc_cache is None:
+                    try:
+                        nc_cache = _pd.read_csv(nc_path)
+                        self._node_cost_master = nc_cache
+                    except Exception:
+                        nc_cache = _pd.DataFrame()
+                if nc_cache is not None and not nc_cache.empty:
+                    rows = nc_cache[
+                        (nc_cache["sku_id"]    == node_obj.product) &
+                        (nc_cache["node_name"] == node_obj.node_name)
+                    ]
+                    if not rows.empty:
+                        selling_price = float(rows["selling_price_per_lot"].iloc[0])
+                        unit_cost     = float(rows["unit_cost_per_lot"].iloc[0])
+
+        # ── 2nd: sku_master.csv fallback (leaf_out region-based) ──────
+        if selling_price == 0.0 and model_dir:
+            sm_path = _os.path.join(model_dir, "sku_master.csv")
+            if _os.path.exists(sm_path):
+                sm = getattr(self, "_sku_master", None)
+                if sm is None:
+                    try:
+                        sm = _pd.read_csv(sm_path)
+                        self._sku_master = sm
+                    except Exception:
+                        sm = _pd.DataFrame()
+                if sm is not None and not sm.empty:
+                    rows = sm[sm["sku_id"] == node_obj.product]
+                    # Extract region from leaf_out node_id
+                    if ":" in node_obj.node_id:
+                        parts = node_obj.node_id.split(":")
+                        if len(parts) >= 4:
+                            reg_rows = rows[rows["region"] == parts[2]]
+                            if not reg_rows.empty:
+                                rows = reg_rows
+                    if not rows.empty:
+                        selling_price = float(rows["selling_price"].mean())
+                        unit_cost     = float(rows["unit_cost"].mean())
+
+        week_labels = node_obj.week_labels or [str(w) for w in range(n_weeks)]
+        s_qty       = [len(psi[w][S_]) for w in range(n_weeks)]
+
+        rev_vals  = [q * selling_price for q in s_qty]
+        cogs_vals = [q * unit_cost     for q in s_qty]
+        gp_vals   = [r - c for r, c in zip(rev_vals, cogs_vals)]
+
+        x = list(range(n_weeks))
+        w = 0.32
+
+        ax.bar([xi - w / 2 for xi in x], cogs_vals, width=w,
+               label="COGS",         color="#F44336", alpha=0.80)
+        ax.bar([xi + w / 2 for xi in x], gp_vals,   width=w,
+               label="Gross Profit", color="#4CAF50", alpha=0.80)
+        ax.plot(x, rev_vals, "o-",
+                color="#FF9800", linewidth=1.8, markersize=4,
+                label="Revenue")
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(week_labels, rotation=45, ha="right", fontsize=5)
+        ax.set_ylabel("JPY", color=FG_ACC, fontsize=7)
+        ax.tick_params(colors=FG_WHITE, labelsize=6)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(BG_LIGHT)
+
+        price_note = ""
+        if selling_price == 0:
+            price_note = "  (price=0: check sku_master)"
+        ax.set_title(
+            f"Cost / Revenue  ─  {node_obj.node_id}  [{scen}]{price_note}",
+            color=FG_WHITE, fontsize=9, pad=6,
+        )
+        ax.legend(facecolor=BG_LIGHT, labelcolor=FG_WHITE, fontsize=7)
+        self._cost_canvas.draw()
 
     def _draw_cost(self, flt: dict, scen: str):
         self._cost_fig.clf()
@@ -2779,6 +2962,9 @@ class WOMApp(tk.Tk):
             path = os.path.join(sd, fname)
             if os.path.exists(path):
                 getattr(self, attr).set(path)
+        # Cache model_dir for cost chart lookup
+        self._model_dir = sd
+        self._node_cost_master = None  # invalidate cache
 
     # ------------------------------------------------------------------ #
     # Load Model Folder + Auto-detect Period
@@ -2819,6 +3005,10 @@ class WOMApp(tk.Tk):
         self._file_entries_fr.pack_forget()
         self._files_toggle_btn.config(text="▼ 詳細")
         self._files_collapsed = True
+
+        # Cache model_dir for cost chart lookup
+        self._model_dir = folder
+        self._node_cost_master = None  # invalidate cache
 
         msg = f"📂 {base}: {len(loaded)} files loaded"
         if missing:
@@ -3089,6 +3279,10 @@ class WOMApp(tk.Tk):
             # ── SC Tree: multi-tier master or demo fallback ────────────
             sc_tree_path = (self._f_sc_tree.get()
                             if hasattr(self, "_f_sc_tree") else "")
+            # Cache model_dir for cost chart price lookup
+            if sc_tree_path:
+                self._model_dir = os.path.dirname(sc_tree_path)
+                self._node_cost_master = None  # invalidate on each engine run
             if sc_tree_path and os.path.exists(sc_tree_path):
                 try:
                     from wom.engine.sc_tree_builder import build_sc_tree_from_master
@@ -3230,6 +3424,7 @@ class WOMApp(tk.Tk):
                                     push_qty_per_week=int(_pr.get("push_qty_per_week") or 0),
                                     buffer_lots=int(_pr.get("buffer_lots") or 0),
                                     sku_id=_pn,
+                                    mode_only=_pr.get("mode_only", "").strip().lower() == "true",
                                 )
                     if _push_cfgs:
                         PushProductionPlanner(sc_tree).setup_all(_push_cfgs)
@@ -3293,11 +3488,12 @@ class WOMApp(tk.Tk):
             from wom.engine.management import analyze_all_scenarios
             from wom.engine.scenario import ScenarioManager
 
-            # Load sku_master for pricing
+            # Load sku_master for pricing (cache on self for per-node cost chart)
             sku_path = self._f_sku.get() if hasattr(self, "_f_sku") else ""
             sku_master = (pd.read_csv(sku_path)
                           if sku_path and os.path.exists(sku_path)
                           else pd.DataFrame())
+            self._sku_master = sku_master
 
             # Convert SCTree lots -> quantity DataFrame
             plan_df = sc_tree_to_planning_df(sc_tree,
@@ -3340,8 +3536,18 @@ class WOMApp(tk.Tk):
                 from wom.engine.landed_cost import (
                     load_edge_cost_master, load_route_master,
                     build_route_index, compare_lc_scenarios)
-                edge_path  = self._f_edge_cost.get() if hasattr(self, "_f_edge_cost") else ""
-                route_path = self._f_route.get()     if hasattr(self, "_f_route")     else ""
+                # Derive model folder from sc_tree_master (ensures rice-japan files used)
+                _sc_path = self._f_sc_tree.get() if hasattr(self, "_f_sc_tree") else ""
+                _model_dir = os.path.dirname(_sc_path) if _sc_path else ""
+                def _resolve_master(attr, fname):
+                    if _model_dir:
+                        cand = os.path.join(_model_dir, fname)
+                        if os.path.exists(cand):
+                            return cand
+                    widget = getattr(self, attr, None)
+                    return widget.get() if widget else ""
+                edge_path  = _resolve_master("_f_edge_cost", "edge_cost_master.csv")
+                route_path = _resolve_master("_f_route",     "route_master.csv")
                 if edge_path and os.path.exists(edge_path):
                     lc_scens = load_edge_cost_master(edge_path)
                     route_idx = {}
@@ -3377,7 +3583,7 @@ class WOMApp(tk.Tk):
             planning_status = "  |  Warning: KPI integration error (see console)"
 
         self._status(
-            f"Planning Engine complete. "
+                        f"Planning Engine complete. "
             f"Products: {n_prods}  |  Nodes: {n_nodes}"
             + planning_status +
             f"  |  Check Charts/KPI/Management tabs for 'Planning' scenario"
@@ -3440,7 +3646,6 @@ class WOMApp(tk.Tk):
 
     def _status(self, msg: str) -> None:
         self._status_var.set(msg)
-
 
 # ======================================================================
 # Entry point

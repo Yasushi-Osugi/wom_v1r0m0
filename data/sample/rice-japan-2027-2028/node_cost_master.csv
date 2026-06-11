@@ -1,0 +1,21 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+Koshihikari,Tanbo_Niigata,700000,580000,籾の農家出荷価格 / 生産コスト
+Koshihikari,JA_Niigata,860000,720000,JA集荷価格 / 集荷・調製コスト
+Koshihikari,JA_Niigata_Seihaku,1200000,900000,精白後出荷価格 / 精米・包装コスト
+Koshihikari,SP_Kome,1380000,1220000,卸センター出荷価格 / 倉庫コスト
+Koshihikari,DC_Higashi,1600000,1400000,DC東出荷価格 / 物流・配送コスト
+Koshihikari,DC_Nishi,1620000,1400000,DC西出荷価格 / 物流・配送コスト
+Koshihikari,Retail_KANTO,3200000,1800000,関東小売販売価格 / 仕入原価
+Koshihikari,Retail_TOHOKU,3000000,1800000,東北小売販売価格 / 仕入原価
+Koshihikari,Retail_KANSAI,3300000,1800000,関西小売販売価格 / 仕入原価
+Koshihikari,Retail_KYUSHU,3100000,1800000,九州小売販売価格 / 仕入原価
+Yumepirika,Tanbo_Hokkaido,620000,520000,籾の農家出荷価格 / 生産コスト
+Yumepirika,JA_Hokkaido,770000,660000,JA集荷価格 / 集荷・調製コスト
+Yumepirika,JA_Hokkaido_Seihaku,1080000,820000,精白後出荷価格 / 精米・包装コスト
+Yumepirika,SP_Kome,1250000,1090000,卸センター出荷価格 / 倉庫コスト
+Yumepirika,DC_Higashi,1450000,1270000,DC東出荷価格 / 物流・配送コスト
+Yumepirika,DC_Nishi,1480000,1270000,DC西出荷価格 / 物流・配送コスト
+Yumepirika,Retail_KANTO,2800000,1500000,関東小売販売価格 / 仕入原価
+Yumepirika,Retail_TOHOKU,2700000,1500000,東北小売販売価格 / 仕入原価
+Yumepirika,Retail_KANSAI,2900000,1500000,関西小売販売価格 / 仕入原価
+Yumepirika,Retail_KYUSHU,2750000,1500000,九州小売販売価格 / 仕入原価

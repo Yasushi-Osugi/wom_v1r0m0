@@ -76,11 +76,15 @@ class PushConfig:
     push_qty_per_week : fixed lots/week (0 = replenishment mode)
     buffer_lots       : target buffer inventory (replenishment + initial fill)
     sku_id            : SKU for lot-ID generation (inferred from node_id if empty)
+    mode_only         : True = set plan_mode flags ONLY; do NOT overwrite leaf_in
+                        P-schedule.  Use when another plugin (e.g. HarvestBatch)
+                        has already placed the production schedule.
     """
     node_id:           str
-    push_qty_per_week: int = 0
-    buffer_lots:       int = 0
-    sku_id:            str = ""
+    push_qty_per_week: int  = 0
+    buffer_lots:       int  = 0
+    sku_id:            str  = ""
+    mode_only:         bool = False
 
     def is_fixed_mode(self) -> bool:
         return self.push_qty_per_week > 0
@@ -175,6 +179,10 @@ class PushProductionPlanner:
             raise ValueError(
                 f"No leaf_in nodes under {config.node_id!r}"
             )
+
+        # mode_only: plan_mode flags already set; skip P-schedule overwrite
+        if config.mode_only:
+            return result
 
         sku_id   = config.effective_sku()
         n_leaves = len(leaf_in_nodes)

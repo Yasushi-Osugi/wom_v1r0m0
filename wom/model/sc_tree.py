@@ -91,6 +91,8 @@ class SCTree:
         self.week_labels: List[str] = list(week_labels)
         self.prod_tree_dict_OT: Dict[str, PlanNode] = {}
         self.prod_tree_dict_IN: Dict[str, PlanNode] = {}
+        # Multi-MOM support: prod_nm → {node_id: PlanNode} for all top-level MOMs
+        self._in_roots_dict: Dict[str, Dict[str, PlanNode]] = {}
 
     # ======================================================================
     # Registration
@@ -122,6 +124,31 @@ class SCTree:
             )
         self.prod_tree_dict_OT[prod_nm] = ot_root
         self.prod_tree_dict_IN[prod_nm] = in_root
+        # Register as primary entry in multi-MOM dict
+        if prod_nm not in self._in_roots_dict:
+            self._in_roots_dict[prod_nm] = {}
+        self._in_roots_dict[prod_nm][in_root.node_id] = in_root
+
+    def register_extra_mom(self, prod_nm: str, mom_node: PlanNode) -> None:
+        """
+        Register an additional top-level MOM for multi-factory scenarios.
+
+        The primary MOM (registered via register()) handles lots whose region
+        has no explicit lane assignment.  Extra MOMs handle lots explicitly
+        routed by LaneTable.
+
+        Parameters
+        ----------
+        prod_nm:
+            Product name (must already be registered via register()).
+        mom_node:
+            Additional top-level MOM PlanNode to register.
+        """
+        if prod_nm not in self._in_roots_dict:
+            raise KeyError(
+                f"Product {prod_nm!r} not yet registered. Call register() first."
+            )
+        self._in_roots_dict[prod_nm][mom_node.node_id] = mom_node
 
     # ======================================================================
     # PSI initialisation
@@ -155,11 +182,24 @@ class SCTree:
             raise KeyError(f"Product {prod_nm!r} not found in OutBound trees")
 
     def get_in_root(self, prod_nm: str) -> PlanNode:
-        """Return InBound tree root (MOM, tier=0) for the product."""
+        """Return primary InBound tree root (MOM, tier=0) for the product."""
         try:
             return self.prod_tree_dict_IN[prod_nm]
         except KeyError:
             raise KeyError(f"Product {prod_nm!r} not found in InBound trees")
+
+    def get_in_roots(self, prod_nm: str) -> Dict[str, PlanNode]:
+        """
+        Return all registered top-level MOM nodes for the product.
+
+        Returns
+        -------
+        dict mapping node_id → PlanNode for every registered MOM root.
+        Always contains at least the primary MOM.
+        """
+        return dict(self._in_roots_dict.get(prod_nm, {
+            self.prod_tree_dict_IN[prod_nm].node_id: self.prod_tree_dict_IN[prod_nm]
+        }))
 
     def num_weeks(self) -> int:
         return len(self.week_labels)
@@ -202,13 +242,15 @@ class SCTree:
 
     def iter_all_nodes(self, prod_nm: str) -> Iterator[PlanNode]:
         """
-        Yield all PlanNodes for one product (OT preorder + IN preorder,
-        deduplicating the supply_point if it appears in both trees).
+        Yield all PlanNodes for one product.
+        OT preorder + all IN roots preorder (deduplicating shared nodes).
+        Covers multi-MOM scenarios where multiple top-level MOM roots exist.
         """
         seen: set = set()
+        in_roots = self.get_in_roots(prod_nm)
         for node in itertools.chain(
             self.get_ot_root(prod_nm).walk_preorder(),
-            self.get_in_root(prod_nm).walk_preorder(),
+            *(mom.walk_preorder() for mom in in_roots.values()),
         ):
             if id(node) not in seen:
                 seen.add(id(node))
