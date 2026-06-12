@@ -818,6 +818,112 @@ class ManagementCockpitPanel(tk.Frame):
 
 # ──────────────────────────────────────────────────────────────────────
 # ──────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────
+# PPC Financial KPI Tab
+# ──────────────────────────────────────────────────────────────────────
+
+class PPCTabPanel(tk.Frame):
+    """
+    PPC Financial KPI tab — embeds PPCCockpitApp (B1 integration).
+
+    Shows a placeholder if output/ppc/ has not been generated yet.
+    Provides a Refresh button to reload after running python -m wom.ppc.
+    """
+
+    def __init__(self, parent, output_dir: str = "output/ppc", **kw):
+        super().__init__(parent, bg=BG_DARK, **kw)
+        self._output_dir = output_dir
+        self._cockpit = None
+        self._build_frame()
+        self._try_load()
+
+    def _build_frame(self) -> None:
+        # Header bar
+        hdr = tk.Frame(self, bg=BG_MID)
+        hdr.pack(fill="x")
+
+        tk.Label(hdr, text="  \U0001f4b0 PPC Financial KPI",
+                 bg=BG_MID, fg=FG_ACC,
+                 font=("Segoe UI", 10, "bold")).pack(side="left", padx=6, pady=5)
+
+        self._status_var = tk.StringVar(value="")
+        tk.Label(hdr, textvariable=self._status_var,
+                 bg=BG_MID, fg="#90A4AE",
+                 font=("Segoe UI", 8)).pack(side="left", padx=10)
+
+        tk.Button(
+            hdr, text="\u27f3  Refresh",
+            bg=BG_LIGHT, fg=FG_WHITE,
+            font=("Segoe UI", 9), relief=tk.FLAT, padx=8, pady=3,
+            activebackground=BG_MID, activeforeground=FG_ACC,
+            command=self._try_load,
+        ).pack(side="right", padx=8, pady=4)
+
+        # Content area (cockpit goes here)
+        self._content = tk.Frame(self, bg=BG_DARK)
+        self._content.pack(fill="both", expand=True)
+
+        # Placeholder shown until PPC output exists
+        self._placeholder = tk.Frame(self._content, bg=BG_DARK)
+        self._placeholder.pack(fill="both", expand=True)
+
+        msg = (
+            "PPC output not found.\n\n"
+            "Run the PPC engine first:\n"
+            "    python -m wom.ppc\n\n"
+            "Then click  \u27f3 Refresh  above."
+        )
+        tk.Label(
+            self._placeholder, text=msg,
+            bg=BG_DARK, fg="#546E7A",
+            font=("Segoe UI", 12), justify="center",
+        ).pack(expand=True)
+
+    def _try_load(self) -> None:
+        """Load PPCCockpitApp from output_dir. Show placeholder if unavailable."""
+        kpi_path = os.path.join(self._output_dir, "ppc_kpi_summary.json")
+
+        if not os.path.exists(kpi_path):
+            self._status_var.set(f"No PPC data — run  python -m wom.ppc  first")
+            self._show_placeholder()
+            return
+
+        try:
+            from wom.ppc.ppc_cockpit_app import PPCCockpitApp
+        except Exception as exc:
+            self._status_var.set(f"Import error: {exc}")
+            self._show_placeholder()
+            return
+
+        # Destroy old cockpit on refresh
+        if self._cockpit is not None:
+            self._cockpit.destroy()
+            self._cockpit = None
+
+        self._placeholder.pack_forget()
+
+        try:
+            self._cockpit = PPCCockpitApp(
+                self._content, output_dir=self._output_dir
+            )
+            self._cockpit.pack(fill="both", expand=True)
+            self._status_var.set(f"Loaded  {self._output_dir}/")
+        except Exception as exc:
+            self._status_var.set(f"Load error: {exc}")
+            self._show_placeholder()
+
+    def _show_placeholder(self) -> None:
+        if self._cockpit is not None:
+            self._cockpit.pack_forget()
+        self._placeholder.pack(fill="both", expand=True)
+
+    def refresh(self, output_dir: Optional[str] = None) -> None:
+        """Public API — call after running the PPC engine."""
+        if output_dir:
+            self._output_dir = output_dir
+        self._try_load()
+
+
 # PSI List Panel  (lot-ID based PSI, Steps 3-8)
 # ──────────────────────────────────────────────────────────────────────
 
@@ -2917,6 +3023,9 @@ class WOMApp(tk.Tk):
         self._mgmt_panel = ManagementCockpitPanel(nb)
         nb.add(self._mgmt_panel, text="  \U0001f4b9 Management  ")
 
+        self._ppc_panel = PPCTabPanel(nb, output_dir="output/ppc")
+        nb.add(self._ppc_panel, text="  \U0001f4b0 PPC  ")
+
         self._network_panel = SCNetworkPanel(nb)
         nb.add(self._network_panel, text="  \U0001f310 Network  ")
 
@@ -3587,6 +3696,83 @@ class WOMApp(tk.Tk):
             f"Products: {n_prods}  |  Nodes: {n_nodes}"
             + planning_status +
             f"  |  Check Charts/KPI/Management tabs for 'Planning' scenario"
+        )
+
+        # ── B2: PSI → PPC auto-run ────────────────────────────────────────
+        # Launch PPC engine in background using the sc_tree just computed.
+        # On completion, refresh the PPC tab automatically.
+        self._run_ppc_from_planning(sc_tree)
+
+    def _run_ppc_from_planning(self, sc_tree):
+        """
+        B2: Trigger PPC simulation from PSI output in a background thread.
+
+        Reads weeks from the planning config widget, runs run_ppc_from_psi(),
+        then refreshes the PPC tab on the main thread.
+        """
+        import re as _re
+        import datetime as _dt
+
+        # Reconstruct weeks list (same logic as _planning_thread)
+        try:
+            n_weeks = int(self._e_weeks.get() or 26)
+            start   = self._e_start.get() or "2026-W01"
+            m = _re.match(r"(\d{4})-W(\d+)", start)
+            yr, wk = (int(m.group(1)), int(m.group(2))) if m else (2026, 1)
+            weeks, d = [], _dt.date.fromisocalendar(yr, wk, 1)
+            for _ in range(n_weeks):
+                yr2, wk2, _ = d.isocalendar()
+                weeks.append(f"{yr2}-W{wk2:02d}")
+                d += _dt.timedelta(weeks=1)
+        except Exception as _exc:
+            print(f"[PPC B2] week-list rebuild failed: {_exc}")
+            return
+
+        self._status_var.set(
+            self._status_var.get() + "  |  💰 Running PPC …"
+        )
+
+        def _ppc_thread():
+            try:
+                from wom.ppc.ppc_runner import run_ppc_from_psi
+                kpi = run_ppc_from_psi(
+                    sc_tree=sc_tree,
+                    weeks=weeks,
+                    data_dir="data/ppc",
+                    output_dir="output/ppc",
+                    base_currency="JPY",
+                    verbose=True,
+                )
+                self.after(0, lambda: self._on_ppc_done(kpi))
+            except Exception as _exc:
+                import traceback
+                _tb = traceback.format_exc()
+                print(f"[PPC B2] engine failed:\n{_tb}")
+                self.after(0, lambda e=_exc: self._on_ppc_error(str(e)))
+
+        threading.Thread(target=_ppc_thread, daemon=True).start()
+
+    def _on_ppc_done(self, kpi: dict):
+        """Called on main thread after PPC engine completes."""
+        margin = kpi.get("gross_margin_pct", 0.0)
+        lots   = kpi.get("total_lots", 0)
+        psi_mode = kpi.get("_psi_mode", False)
+        mode_label = "PSI-linked" if psi_mode else "sample data"
+        self._status(
+            f"💰 PPC complete ({mode_label}) — "
+            f"Lots: {lots:,}  Margin: {margin:.1%}  "
+            f"| PPC tab refreshed"
+        )
+        # Refresh the PPC tab with newly written output/ppc/ files
+        if hasattr(self, "_ppc_panel"):
+            self._ppc_panel.refresh(output_dir="output/ppc")
+
+    def _on_ppc_error(self, msg: str):
+        """Called on main thread if PPC engine fails (non-fatal)."""
+        print(f"[PPC B2] Non-fatal error: {msg}")
+        self._status(
+            self._status_var.get().replace("  |  💰 Running PPC …", "") +
+            "  |  ⚠ PPC engine error (see console)"
         )
 
     def _on_planning_error(self, tb: str):

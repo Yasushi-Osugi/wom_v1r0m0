@@ -1,0 +1,4 @@
+mom_node,product_id,method,margin_rate,fixed_price,currency
+MOM_China,IPHONE,cost_plus,0.1,,CNY
+JA_Seihaku,Koshihikari,cost_plus,0.12,,JPY
+JA_Seihaku,Yumepirika,cost_plus,0.1,,JPY
