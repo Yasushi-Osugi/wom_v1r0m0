@@ -322,6 +322,8 @@ A Japanese concept article is available on note:
 
 ```text
 E2Eサプライチェーン理解に基づく事業経営の重要性
+
+AIで米のサプライチェーンを可視化する── WOM: Weekly Operation Model による週次PSIシミュレーション
 ```
 
 The article explains why business leaders need to understand the end-to-end supply chain model and how WOM aims to support scenario-based supply chain management.
@@ -330,6 +332,8 @@ Article URL:
 
 ```text
 https://note.com/osuosu1123/n/n4bca0c3906f9
+
+https://note.com/osuosu1123/n/ndacd400201a4
 ```
 
 ---
