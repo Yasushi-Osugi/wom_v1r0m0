@@ -1,13 +1,13 @@
 scenario,src_region,dst_region,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
-Base,JP,KANTO,0.00,1.00,JPY,JPY,50000,Niigata->Kanto standard freight (JPY/lot)
-Base,JP,TOHOKU,0.00,1.00,JPY,JPY,55000,Niigata->Tohoku standard freight
-Base,JP,KANSAI,0.00,1.00,JPY,JPY,70000,Niigata->Kansai standard freight
-Base,JP,KYUSHU,0.00,1.00,JPY,JPY,90000,Niigata->Kyushu standard freight
-FreightUp,JP,KANTO,0.00,1.00,JPY,JPY,65000,+30% fuel surcharge KANTO
-FreightUp,JP,TOHOKU,0.00,1.00,JPY,JPY,72000,+30% fuel surcharge TOHOKU
-FreightUp,JP,KANSAI,0.00,1.00,JPY,JPY,91000,+30% fuel surcharge KANSAI
-FreightUp,JP,KYUSHU,0.00,1.00,JPY,JPY,117000,+30% fuel surcharge KYUSHU
-DriverShortage,JP,KANTO,0.00,1.00,JPY,JPY,60000,+20% driver shortage KANTO
-DriverShortage,JP,TOHOKU,0.00,1.00,JPY,JPY,66000,+20% driver shortage TOHOKU
-DriverShortage,JP,KANSAI,0.00,1.00,JPY,JPY,84000,+20% driver shortage KANSAI
-DriverShortage,JP,KYUSHU,0.00,1.00,JPY,JPY,108000,+20% driver shortage KYUSHU
+Base,JP,KANTO,0.0,1.0,JPY,JPY,50000,産地集荷センター→KANTO 輸送コスト (通常運賃)
+Base,JP,TOHOKU,0.0,1.0,JPY,JPY,55000,産地集荷センター→TOHOKU 輸送コスト (通常運賃)
+Base,JP,KANSAI,0.0,1.0,JPY,JPY,70000,産地集荷センター→KANSAI 輸送コスト (通常運賃)
+Base,JP,KYUSHU,0.0,1.0,JPY,JPY,90000,産地集荷センター→KYUSHU 輸送コスト (通常運賃)
+FreightUp,JP,KANTO,0.0,1.0,JPY,JPY,65000,産地集荷センター→KANTO 輸送コスト (+30% 燃料サーチャージ)
+FreightUp,JP,TOHOKU,0.0,1.0,JPY,JPY,71500,産地集荷センター→TOHOKU 輸送コスト (+30% 燃料サーチャージ)
+FreightUp,JP,KANSAI,0.0,1.0,JPY,JPY,91000,産地集荷センター→KANSAI 輸送コスト (+30% 燃料サーチャージ)
+FreightUp,JP,KYUSHU,0.0,1.0,JPY,JPY,117000,産地集荷センター→KYUSHU 輸送コスト (+30% 燃料サーチャージ)
+DriverShortage,JP,KANTO,0.0,1.0,JPY,JPY,60000,産地集荷センター→KANTO 輸送コスト (+20% ドライバー不足)
+DriverShortage,JP,TOHOKU,0.0,1.0,JPY,JPY,66000,産地集荷センター→TOHOKU 輸送コスト (+20% ドライバー不足)
+DriverShortage,JP,KANSAI,0.0,1.0,JPY,JPY,84000,産地集荷センター→KANSAI 輸送コスト (+20% ドライバー不足)
+DriverShortage,JP,KYUSHU,0.0,1.0,JPY,JPY,108000,産地集荷センター→KYUSHU 輸送コスト (+20% ドライバー不足)
