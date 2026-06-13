@@ -2875,8 +2875,10 @@ class WOMApp(tk.Tk):
         self._f_inv.pack(fill="x", padx=6, pady=2)
         self._f_cap  = FileEntry(self._file_entries_fr, "Capacity Plan:")
         self._f_cap.pack(fill="x", padx=6, pady=2)
-        self._f_push = FileEntry(self._file_entries_fr, "Push Config:")
+        self._f_push    = FileEntry(self._file_entries_fr, "Push Config:")
         self._f_push.pack(fill="x", padx=6, pady=2)
+        self._f_holiday = FileEntry(self._file_entries_fr, "Holiday Calendar:")
+        self._f_holiday.pack(fill="x", padx=6, pady=2)
         self._f_lane = FileEntry(self._file_entries_fr, "Lane Assignment:")
         self._f_lane.pack(fill="x", padx=6, pady=2)
         self._f_node = FileEntry(self._file_entries_fr, "Node Master:")
@@ -3062,6 +3064,7 @@ class WOMApp(tk.Tk):
             ("_f_inv",       "inventory_master.csv"),
             ("_f_cap",       "capacity_plan.csv"),
             ("_f_push",      "push_config.csv"),
+            ("_f_holiday",   "holiday_calendar.csv"),
             ("_f_lane",      "lane_assignment.csv"),
             ("_f_node",      "node_master.csv"),
             ("_f_edge_cost", "edge_cost_master.csv"),
@@ -3090,6 +3093,7 @@ class WOMApp(tk.Tk):
             ("_f_inv",       "inventory_master.csv"),
             ("_f_cap",       "capacity_plan.csv"),
             ("_f_push",      "push_config.csv"),
+            ("_f_holiday",   "holiday_calendar.csv"),
             ("_f_lane",      "lane_assignment.csv"),
             ("_f_node",      "node_master.csv"),
             ("_f_edge_cost", "edge_cost_master.csv"),
@@ -3424,7 +3428,8 @@ class WOMApp(tk.Tk):
             # ── Build HookBus and register active plugins ──────────────
             _bus = HookBus()
             _cfg = {"n_weeks": n_weeks, "start_week": start,
-                    "cap_path": self._f_cap.get() if hasattr(self, '_f_cap') else ""}
+                    "cap_path":         self._f_cap.get()     if hasattr(self, '_f_cap')     else "",
+                    "holiday_cal_path": self._f_holiday.get() if hasattr(self, '_f_holiday') else ""}
             for _plugin in getattr(self, '_active_plugins', []):
                 _plugin.register(_bus)
 
