@@ -44,14 +44,14 @@ The current WOM demo can:
 Clone the repository:
 
 ```bash
-git clone https://github.com/Yasushi-Osugi/wom-event-flow-analyzer.git
-cd wom-event-flow-analyzer
+git clone https://github.com/Yasushi-Osugi/wom_v1r0m0.git
+cd "WOM v1r0m0"
 ```
 
 Run the WOM GUI:
 
 ```bash
-python -m main
+"user directory"\WOM_V0R2M1_new_cockpit\WOM v1r0m0>python -m main
 ```
 
 The initial loading process may take several minutes depending on the supply chain model, master data, and local environment.
