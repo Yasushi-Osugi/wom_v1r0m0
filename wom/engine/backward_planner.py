@@ -66,7 +66,7 @@ class BackwardPlanResult:
 
     # Total lot-propagation events recorded
     ot_propagations: int = 0   # OutBound phase lot moves
-    bridge_lots:     int = 0   # Lots transferred at supply_point → MOM bridge
+    bridge_lots:     int = 0   # Lots transferred at supply_point -> MOM bridge
     in_propagations: int = 0   # InBound phase lot moves
 
     # Lots that fell before the planning horizon (offset week < 0)
@@ -74,7 +74,7 @@ class BackwardPlanResult:
     past_due_lots: List[Tuple[str, str, int]] = field(default_factory=list)
     # (node_id, lot_id, original_week)
 
-    # Per-node demand summary  node_id → {week_label: {S, P} qty}
+    # Per-node demand summary  node_id -> {week_label: {S, P} qty}
     node_summary: Dict[str, Dict[str, Dict[str, int]]] = field(
         default_factory=dict
     )
@@ -135,16 +135,16 @@ class BackwardPlanner:
         ot_root = self.sc_tree.get_ot_root(prod_nm)
         in_root = self.sc_tree.get_in_root(prod_nm)
 
-        # ── Phase 1: OutBound POST-ORDER ───────────────────────────────────
+        # -- Phase 1: OutBound POST-ORDER ----------------------------------
         for node in ot_root.walk_postorder():
             self._ot_propagate(node, n_weeks, result)
 
-        # ── Phase 2: Bridge supply_point → MOM (with Lane Assignment) ───
+        # -- Phase 2: Bridge supply_point -> MOM (with Lane Assignment) ---
         in_roots = self.sc_tree.get_in_roots(prod_nm)  # {node_id: PlanNode}
         primary_mom = self.sc_tree.get_in_root(prod_nm)
 
         if self.lane_table.is_empty() or len(in_roots) == 1:
-            # No lane table or single MOM → original 1:1 bridge
+            # No lane table or single MOM -> original 1:1 bridge
             for w in range(n_weeks):
                 transfer = self.sc_tree.bridge_backward(prod_nm, w)
                 result.bridge_lots += len(transfer.lot_ids)
@@ -154,20 +154,23 @@ class BackwardPlanner:
             for w in range(n_weeks):
                 for lot_id in list(ot_root.psi4demand[w][S]):
                     # Resolve destination MOM: leaf_node_name first, region fallback
-                    leaf       = lot_leaf_index.get(lot_id)
-                    leaf_name  = leaf.node_name if leaf else ""
-                    region     = leaf.region    if leaf else ""
+                    leaf      = lot_leaf_index.get(lot_id)
+                    leaf_name = leaf.node_name if leaf else ""
+                    # PlanNode has no .region attribute; extract from lot_id
+                    # lot_id format: "{sku_id}:{region}:{week}:{seq}"
+                    _parts = lot_id.split(":")
+                    region = _parts[1] if len(_parts) >= 3 else ""
                     mom_id     = self.lane_table.resolve(prod_nm, leaf_name, region)
                     target_mom = in_roots.get(mom_id, primary_mom)
                     target_mom.add_lot_demand(w, S, lot_id)
                     result.bridge_lots += 1
 
-        # ── Phase 3: InBound PRE-ORDER (all MOM roots) ───────────────────
+        # -- Phase 3: InBound PRE-ORDER (all MOM roots) -------------------
         for mom_node in in_roots.values():
             for node in mom_node.walk_preorder():
                 self._in_propagate(node, n_weeks, result)
 
-        # ── Build node summary ────────────────────────────────────────────
+        # -- Build node summary -------------------------------------------
         for node in self.sc_tree.iter_all_nodes(prod_nm):
             self._record_summary(node, result)
 
@@ -199,10 +202,10 @@ class BackwardPlanner:
             # Iterate over a snapshot (list copy) because parent.S may be
             # extended by earlier iterations in the same pass.
             for lot_id in list(node.psi4demand[w][S]):
-                # ── P = S  (ideal backward) ───────────────────────────────
+                # -- P = S  (ideal backward) --------------------------------
                 node.psi4demand[w][P].append(lot_id)
 
-                # ── Propagate to parent ───────────────────────────────────
+                # -- Propagate to parent ------------------------------------
                 if node.parent is None:
                     # supply_point: no further parent on OT side
                     continue
@@ -232,10 +235,10 @@ class BackwardPlanner:
         """
         for w in range(n_weeks):
             for lot_id in list(node.psi4demand[w][S]):
-                # ── P = S  (ideal backward) ───────────────────────────────
+                # -- P = S  (ideal backward) --------------------------------
                 node.psi4demand[w][P].append(lot_id)
 
-                # ── Propagate to each child (supplier) ───────────────────
+                # -- Propagate to each child (supplier) --------------------
                 for child in node.children:
                     child_w = w - child.lt_wks
                     if child_w < 0:
@@ -243,6 +246,30 @@ class BackwardPlanner:
                     elif child_w < n_weeks:
                         child.psi4demand[child_w][S].append(lot_id)
                         result.in_propagations += 1
+
+    # ======================================================================
+    # Multi-MOM lane routing helper
+    # ======================================================================
+
+    def _build_lot_leaf_index(self, ot_root: PlanNode) -> dict:
+        """
+        Build lot_id -> leaf_out PlanNode index for multi-MOM lane routing.
+
+        Traverses the OT tree; for every leaf node (no children) records
+        which lot_ids appear in psi4demand[w][S].  After Phase 1 OT
+        propagation, each lot originated from exactly one leaf_out node.
+
+        Used by run() Phase 2 to look up the leaf_out node for each lot
+        arriving at supply_point, so its node_name can be passed to
+        LaneTable.resolve() for exact-channel matching.
+        """
+        index: dict = {}
+        for node in ot_root.walk_preorder():
+            if not node.children:          # leaf_out nodes have no children
+                for w_psi in node.psi4demand:
+                    for lot_id in w_psi[S]:
+                        index[lot_id] = node
+        return index
 
     # ======================================================================
     # Summary helper
