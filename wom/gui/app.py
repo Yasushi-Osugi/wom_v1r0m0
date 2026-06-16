@@ -3927,16 +3927,26 @@ class WOMApp(tk.Tk):
             self._status_var.get() + "  |  💰 Running PPC …"
         )
 
+        # モデルフォルダ内に ppc_market_price.csv があればそちらを優先
+        _model_ppc_dir = getattr(self, "_model_dir", "")
+        _ppc_data_dir = "data/ppc"
+        if _model_ppc_dir and os.path.exists(
+            os.path.join(_model_ppc_dir, "ppc_market_price.csv")
+        ):
+            _ppc_data_dir = _model_ppc_dir
+            print(f"[PPC B2] Using model-local PPC rules: {_ppc_data_dir}")
+
         def _ppc_thread():
             try:
                 from wom.ppc.ppc_runner import run_ppc_from_psi
                 kpi = run_ppc_from_psi(
                     sc_tree=sc_tree,
                     weeks=weeks,
-                    data_dir="data/ppc",
+                    data_dir=_ppc_data_dir,
                     output_dir="output/ppc",
                     base_currency="JPY",
                     verbose=True,
+                    use_node_name=(_ppc_data_dir != "data/ppc"),
                 )
                 self.after(0, lambda: self._on_ppc_done(kpi))
             except Exception as _exc:

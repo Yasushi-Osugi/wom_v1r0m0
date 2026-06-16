@@ -49,7 +49,7 @@ class PPCRuleSet:
     def __post_init__(self) -> None:
         """Pre-build all lookup dicts to avoid per-call DataFrame filtering."""
 
-        # ── market_price: (market_node, product_id) → sorted list of (week, price, currency)
+        # market_price: (market_node, product_id) -> sorted list of (week, price, currency)
         mp = self.market_price
         for _, r in mp.iterrows():
             k = (str(r["market_node"]), str(r["product_id"]))
@@ -59,7 +59,7 @@ class PPCRuleSet:
         for k in self._market_price_idx:
             self._market_price_idx[k].sort(key=lambda x: x[0])
 
-        # ── supplier_cost: (supplier_node, product_id) → sorted list of (week, price, currency)
+        # supplier_cost: (supplier_node, product_id) -> sorted list of (week, price, currency)
         sc = self.supplier_cost
         for _, r in sc.iterrows():
             k = (str(r["supplier_node"]), str(r["product_id"]))
@@ -69,27 +69,27 @@ class PPCRuleSet:
         for k in self._supplier_cost_idx:
             self._supplier_cost_idx[k].sort(key=lambda x: x[0])
 
-        # ── node_cost_rule: (node_id, product_id) → DataFrame subset
+        # node_cost_rule: (node_id, product_id) -> DataFrame subset
         nc = self.node_cost_rule
         for key, grp in nc.groupby(["node_id", "product_id"]):
             self._node_cost_cache[key] = grp.reset_index(drop=True)
 
-        # ── edge_cost_rule: (edge_id, product_id) → DataFrame subset
+        # edge_cost_rule: (edge_id, product_id) -> DataFrame subset
         ec = self.edge_cost_rule
         for key, grp in ec.groupby(["edge_id", "product_id"]):
             self._edge_cost_cache[key] = grp.reset_index(drop=True)
 
-        # ── tariff_rule: (edge_id, product_id) → first matching Series or None
+        # tariff_rule: (edge_id, product_id) -> first matching Series or None
         tr = self.tariff_rule
         for key, grp in tr.groupby(["edge_id", "product_id"]):
             self._tariff_cache[key] = grp.iloc[0]
 
-        # ── transfer_price_rule: (mom_node, product_id) → first matching Series or None
+        # transfer_price_rule: (mom_node, product_id) -> first matching Series or None
         tp = self.transfer_price_rule
         for key, grp in tp.groupby(["mom_node", "product_id"]):
             self._tp_rule_cache[key] = grp.iloc[0]
 
-        # ── node_profit_zone: (node_id, product_id) → (profit_zone_role, country)
+        # node_profit_zone: (node_id, product_id) -> (profit_zone_role, country)
         npz = self.node_profit_zone
         for _, r in npz.iterrows():
             k = (str(r["node_id"]), str(r["product_id"]))
@@ -100,13 +100,18 @@ class PPCRuleSet:
     # Factory
     # ------------------------------------------------------------------
     @classmethod
-    def load(cls, data_dir: str) -> "PPCRuleSet":
-        """Load all CSV masters from `data_dir`."""
+    def load(cls, data_dir: str, fallback_dir: str = "data/ppc") -> "PPCRuleSet":
+        """Load all CSV masters from data_dir, falling back to fallback_dir for missing files."""
         def _read(name: str) -> pd.DataFrame:
             path = os.path.join(data_dir, name)
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"PPC rule CSV not found: {path}")
-            return pd.read_csv(path, dtype=str)
+            if os.path.exists(path):
+                return pd.read_csv(path, dtype=str)
+            if fallback_dir and fallback_dir != data_dir:
+                fb_path = os.path.join(fallback_dir, name)
+                if os.path.exists(fb_path):
+                    print(f"[PPC Rules] {name}: model-local not found, using fallback ({fallback_dir})")
+                    return pd.read_csv(fb_path, dtype=str)
+            raise FileNotFoundError(f"PPC rule CSV not found: {path}")
 
         market_price        = _read("ppc_market_price.csv")
         supplier_cost       = _read("ppc_supplier_cost.csv")
@@ -156,11 +161,10 @@ class PPCRuleSet:
         entries = self._market_price_idx.get(k)
         if not entries:
             return 0.0, "JPY"
-        # Binary-search for exact week or latest prior
         for w, price, cur in reversed(entries):
             if w <= week:
                 return price, cur
-        return entries[0][1], entries[0][2]  # earliest available
+        return entries[0][1], entries[0][2]
 
     # ------------------------------------------------------------------
     # Supplier Cost
@@ -185,7 +189,7 @@ class PPCRuleSet:
         """Return all cost rules for a node+product combination."""
         return self._node_cost_cache.get(
             (node_id, product_id),
-            self.node_cost_rule.iloc[0:0]  # empty DataFrame with correct schema
+            self.node_cost_rule.iloc[0:0]
         )
 
     # ------------------------------------------------------------------
