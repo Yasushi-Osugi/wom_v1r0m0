@@ -27,6 +27,13 @@ Virtual nodes
 
 For multi-product trees, products are stacked vertically:
   product index p  →  y_offset = p * PRODUCT_GAP
+
+Multi-MOM support (v1r0m1)
+--------------------------
+  When a product has multiple MOM roots (e.g. iPhone16 with Foxconn_CN
+  and Foxconn_IN), all roots and their subtrees are rendered in the
+  Hammock graph. Each extra MOM is stacked vertically at the same X
+  level, and each has its own bridge edge to the supply_point.
 """
 
 from __future__ import annotations
@@ -85,6 +92,9 @@ def compute_hammock_positions(
     """
     Compute (x, y) layout positions for all nodes of one product.
 
+    Supports multiple InBound MOM roots via sc_tree.get_in_roots().
+    All MOM subtrees are stacked vertically at the same X levels.
+
     Parameters
     ----------
     sc_tree   : built SCTree (init_psi already called)
@@ -103,23 +113,30 @@ def compute_hammock_positions(
     # ── Collect all nodes by x-level ──────────────────────────────────
     # x_level → ordered list of (node_id, PlanNode | None)
     x_buckets: Dict[int, List[Tuple[str, Optional[PlanNode]]]] = defaultdict(list)
+    seen_node_ids: set = set()
 
     # supply_point → x = 0
     sp = sc_tree.get_ot_root(prod_nm)
     x_buckets[0].append((sp.node_id, sp))
+    seen_node_ids.add(sp.node_id)
 
     # OutBound nodes (dad, leaf_out) → x = +tier (tier starts at 1 for SP's children)
     for node in sp.walk_preorder():
         if node is sp:
-            continue   # already added
-        x = node.tier  # tier=1 for dad, tier=2 for leaf_out, etc.
-        x_buckets[x].append((node.node_id, node))
+            continue
+        if node.node_id not in seen_node_ids:
+            x = node.tier  # tier=1 for dad, tier=2 for leaf_out, etc.
+            x_buckets[x].append((node.node_id, node))
+            seen_node_ids.add(node.node_id)
 
-    # InBound nodes (mom, leaf_in) → x = -(tier+1)
-    in_root = sc_tree.get_in_root(prod_nm)
-    for node in in_root.walk_preorder():
-        x = -(node.tier + 1)   # in_root(tier=0)→x=-1, tier1→x=-2, ...
-        x_buckets[x].append((node.node_id, node))
+    # InBound nodes — ALL MOM roots (primary + extra)
+    in_roots = list(sc_tree.get_in_roots(prod_nm).values())
+    for in_root in in_roots:
+        for node in in_root.walk_preorder():
+            if node.node_id not in seen_node_ids:
+                x = -(node.tier + 1)   # in_root(tier=0)→x=-1, tier1→x=-2, ...
+                x_buckets[x].append((node.node_id, node))
+                seen_node_ids.add(node.node_id)
 
     # Virtual: find depth extents
     max_ot = max(
@@ -127,7 +144,7 @@ def compute_hammock_positions(
         default=1
     )
     max_in = max(
-        (n.tier for n in in_root.walk_preorder()),
+        (n.tier for ir in in_roots for n in ir.walk_preorder()),
         default=0
     )
     x_buckets[max_ot + 1].append(("sales_office", None))
@@ -185,6 +202,10 @@ def build_hammock_graph(sc_tree: SCTree, prod_nm: Optional[str] = None):
     """
     Build a NetworkX DiGraph in hammock E2E layout for one product.
 
+    Supports multiple InBound MOM roots (multi-MOM). Each extra MOM and
+    its subtree are included, and each MOM gets its own bridge edge to
+    the supply_point.
+
     Returns
     -------
     G    : nx.DiGraph  with node attributes { kind, node_type, node_obj }
@@ -201,8 +222,8 @@ def build_hammock_graph(sc_tree: SCTree, prod_nm: Optional[str] = None):
     G   = nx.DiGraph()
     pos = compute_hammock_positions(sc_tree, prod_nm)
 
-    sp      = sc_tree.get_ot_root(prod_nm)
-    in_root = sc_tree.get_in_root(prod_nm)
+    sp       = sc_tree.get_ot_root(prod_nm)
+    in_roots = list(sc_tree.get_in_roots(prod_nm).values())
 
     # ── Add nodes ─────────────────────────────────────────────────────
     # supply_point
@@ -218,15 +239,22 @@ def build_hammock_graph(sc_tree: SCTree, prod_nm: Optional[str] = None):
                    kind=node.node_type, node_type=node.node_type,
                    node_obj=node, label=node.node_name)
 
-    # InBound
-    for node in in_root.walk_preorder():
-        G.add_node(node.node_id,
-                   kind=node.node_type, node_type=node.node_type,
-                   node_obj=node, label=node.node_name)
+    # InBound — ALL MOM roots and their subtrees
+    seen_in: set = set()
+    for in_root in in_roots:
+        for node in in_root.walk_preorder():
+            if node.node_id not in seen_in:
+                G.add_node(node.node_id,
+                           kind=node.node_type, node_type=node.node_type,
+                           node_obj=node, label=node.node_name)
+                seen_in.add(node.node_id)
 
     # Virtual terminals
     max_ot = max((n.tier for n in sp.walk_preorder() if n is not sp), default=1)
-    max_in = max((n.tier for n in in_root.walk_preorder()), default=0)
+    max_in = max(
+        (n.tier for ir in in_roots for n in ir.walk_preorder()),
+        default=0
+    )
 
     G.add_node("sales_office",
                kind="virtual", node_type="virtual",
@@ -239,20 +267,26 @@ def build_hammock_graph(sc_tree: SCTree, prod_nm: Optional[str] = None):
     # OutBound: parent → child (supply_point is root)
     _add_edges_preorder(G, sp)
 
-    # InBound: parent → child (in_root is root)
-    _add_edges_preorder(G, in_root)
+    # InBound — ALL MOM roots: parent→child edges + bridge edge to supply_point
+    seen_roots: set = set()
+    for in_root in in_roots:
+        if in_root.node_id not in seen_roots:
+            _add_edges_preorder(G, in_root)
+            # Bridge: each MOM root → supply_point
+            G.add_edge(in_root.node_id, sp.node_id)
+            seen_roots.add(in_root.node_id)
 
-    # Bridge: in_root → supply_point
-    G.add_edge(in_root.node_id, sp.node_id)
-
-    # Virtual terminals
+    # Virtual terminal edges
     for node in sp.walk_preorder():
         if node.node_type == NODE_TYPE_LEAF_OUT:
             G.add_edge(node.node_id, "sales_office")
 
-    for node in in_root.walk_preorder():
-        if node.node_type == NODE_TYPE_LEAF_IN:
-            G.add_edge("procurement_office", node.node_id)
+    seen_leaf_in: set = set()
+    for in_root in in_roots:
+        for node in in_root.walk_preorder():
+            if node.node_type == NODE_TYPE_LEAF_IN and node.node_id not in seen_leaf_in:
+                G.add_edge("procurement_office", node.node_id)
+                seen_leaf_in.add(node.node_id)
 
     return G, pos
 
