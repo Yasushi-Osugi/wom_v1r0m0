@@ -250,3 +250,75 @@ demand_multiplier 行のノード名 `Sales_US_iPhone16` / `Sales_EU_iPhone16` �
 ### ファイルのnullバイト汚染（修正済み）
 v1r0m1の `backward_planner.py` と `holiday_calendar.csv` にnullバイトが混入していた（Windowsでのコピー操作が原因の可能性）。Linuxの `bash cp` で上書きして修復。
 
+
+
+---
+
+## v1r0m2 設計課題：Lead Time offset と DAD 回転在庫
+
+### 背景（PySI v0r8 からの継承設計思想）
+
+PySI v0r8 では BackwardPlanner が各エッジの Lead Time（LT）オフセットを計算する際、
+Holiday Calendar の Long Holiday フラグを参照して閉鎖週をスキップする処理を
+Planning Engine 内部で行っていた。
+現行 WOM v1r0m1 ではこの LT offset が未実装であり、全ノードが同一週に
+需要が発生するように扱われている（設計上の制約）。
+
+### 現状の制約
+
+- DADノード（DC等）の `psi4supply[w][I]` は常に 0（pass-through 設計）
+- BackwardPlanner は LT オフセットなしで需要を逆伝播するため、
+  上流ノードほど早い週に需要が配置されるべき「market requesting position」が
+  正しく計算されていない
+- 例: Week 10 に Retail_AMER で需要 100 lots、DC→Retail LT=1週、
+  Foxconn→DC LT=2週 の場合、本来は Foxconn に Week 7 の需要として伝播すべきだが、
+  現状は全ノードが Week 10 に配置される
+
+### v1r0m2 向け役割分担設計
+
+#### BackwardPlanner（LT計算 + Holiday Calendar 参照）
+- LT オフセット計算: `week_idx -= lead_time_weeks`
+- 閉鎖週スキップ: `explicit_closures`（PlanningContext 経由）を参照し、
+  LT 計算中に閉鎖週があれば実質 LT を加算して正しい週に需要を配置する
+  例: LT=2、W9 が閉鎖週 → W10 の需要を W7 に配置（閉鎖週1週分を追加オフセット）
+- 責任範囲: 市場要求ポジションの正確な配置
+
+#### HolidayCalendarPlugin
+- `HOOK_PRE_PLAN (on_pre_plan)`:
+  - cap_hard 設定（ForwardPlanner への能力制約）
+  - `explicit_closures dict` を `PlanningContext` に書き込む
+    （BackwardPlanner が参照するための共有データ）
+- `HOOK_POST_BACKWARD (on_post_backward)`:
+  - BackwardPlanner が誤って閉鎖週に配置した P-lot の残余修正（フォールバック）
+- 責任範囲: ForwardPlanner の能力制約が主担当
+
+#### ForwardPlanner（v1r0m2 で拡張）
+- cap_hard に従って CO 生成（現行）
+- DAD ノードの在庫計算を追加（`psi4supply[w][I]` が 0 固定から解放）
+- `sc_tree_to_planning_df()` を DAD ノードも KPI 対象に拡張
+
+#### 疎結合の維持方法
+BackwardPlanner が HolidayCalendarPlugin のインスタンスに直接依存しないよう、
+`sc_tree` または `PlanningContext` に `explicit_closures dict` を事前書き込みし、
+BackwardPlanner はそれを参照するだけにする。
+
+### 実装時のパフォーマンス考慮事項
+
+`explicit_closures` は `dict[node_name, set[week_idx]]` 構造であり、
+`week_idx in explicit_closures.get(node_name, set())` の lookup は O(1)。
+ただし 156週 × 全ノード × 全 Lot のループ内での判定となるため、
+以下の最適化を検討すること：
+- `explicit_closures` は HOOK_PRE_PLAN で一度だけ構築し、計画期間全体で再利用
+- BackwardPlanner 内では node ごとに closure_set を変数にキャッシュしてループ内参照を最小化
+- 閉鎖週のない node（closure_set が空）は判定処理をスキップ
+
+### 影響ファイル（v1r0m2 実装時）
+
+| ファイル | 変更内容 |
+| :---- | :---- |
+| `sc_tree_master.csv` | `lead_time_weeks` 列追加（エッジ属性） |
+| `wom/engine/backward_planner.py` | LT オフセット付き需要逆伝播 + 閉鎖週スキップ |
+| `wom/engine/forward_planner.py` | DAD ノード在庫計算追加 |
+| `wom/engine/holiday_calendar_plugin.py` | `explicit_closures` を PlanningContext に書き込む処理追加 |
+| `wom/model/sc_tree.py` | エッジ属性として LT 保持 |
+| `wom/engine/sc_tree_to_df.py` | DAD ノードも KPI DataFrame 対象に拡張 |
