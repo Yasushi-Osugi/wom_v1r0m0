@@ -4004,4 +4004,134 @@ class WOMApp(tk.Tk):
             start   = self._e_start.get() or "2026-W01"
             m = _re.match(r"(\d{4})-W(\d+)", start)
             yr, wk = (int(m.group(1)), int(m.group(2))) if m else (2026, 1)
-       
+            weeks, d = [], _dt.date.fromisocalendar(yr, wk, 1)
+            for _ in range(n_weeks):
+                yr2, wk2, _ = d.isocalendar()
+                weeks.append(f"{yr2}-W{wk2:02d}")
+                d += _dt.timedelta(weeks=1)
+        except Exception as _exc:
+            print(f"[PPC B2] week-list rebuild failed: {_exc}")
+            return
+
+        self._status_var.set(
+            self._status_var.get() + "  |  💰 Running PPC …"
+        )
+
+        # モデルフォルダ内に ppc_market_price.csv があればそちらを優先
+        _model_ppc_dir = getattr(self, "_model_dir", "")
+        _ppc_data_dir = "data/ppc"
+        if _model_ppc_dir and os.path.exists(
+            os.path.join(_model_ppc_dir, "ppc_market_price.csv")
+        ):
+            _ppc_data_dir = _model_ppc_dir
+            print(f"[PPC B2] Using model-local PPC rules: {_ppc_data_dir}")
+
+        def _ppc_thread():
+            try:
+                from wom.ppc.ppc_runner import run_ppc_from_psi
+                kpi = run_ppc_from_psi(
+                    sc_tree=sc_tree,
+                    weeks=weeks,
+                    data_dir=_ppc_data_dir,
+                    output_dir="output/ppc",
+                    base_currency="JPY",
+                    verbose=True,
+                    use_node_name=(_ppc_data_dir != "data/ppc"),
+                )
+                self.after(0, lambda: self._on_ppc_done(kpi))
+            except Exception as _exc:
+                import traceback
+                _tb = traceback.format_exc()
+                print(f"[PPC B2] engine failed:\n{_tb}")
+                self.after(0, lambda e=_exc: self._on_ppc_error(str(e)))
+
+        threading.Thread(target=_ppc_thread, daemon=True).start()
+
+    def _on_ppc_done(self, kpi: dict):
+        """Called on main thread after PPC engine completes."""
+        margin = kpi.get("gross_margin_pct", 0.0)
+        lots   = kpi.get("total_lots", 0)
+        psi_mode = kpi.get("_psi_mode", False)
+        mode_label = "PSI-linked" if psi_mode else "sample data"
+        self._status(
+            f"💰 PPC complete ({mode_label}) — "
+            f"Lots: {lots:,}  Margin: {margin:.1%}  "
+            f"| PPC tab refreshed"
+        )
+        # Refresh the PPC tab with newly written output/ppc/ files
+        if hasattr(self, "_ppc_panel"):
+            self._ppc_panel.refresh(output_dir="output/ppc")
+
+    def _on_ppc_error(self, msg: str):
+        """Called on main thread if PPC engine fails (non-fatal)."""
+        print(f"[PPC B2] Non-fatal error: {msg}")
+        self._status(
+            self._status_var.get().replace("  |  💰 Running PPC …", "") +
+            "  |  ⚠ PPC engine error (see console)"
+        )
+
+    def _on_planning_error(self, tb: str):
+        self._progress.stop()
+        self._status_var.set("Planning Engine failed -- see console")
+        import tkinter.messagebox as _mb
+        _mb.showerror("Planning Engine Error",
+                      f"Planning Engine failed:\n\n{tb[:1200]}")
+
+    # ------------------------------------------------------------------ #
+    # Export
+    # ------------------------------------------------------------------ #
+
+    def _export_csv(self):
+        if not self._mgr:
+            import tkinter.messagebox as _mb
+            _mb.showinfo("No Results", "Run the simulation first.")
+            return
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Export Results to CSV",
+        )
+        if not path:
+            return
+        try:
+            self._mgr.combined().to_csv(path, index=False)
+            self._status_var.set(f"Exported: {path}")
+        except Exception as exc:
+            import tkinter.messagebox as _mb
+            _mb.showerror("Export Error", str(exc))
+
+    def _export_excel(self):
+        if not self._mgr:
+            import tkinter.messagebox as _mb
+            _mb.showinfo("No Results", "Run the simulation first.")
+            return
+        path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            title="Export Results to Excel",
+        )
+        if not path:
+            return
+        try:
+            from wom.reports.output import write_excel
+            out_dir = os.path.dirname(path)
+            out_path = write_excel(self._mgr, out_dir)
+            self._status_var.set(f"Excel exported: {out_path}")
+        except Exception as exc:
+            import tkinter.messagebox as _mb
+            _mb.showerror("Export Error", str(exc))
+
+    # ------------------------------------------------------------------ #
+    # Status helper
+    # ------------------------------------------------------------------ #
+
+    def _status(self, msg: str) -> None:
+        self._status_var.set(msg)
+
+# ======================================================================
+# Entry point
+# ======================================================================
+
+def launch():
+    """Entry point called by main.py."""
+    WOMApp().mainloop()

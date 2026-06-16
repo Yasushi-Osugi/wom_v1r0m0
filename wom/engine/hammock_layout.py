@@ -365,4 +365,62 @@ def build_hammock_graph(
     )
     G.add_node("sales_office",
                kind="virtual", node_type="virtual",
-               node_obj=None, label="sales\noffice",
+               node_obj=None, label="sales\noffice", is_bridge=False)
+    G.add_node("procurement_office",
+               kind="virtual", node_type="virtual",
+               node_obj=None, label="procurement\noffice", is_bridge=False)
+
+    # ── Topology edges ────────────────────────────────────────────────
+    _add_edges_preorder(G, sp)
+
+    seen_roots: set = set()
+    for in_root in in_roots:
+        if in_root.node_id not in seen_roots:
+            _add_edges_preorder(G, in_root)
+            G.add_edge(in_root.node_id, sp.node_id, edge_type="topology")
+            seen_roots.add(in_root.node_id)
+
+    for node in sp.walk_preorder():
+        if node.node_type == NODE_TYPE_LEAF_OUT:
+            G.add_edge(node.node_id, "sales_office", edge_type="topology")
+
+    seen_leaf_in: set = set()
+    for in_root in in_roots:
+        for node in in_root.walk_preorder():
+            if node.node_type == NODE_TYPE_LEAF_IN and node.node_id not in seen_leaf_in:
+                G.add_edge("procurement_office", node.node_id, edge_type="topology")
+                seen_leaf_in.add(node.node_id)
+
+    # ── Lane assignment edges (MOM → DC) ──────────────────────────────
+    if lane_df is not None and not lane_df.empty:
+        for mom_id, dc_id, mid in build_lane_edges(sc_tree, prod_nm, lane_df):
+            if mom_id in G.nodes and dc_id in G.nodes:
+                G.add_edge(mom_id, dc_id,
+                           edge_type="lane",
+                           mom_id=mom_id)
+
+    return G, pos
+
+
+def _add_edges_preorder(G, root: PlanNode) -> None:
+    """Add parent→child topology edges for the tree rooted at root."""
+    for node in root.walk_preorder():
+        for child in node.children:
+            G.add_edge(node.node_id, child.node_id, edge_type="topology")
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Colour / size helpers
+# ──────────────────────────────────────────────────────────────────────────
+
+def node_colour(node_type: str, is_selected: bool = False,
+                highlight_colour: str = "#FFFF00") -> str:
+    if is_selected:
+        return highlight_colour
+    return NODE_COLOUR.get(node_type, "#607D8B")
+
+
+def node_size(node_type: str, is_selected: bool = False) -> int:
+    if is_selected:
+        return 3000
+    return NODE_SIZE.get(node_type, 1400)
