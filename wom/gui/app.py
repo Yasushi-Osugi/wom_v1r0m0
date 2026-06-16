@@ -129,6 +129,7 @@ class ChartPanel(tk.Frame):
     def __init__(self, parent, **kw):
         super().__init__(parent, bg=BG_DARK, **kw)
         self._mgr: Optional[ScenarioManager] = None
+        self._sc_tree = None   # set via load_sc_tree() after Planning Engine run
         self._build()
 
     def _build(self):
@@ -138,11 +139,13 @@ class ChartPanel(tk.Frame):
 
         tk.Label(bar, text="Chart:", bg=BG_MID, fg=FG_WHITE,
                  font=("Segoe UI", 9)).pack(side="left", padx=(8, 2))
-        self.chart_var = tk.StringVar(value="Inventory Levels")
-        chart_cb = ttk.Combobox(bar, textvariable=self.chart_var, width=22,
-                                values=["Inventory Levels", "Fill Rate",
-                                        "Stockout Qty", "Weekly Demand vs Supply",
-                                        "Capacity Utilisation", "Inv Cover (wks)"],
+        self.chart_var = tk.StringVar(value="Buffer Stock (DAD)")
+        chart_cb = ttk.Combobox(bar, textvariable=self.chart_var, width=24,
+                                values=["Buffer Stock (DAD)", "Harvest Input",
+                                        "Fill Rate", "Weekly Demand vs Supply",
+                                        "Capacity Utilisation",
+                                        "Inventory Levels", "Stockout Qty",
+                                        "Inv Cover (wks)"],
                                 state="readonly", font=("Segoe UI", 9))
         chart_cb.pack(side="left", padx=2)
 
@@ -193,7 +196,11 @@ class ChartPanel(tk.Frame):
         region = self.reg_var.get()
         self.fig.clf()
         try:
-            if chart == "Inventory Levels":
+            if chart == "Buffer Stock (DAD)":
+                self._plot_buffer_stock(sku)
+            elif chart == "Harvest Input":
+                self._plot_harvest_input(sku)
+            elif chart == "Inventory Levels":
                 self._plot_inventory(sku, region)
             elif chart == "Fill Rate":
                 self._plot_fill_rate(sku, region)
@@ -302,6 +309,143 @@ class ChartPanel(tk.Frame):
             ax.plot(sub.index, sub.values, label=s, color=c, linewidth=2)
         ax.axhline(2, color="#FF9800", linestyle="--", linewidth=1, label="2-wk SS floor")
         self._ax_style(ax, "Average Inventory Cover (weeks)", "Weeks of Cover")
+
+    # ── Planning Engine sc_tree charts ──────────────────────────────────
+
+    def load_sc_tree(self, sc_tree) -> None:
+        """Store the post-planning SCTree for sc_tree-based charts."""
+        self._sc_tree = sc_tree
+
+    def _plot_buffer_stock(self, sku_filter: str) -> None:
+        """
+        Buffer Stock (MOM / Decoupling Point) — 産地集荷センター在庫推移
+
+        Shows closing inventory lots at InBound MOM nodes per week.
+        In demand-anchored lot-based planning, real buffer accumulates at
+        MOM (push-mode decoupling nodes: Sanchiku_Niigata, Sanchiku_Hokkaido).
+        OutBound DAD nodes are pass-through (I=0 by design).
+        """
+        if self._sc_tree is None:
+            ax = self.fig.add_subplot(111)
+            ax.set_facecolor(BG_MID)
+            ax.text(0.5, 0.5, "Planning Engine を実行してください",
+                    ha="center", va="center", color=FG_ACC,
+                    transform=ax.transAxes, fontsize=11)
+            self.fig.patch.set_facecolor(BG_DARK)
+            return
+
+        from wom.model.plan_node import NODE_TYPE_MOM, I as I_IDX
+        sc = self._sc_tree
+        weeks = sc.week_labels
+        n = len(weeks)
+        x = list(range(n))
+
+        ax = self.fig.add_subplot(111)
+        ax.set_facecolor(BG_MID)
+        self.fig.patch.set_facecolor(BG_DARK)
+
+        node_palette = [
+            "#42A5F5", "#66BB6A", "#FFA726", "#AB47BC",
+            "#26C6DA", "#EF5350", "#8D6E63", "#EC407A",
+        ]
+        colour_idx = 0
+        plotted_any = False
+
+        for prod_nm in sc.products:
+            if sku_filter != "ALL" and prod_nm != sku_filter:
+                continue
+            try:
+                in_root = sc.get_in_root(prod_nm)
+            except Exception:
+                continue
+            for node in in_root.walk_preorder():
+                if node.node_type != NODE_TYPE_MOM:
+                    continue
+                cpu = getattr(node, "cpu_size", 1) or 1
+                inv_vals = [len(node.psi4supply[w][I_IDX]) * cpu for w in range(n)]
+                if all(v == 0 for v in inv_vals):
+                    continue
+                lbl = f"{node.node_name} ({prod_nm})"
+                c = node_palette[colour_idx % len(node_palette)]
+                colour_idx += 1
+                ax.plot(x, inv_vals, label=lbl, color=c, linewidth=1.8)
+                plotted_any = True
+
+        if not plotted_any:
+            ax.text(0.5, 0.5, "MOMノードのバッファ在庫データがありません\n(Planning Engine を実行後、Refreshしてください)",
+                    ha="center", va="center", color=FG_ACC,
+                    transform=ax.transAxes, fontsize=10)
+
+        # x-axis tick labels (show every 13th = quarterly)
+        tick_step = max(1, n // 12)
+        ax.set_xticks(x[::tick_step])
+        ax.set_xticklabels(weeks[::tick_step], rotation=45, ha="right", fontsize=7)
+        self._ax_style(ax, "Buffer Stock by Week — MOM Nodes (産地集荷センター玄米バッファ在庫)", "Lots (closing inventory)")
+
+    def _plot_harvest_input(self, sku_filter: str) -> None:
+        """
+        Harvest Input — 稲作田→産地集荷センター 週次収穫・出荷量
+
+        Shows lots dispatched from InBound leaf_in nodes (Tanbo) per week.
+        Highlights harvest season peaks.
+        """
+        if self._sc_tree is None:
+            ax = self.fig.add_subplot(111)
+            ax.set_facecolor(BG_MID)
+            ax.text(0.5, 0.5, "Planning Engine を実行してください",
+                    ha="center", va="center", color=FG_ACC,
+                    transform=ax.transAxes, fontsize=11)
+            self.fig.patch.set_facecolor(BG_DARK)
+            return
+
+        from wom.model.plan_node import NODE_TYPE_LEAF_IN, S as S_IDX
+        sc = self._sc_tree
+        weeks = sc.week_labels
+        n = len(weeks)
+        x = list(range(n))
+
+        ax = self.fig.add_subplot(111)
+        ax.set_facecolor(BG_MID)
+        self.fig.patch.set_facecolor(BG_DARK)
+
+        harvest_colours = {0: "#66BB6A", 1: "#42A5F5"}
+        prod_idx = 0
+        plotted_any = False
+
+        for prod_nm in sc.products:
+            if sku_filter != "ALL" and prod_nm != sku_filter:
+                prod_idx += 1
+                continue
+            try:
+                in_root = sc.get_in_root(prod_nm)
+            except Exception:
+                prod_idx += 1
+                continue
+            for node in in_root.walk_preorder():
+                if node.node_type != NODE_TYPE_LEAF_IN:
+                    continue
+                cpu = getattr(node, "cpu_size", 1) or 1
+                # S = sales/dispatched from farm = harvest output
+                supply_vals = [len(node.psi4demand[w][S_IDX]) * cpu for w in range(n)]
+                if all(v == 0 for v in supply_vals):
+                    continue
+                lbl = f"{node.node_name} ({prod_nm})"
+                c = harvest_colours.get(prod_idx % 2, "#FFA726")
+                ax.bar(x, supply_vals, label=lbl, color=c, alpha=0.75)
+                plotted_any = True
+                prod_idx += 1
+
+        if not plotted_any:
+            ax.text(0.5, 0.5, "収穫入荷データがありません\n(Planning Engine を実行してください)",
+                    ha="center", va="center", color=FG_ACC,
+                    transform=ax.transAxes, fontsize=10)
+
+        tick_step = max(1, n // 12)
+        ax.set_xticks(x[::tick_step])
+        ax.set_xticklabels(weeks[::tick_step], rotation=45, ha="right", fontsize=7)
+        self._ax_style(ax,
+                       "Harvest Input by Week — 稲作田 週次収穫・出荷量 (leaf_in → 産地集荷センター)",
+                       "Lots dispatched")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -2579,6 +2723,48 @@ class WorldMapPanel(tk.Frame):
             except Exception:
                 pass
 
+        # ── Auto-fit map view to node bounding box ────────────────────────
+        self.after(200, self._fit_to_nodes)
+
+    def _fit_to_nodes(self):
+        """Fit the map view to the bounding box of all loaded nodes (with padding)."""
+        if not self._nodes or self._map_widget is None:
+            return
+        try:
+            import math
+            lats = [float(n["lat"]) for n in self._nodes
+                    if n.get("lat") not in (None, "", "nan")]
+            lons = [float(n["lon"]) for n in self._nodes
+                    if n.get("lon") not in (None, "", "nan")]
+            if not lats or not lons:
+                return
+
+            min_lat, max_lat = min(lats), max(lats)
+            min_lon, max_lon = min(lons), max(lons)
+
+            # 15% padding so markers don't sit at viewport edge
+            pad_lat = max((max_lat - min_lat) * 0.15, 0.5)
+            pad_lon = max((max_lon - min_lon) * 0.15, 0.5)
+
+            top_left     = (max_lat + pad_lat, min_lon - pad_lon)
+            bottom_right = (min_lat - pad_lat, max_lon + pad_lon)
+
+            try:
+                # tkintermapview >= 0.3 has fit_bounding_box
+                self._map_widget.fit_bounding_box(top_left, bottom_right)
+            except AttributeError:
+                # Fallback: set_position + estimated zoom
+                center_lat = (min_lat + max_lat) / 2
+                center_lon = (min_lon + max_lon) / 2
+                lat_span   = (max_lat - min_lat) + 2 * pad_lat
+                lon_span   = (max_lon - min_lon) + 2 * pad_lon
+                max_span   = max(lat_span, lon_span, 0.01)
+                zoom = max(4, min(14, round(8.5 - math.log2(max_span))))
+                self._map_widget.set_position(center_lat, center_lon)
+                self._map_widget.set_zoom(zoom)
+        except Exception as e:
+            print(f"[WorldMap] fit_to_nodes failed: {e}")
+
     def _on_marker_click(self, marker, node: dict):
         """Show node info in the right panel."""
         info = []
@@ -3033,6 +3219,9 @@ class WOMApp(tk.Tk):
 
         self._worldmap_panel = WorldMapPanel(nb)
         nb.add(self._worldmap_panel, text="  \U0001f5fa World Map  ")
+
+        # ── 初期表示タブ: World Map（計画対象の地理スコープを即座に把握）
+        nb.select(self._worldmap_panel)
 
     def _build_risk_tab(self, parent):
         cols = [Cols.SCENARIO, Cols.SKU_ID, Cols.REGION, Cols.WEEK,
@@ -3675,6 +3864,7 @@ class WOMApp(tk.Tk):
                 print(f"[LandedCost] compute failed: {_lc_exc}")
 
             # Reload all KPI panels
+            self._chart_panel.load_sc_tree(sc_tree)
             self._chart_panel.load(self._mgr)
             self._kpi_panel.load(self._mgr)
             self._load_risk_tab(self._mgr)
