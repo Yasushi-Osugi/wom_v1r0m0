@@ -2296,7 +2296,7 @@ class SCNetworkPanel(tk.Frame):
 
         self._net_canvas.draw()
 
-    def load_planning_tree(self, sc_tree) -> None:
+    def load_planning_tree(self, sc_tree, model_dir: str = "") -> None:
         """
         Load a post-planning SCTree.
         • Populates PSI List node selector
@@ -2304,7 +2304,8 @@ class SCNetworkPanel(tk.Frame):
         """
         if not hasattr(self, "_psi_list_panel"):
             return   # HAS_NX=False: panel was never built
-        self._sc_tree = sc_tree
+        self._sc_tree   = sc_tree
+        self._model_dir = model_dir   # store for lane_assignment lookup
 
         # ── Populate PSI List node selector ───────────────────────────
         node_ids = []
@@ -2330,10 +2331,25 @@ class SCNetworkPanel(tk.Frame):
             return
         prod_nm = self._prod_var.get() or self._sc_tree.products[0]
         try:
+            import os as _os
+            import pandas as _pd
             from wom.engine.hammock_layout import (
                 build_hammock_graph, node_colour, node_size,
                 NODE_COLOUR, NODE_SIZE)
-            G, pos = build_hammock_graph(self._sc_tree, prod_nm)
+
+            # Load lane_assignment.csv for lane edge overlay
+            lane_df = None
+            _mdir = getattr(self, "_model_dir", "")
+            if _mdir:
+                _lane_path = _os.path.join(_mdir, "lane_assignment.csv")
+                if _os.path.exists(_lane_path):
+                    try:
+                        lane_df = _pd.read_csv(_lane_path)
+                    except Exception:
+                        pass
+
+            G, pos = build_hammock_graph(self._sc_tree, prod_nm,
+                                         lane_df=lane_df)
         except Exception as exc:
             print(f"[HammockLayout] build failed: {exc}")
             import traceback; traceback.print_exc()
@@ -2351,49 +2367,110 @@ class SCNetworkPanel(tk.Frame):
         self._draw_hammock(highlight="")
 
     def _draw_hammock(self, highlight: str = ""):
-        """Render the hammock graph (replaces _draw_graph in Planning mode)."""
+        """Render the hammock graph (replaces _draw_graph in Planning mode).
+
+        Rendering layers (bottom→top):
+          1. Topology edges  — thin grey (logic wiring)
+          2. SP node         — small, semi-transparent (HQ / invisible hub)
+          3. Non-SP nodes    — normal size/colour
+          4. Lane edges      — thick coloured arcs (physical logistics)
+          5. Labels
+        """
         if not hasattr(self, "_G_hammock"):
             return
-        from wom.engine.hammock_layout import node_colour, node_size, NODE_COLOUR
-        from matplotlib.patches import Patch
+        from wom.engine.hammock_layout import (
+            node_colour, node_size, NODE_COLOUR, LANE_COLOURS, lane_colour_map)
+        from matplotlib.patches import Patch, FancyArrow
+        from matplotlib.lines import Line2D
 
         G   = self._G_hammock
         pos = self._pos_hammock
 
         self._net_fig.clf()
+        # Bottom margin for legend placed below axes
+        self._net_fig.subplots_adjust(bottom=0.22)
         ax = self._net_fig.add_subplot(111)
         ax.set_facecolor(BG_DARK)
         self._net_fig.patch.set_facecolor(BG_DARK)
         ax.axis("off")
 
-        colours, sizes = [], []
-        for nid in G.nodes:
-            nt  = G.nodes[nid].get("node_type", "virtual")
-            hl  = (nid == highlight)
-            colours.append(node_colour(nt, hl))
-            sizes.append(node_size(nt, hl))
-
         import networkx as nx
-        nx.draw_networkx_edges(G, pos, ax=ax,
-                               edge_color="#546E7A",
-                               arrows=True, arrowsize=14,
-                               arrowstyle="-|>", width=1.5,
-                               alpha=0.75,
-                               connectionstyle="arc3,rad=0.05")
-        nx.draw_networkx_nodes(G, pos, ax=ax,
-                               node_color=colours,
-                               node_size=sizes,
-                               alpha=0.92)
 
-        # Labels: use node_name (short) stored in graph
-        labels = {nid: G.nodes[nid].get("label", nid)
-                  for nid in G.nodes}
+        # ── Separate edges by type ─────────────────────────────────────
+        topo_edges = [(u, v) for u, v, d in G.edges(data=True)
+                      if d.get("edge_type", "topology") != "lane"]
+        lane_edges = [(u, v, d) for u, v, d in G.edges(data=True)
+                      if d.get("edge_type") == "lane"]
+
+        # ── Layer 1: topology edges (thin, faint) ─────────────────────
+        nx.draw_networkx_edges(G, pos, ax=ax,
+                               edgelist=topo_edges,
+                               edge_color="#455A64",
+                               arrows=True, arrowsize=10,
+                               arrowstyle="-|>", width=1.0,
+                               alpha=0.45,
+                               connectionstyle="arc3,rad=0.05")
+
+        # ── Layer 2 & 3: nodes (SP small/faint, others normal) ────────
+        sp_nodes     = [n for n in G.nodes
+                        if G.nodes[n].get("node_type") == "supply_point"]
+        non_sp_nodes = [n for n in G.nodes
+                        if G.nodes[n].get("node_type") != "supply_point"]
+
+        # Normal nodes
+        nc_normal, ns_normal = [], []
+        for nid in non_sp_nodes:
+            nt = G.nodes[nid].get("node_type", "virtual")
+            hl = (nid == highlight)
+            nc_normal.append(node_colour(nt, hl))
+            ns_normal.append(node_size(nt, hl))
+
+        if non_sp_nodes:
+            nx.draw_networkx_nodes(G, pos, ax=ax,
+                                   nodelist=non_sp_nodes,
+                                   node_color=nc_normal,
+                                   node_size=ns_normal,
+                                   alpha=0.92)
+
+        # SP node — small + semi-transparent
+        if sp_nodes:
+            nx.draw_networkx_nodes(G, pos, ax=ax,
+                                   nodelist=sp_nodes,
+                                   node_color=["#FFEB3B"],
+                                   node_size=[500],
+                                   alpha=0.30)
+
+        # ── Layer 4: lane edges (thick coloured arcs) ─────────────────
+        if lane_edges:
+            # Collect unique mom_ids preserving order
+            unique_moms = list(dict.fromkeys(
+                d.get("mom_id", u) for u, v, d in lane_edges))
+            mom_clr = {mid: LANE_COLOURS[i % len(LANE_COLOURS)]
+                       for i, mid in enumerate(unique_moms)}
+
+            for u, v, d in lane_edges:
+                mid   = d.get("mom_id", u)
+                clr   = mom_clr.get(mid, "#FF6F00")
+                # rad=0.0 → straight line: arrowhead points exactly at DC node
+                nx.draw_networkx_edges(G, pos, ax=ax,
+                                       edgelist=[(u, v)],
+                                       edge_color=clr,
+                                       arrows=True, arrowsize=22,
+                                       arrowstyle="-|>", width=4.5,
+                                       alpha=0.88,
+                                       connectionstyle="arc3,rad=0.0")
+        else:
+            unique_moms = []
+            mom_clr     = {}
+
+        # ── Labels ────────────────────────────────────────────────────
+        labels = {nid: G.nodes[nid].get("label", nid) for nid in G.nodes}
         nx.draw_networkx_labels(G, pos, labels=labels, ax=ax,
                                 font_color=FG_WHITE,
                                 font_size=7, font_weight="bold")
 
-        # Zone annotations
-        xs = [x for x, y in pos.values()]
+        # ── Zone annotations ──────────────────────────────────────────
+        xs    = [x for x, y in pos.values()]
         y_top = max(y for x, y in pos.values()) + 0.8
         if xs:
             ax.text(min(xs) * 0.6, y_top,
@@ -2403,19 +2480,31 @@ class SCNetworkPanel(tk.Frame):
                     "OutBound (Demand) →",
                     color="#42A5F5", fontsize=8, ha="center", style="italic")
 
-        # Legend
+        # ── Legend ────────────────────────────────────────────────────
         legend_elems = [
-            Patch(facecolor=NODE_COLOUR["supply_point"], label="Supply Point (bridge)"),
-            Patch(facecolor=NODE_COLOUR["mom"],          label="MOM  [InBound]"),
-            Patch(facecolor=NODE_COLOUR["leaf_in"],      label="Leaf-In  [InBound]"),
-            Patch(facecolor=NODE_COLOUR["dad"],          label="DAD  [OutBound]"),
-            Patch(facecolor=NODE_COLOUR["leaf_out"],     label="Leaf-Out  [OutBound]"),
-            Patch(facecolor=NODE_COLOUR["virtual"],      label="Virtual office"),
-            Patch(facecolor="#FFFF00",                   label="Selected"),
+            Patch(facecolor=NODE_COLOUR["supply_point"], alpha=0.35,
+                  label="Supply Point (HQ bridge)"),
+            Patch(facecolor=NODE_COLOUR["mom"],   label="MOM  [InBound]"),
+            Patch(facecolor=NODE_COLOUR["leaf_in"],  label="Leaf-In  [InBound]"),
+            Patch(facecolor=NODE_COLOUR["dad"],   label="DAD  [OutBound]"),
+            Patch(facecolor=NODE_COLOUR["leaf_out"], label="Leaf-Out  [OutBound]"),
+            Patch(facecolor=NODE_COLOUR["virtual"],  label="Virtual office"),
+            Patch(facecolor="#FFFF00",               label="Selected"),
         ]
-        ax.legend(handles=legend_elems, loc="lower center",
+        # Lane colour entries (one per MOM)
+        for mid, clr in mom_clr.items():
+            short = mid.split(":")[-2] if ":" in mid else mid
+            legend_elems.append(
+                Line2D([0], [0], color=clr, linewidth=3,
+                       label=f"Lane: {short}"))
+
+        # Place legend BELOW the axes to avoid overlapping the graph
+        ax.legend(handles=legend_elems,
+                  loc="upper center",
+                  bbox_to_anchor=(0.5, -0.02),
+                  bbox_transform=ax.transAxes,
                   facecolor=BG_MID, labelcolor=FG_WHITE,
-                  fontsize=6.5, framealpha=0.85, ncol=2)
+                  fontsize=6.5, framealpha=0.85, ncol=3)
 
         prod_nm = getattr(self, "_prod_selected", "")
         ax.set_title(f"SC Network  –  E2E Hammock  [{prod_nm}]",
@@ -3759,7 +3848,8 @@ class WOMApp(tk.Tk):
         n_nodes = sum(1 for p in sc_tree.products
                       for _ in sc_tree.iter_all_nodes(p))
 
-        self._network_panel.load_planning_tree(sc_tree)
+        self._network_panel.load_planning_tree(
+            sc_tree, model_dir=getattr(self, "_model_dir", ""))
 
         # -- Build EventTimeline for animation
         try:
@@ -3927,16 +4017,26 @@ class WOMApp(tk.Tk):
             self._status_var.get() + "  |  💰 Running PPC …"
         )
 
+        # モデルフォルダ内に ppc_market_price.csv があればそちらを優先
+        _model_ppc_dir = getattr(self, "_model_dir", "")
+        _ppc_data_dir = "data/ppc"
+        if _model_ppc_dir and os.path.exists(
+            os.path.join(_model_ppc_dir, "ppc_market_price.csv")
+        ):
+            _ppc_data_dir = _model_ppc_dir
+            print(f"[PPC B2] Using model-local PPC rules: {_ppc_data_dir}")
+
         def _ppc_thread():
             try:
                 from wom.ppc.ppc_runner import run_ppc_from_psi
                 kpi = run_ppc_from_psi(
                     sc_tree=sc_tree,
                     weeks=weeks,
-                    data_dir="data/ppc",
+                    data_dir=_ppc_data_dir,
                     output_dir="output/ppc",
                     base_currency="JPY",
                     verbose=True,
+                    use_node_name=(_ppc_data_dir != "data/ppc"),
                 )
                 self.after(0, lambda: self._on_ppc_done(kpi))
             except Exception as _exc:

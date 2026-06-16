@@ -2,18 +2,6 @@
 wom/ppc/ppc_runner.py
 =====================
 High-level runner: PSI → PPC engine → CSV/JSON export.
-
-Called from WOM GUI after Planning Engine completes (B2 integration).
-
-Usage (from GUI thread via threading.Thread):
-    from wom.ppc.ppc_runner import run_ppc_from_psi
-    kpi = run_ppc_from_psi(sc_tree, weeks, data_dir="data/ppc",
-                            output_dir="output/ppc")
-
-Returns
--------
-dict
-    kpi_summary from PPCSimulationResult, or raises on error.
 """
 
 from __future__ import annotations
@@ -27,7 +15,9 @@ import pandas as pd
 from .ppc_psi_bridge import psi_to_sales_records, summarize_psi_records
 from .ppc_rules import PPCRuleSet
 from .ppc_engine import (PPCSimulationEngine,
-                          build_iphone_vs_paths, build_rice_vs_paths,
+                          build_iphone_vs_paths,
+                          build_iphone_global_vs_paths,
+                          build_rice_vs_paths,
                           detect_scenario)
 from .ppc_export import export_results
 
@@ -41,34 +31,10 @@ def run_ppc_from_psi(
     product_id_map: Optional[Dict[str, str]] = None,
     base_currency: str = "JPY",
     verbose: bool = False,
+    use_node_name: bool = False,
 ) -> dict:
     """
     Run the full PPC Simulation pipeline using PSI leaf-out quantities.
-
-    Steps
-    -----
-    1. Load PPC rule masters from ``data_dir``.
-    2. Convert sc_tree leaf_out supply → sales_records via ppc_psi_bridge.
-    3. Filter records to products/channels that exist in the PPC rules.
-    4. If no valid records remain, fall back to sample data covering ``weeks``.
-    5. Run PPCSimulationEngine.
-    6. Export results to ``output_dir``.
-    7. Return kpi_summary dict.
-
-    Parameters
-    ----------
-    sc_tree       : SCTree (post-ForwardPlanner)
-    weeks         : ISO week labels matching the planning horizon
-    data_dir      : Directory containing ppc_*.csv rule masters
-    output_dir    : Directory for PPC output CSV/JSON files
-    channel_map   : Optional region→channel_node overrides
-    product_id_map: Optional sku_id→product_id overrides
-    base_currency : Base currency for KPI amounts (default "JPY")
-    verbose       : Print step-by-step progress
-
-    Returns
-    -------
-    kpi_summary dict (keys: base_currency, total_lots, gross_margin_pct, ...)
     """
     warnings.filterwarnings("ignore")
 
@@ -89,6 +55,7 @@ def run_ppc_from_psi(
         sc_tree, weeks,
         channel_map=channel_map,
         product_id_map=product_id_map,
+        use_node_name=use_node_name,
     )
     if verbose:
         print(f"[PPC Runner] PSI bridge: {summarize_psi_records(sales)}")
@@ -115,8 +82,7 @@ def run_ppc_from_psi(
         if verbose:
             print(
                 "[PPC Runner] No PSI↔PPC-compatible records found.\n"
-                "             Reason: product_id or channel_node not in PPC rules.\n"
-                "             Falling back to sample data for the planning horizon."
+                "             Falling back to sample data."
             )
         from wom.ppc.__main__ import generate_sample_sales
         start_week = weeks[0] if weeks else "2026-W01"
@@ -130,22 +96,49 @@ def run_ppc_from_psi(
                 f"(weeks {sales['week'].min()}..{sales['week'].max()})"
             )
 
-    # ── Step 5: Auto-detect scenario and run PPC engine ──────────────────
+    # ── Step 5: Auto-detect scenario and build engine parameters ─────────
     scenario = detect_scenario(sales)
-    if scenario == "rice":
-        sc_paths     = build_rice_vs_paths()
-        mom_node     = "JA_Seihaku"
-        supplier_node = "Farm_JP"
-        dad_node     = "DC_Rice"
-    else:
-        sc_paths     = build_iphone_vs_paths()
-        mom_node     = "MOM_China"
-        supplier_node = "Supplier_CN"
-        dad_node     = "DAD_Japan"
 
-    if verbose:
+    if scenario == "rice":
+        sc_paths      = build_rice_vs_paths()
+        mom_node      = "JA_Seihaku"
+        supplier_node = "Farm_JP"
+        dad_node      = "DC_Rice"
+
+    elif scenario == "iphone_global":
+        sc_paths      = build_iphone_global_vs_paths()
+        # Per-product node mapping: Foxconn acts as both supplier (BOM cost)
+        # and MOM (conversion cost). SP_iPhoneXX is the DAD (distribution hub).
+        mom_node = {
+            "iPhone16": "Foxconn_CN",
+            "iPhone15": "Foxconn_CN_i15",
+            "iPhone17": "Foxconn_CN_i17",
+        }
+        supplier_node = mom_node  # same node; BOM in supplier_cost, labor in node_cost
+        dad_node = {
+            "iPhone16": "SP_iPhone16",
+            "iPhone15": "SP_iPhone15",
+            "iPhone17": "SP_iPhone17",
+        }
+        if verbose:
+            print("[PPC Runner] Scenario: IPHONE_GLOBAL  "
+                  "(Foxconn_CN/i15/i17 → SP_iPhone16/15/17 → Retail_*)")
+
+    else:
+        # Legacy iphone (JP_Channel / US_Channel)
+        sc_paths      = build_iphone_vs_paths()
+        mom_node      = "MOM_China"
+        supplier_node = "Supplier_CN"
+        dad_node      = "DAD_Japan"
+        if verbose:
+            print("[PPC Runner] Scenario: IPHONE (legacy)  "
+                  f"mom={mom_node}  supplier={supplier_node}  dad={dad_node}")
+
+    if verbose and scenario != "iphone_global":
         print(f"[PPC Runner] Scenario: {scenario.upper()}  "
               f"mom={mom_node}  supplier={supplier_node}  dad={dad_node}")
+
+    if verbose:
         print(f"[PPC Runner] Running engine on {len(sales)} lot-records …")
 
     eng = PPCSimulationEngine(
@@ -156,7 +149,7 @@ def run_ppc_from_psi(
         mom_node=mom_node,
         supplier_node=supplier_node,
         dad_node=dad_node,
-        verbose=False,          # keep engine silent; runner controls logging
+        verbose=False,
     )
     result = eng.run()
 
@@ -174,7 +167,5 @@ def run_ppc_from_psi(
     # ── Step 6: Export ────────────────────────────────────────────────────
     export_results(result, output_dir)
 
-    # Annotate kpi with source mode for GUI display
     result.kpi_summary["_psi_mode"] = psi_mode
-
     return result.kpi_summary

@@ -247,7 +247,7 @@ Planning Engine完了後に自動実行（`_run_ppc_from_planning`）。
 ### holiday_calendar.csv のノード名（修正済み）
 demand_multiplier 行のノード名 `Sales_US_iPhone16` / `Sales_EU_iPhone16` は存在しない。正しくは `Retail_AMER` / `Retail_EMEA`（sc_tree_master.csvのleaf_out node_name）。
 
-### ファイルのnullバイト汚染
+### ファイルのnullバイト汚染（修正済み）
 v1r0m1の `backward_planner.py` と `holiday_calendar.csv` にnullバイトが混入していた（Windowsでのコピー操作が原因の可能性）。Linuxの `bash cp` で上書きして修復。
 
 

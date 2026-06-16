@@ -5,7 +5,7 @@ PPC Evaluation Cockpit — Interactive Tkinter Application (B0).
 
 Filter controls:
   - SKU (product_id) dropdown
-  - Channel (JP_Channel / US_Channel / Both) dropdown
+  - Channel dropdown (All channels in data)
   - Period: Start week / End week spinboxes
   - Aggregation: Weekly / Monthly / Quarterly radio buttons
 
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Optional
+from typing import Optional, List
 
 import tkinter as tk
 from tkinter import ttk
@@ -35,17 +35,26 @@ import numpy as np
 import pandas as pd
 
 
-# ── Color palette (shared with ppc_cockpit.py) ────────────────────────────────
+# ── Color palette ──────────────────────────────────────────────────────────────
 C_REVENUE  = "#2196F3"
 C_COST     = "#F44336"
 C_PROFIT   = "#4CAF50"
 C_TARIFF   = "#FF9800"
-C_JP       = "#1565C0"
-C_US       = "#6A1B9A"
 C_BACKWARD = "#00BCD4"
 C_PANEL_BG = "#FAFAFA"
 C_HEADER   = "#37474F"
 C_SIDEBAR  = "#ECEFF1"
+
+# Dynamic color palette for multiple channels
+CHANNEL_COLORS = [
+    "#1565C0", "#6A1B9A", "#00695C", "#E65100",
+    "#4527A0", "#558B2F", "#AD1457", "#37474F",
+]
+
+
+def _channel_short(ch: str) -> str:
+    """'Retail_AMER' → 'AMER', 'JP_Channel' → 'JP'"""
+    return ch.replace("Retail_", "").replace("_Channel", "")
 
 
 def _fmt(v: float) -> str:
@@ -57,7 +66,7 @@ def _fmt(v: float) -> str:
 
 
 def _week_to_order(week: str) -> int:
-    """'2026-W03' -> 202603  (year*100+week for chronological sort)"""
+    """'2026-W03' -> 202603"""
     try:
         year, wk = week.split("-W")
         return int(year) * 100 + int(wk)
@@ -65,22 +74,20 @@ def _week_to_order(week: str) -> int:
         return 0
 
 
+def _short_period(p: str) -> str:
+    """Remove year prefix for axis labels: '2027-W03' → 'W03', 'M01' → 'M01'"""
+    if "-W" in p:
+        parts = p.split("-W")
+        return f"W{parts[1]}"
+    return p
+
+
 def _aggregate_weekly(df_nw: pd.DataFrame, df_rec: pd.DataFrame,
                       granularity: str) -> tuple:
-    """
-    Group node_week_summary and lot_reconciliation by aggregation period.
-
-    granularity: 'weekly' | 'monthly' | 'quarterly'
-    Returns (nw_agg, rec_agg, period_labels)
-    """
     if granularity == "weekly":
-        nw_agg  = df_nw.copy()
-        rec_agg = df_rec.copy()
-        # Sort weeks
         weeks = sorted(df_nw["week"].unique(), key=_week_to_order)
-        return nw_agg, rec_agg, weeks
+        return df_nw.copy(), df_rec.copy(), weeks
 
-    # Build period mapping
     weeks_sorted = sorted(df_nw["week"].unique(), key=_week_to_order)
     n = len(weeks_sorted)
 
@@ -88,10 +95,10 @@ def _aggregate_weekly(df_nw: pd.DataFrame, df_rec: pd.DataFrame,
         chunk = 4
         label_fmt = "M{:02d}"
     else:  # quarterly
-        chunk = max(n, 13)
+        chunk = 13
         label_fmt = "Q{:02d}"
 
-    week_to_period = {}
+    week_to_period: dict = {}
     period_idx = 1
     for i, w in enumerate(weeks_sorted):
         week_to_period[w] = label_fmt.format(period_idx)
@@ -111,11 +118,11 @@ def _aggregate_weekly(df_nw: pd.DataFrame, df_rec: pd.DataFrame,
     rec_agg = df_rec.copy()
     rec_agg["week"] = rec_agg["period"]
 
-    periods = sorted(week_to_period.values(), key=lambda x: x)
-    return nw_agg, rec_agg, sorted(set(periods))
+    periods = sorted(set(week_to_period.values()))
+    return nw_agg, rec_agg, periods
 
 
-# ── Chart drawing helpers ────────────────────────────────────────────────────
+# ── Chart drawing helpers ─────────────────────────────────────────────────────
 
 def _draw_kpi_text(ax, kpi: dict, rec_filtered: pd.DataFrame, cur: str) -> None:
     ax.set_facecolor(C_PANEL_BG)
@@ -133,27 +140,31 @@ def _draw_kpi_text(ax, kpi: dict, rec_filtered: pd.DataFrame, cur: str) -> None:
         ("PPC KPI Summary", 0.95, 13, C_HEADER, "bold"),
         (f"Base currency: {cur}", 0.86, 8, "#607D8B", "normal"),
         (f"Lots: {n_lots}", 0.79, 8, "#607D8B", "normal"),
-        ("", 0.72, 9, "black", "normal"),
-        (f"Revenue       {_fmt(total_rev)} {cur}", 0.66, 10, C_REVENUE, "bold"),
-        (f"Total Cost    {_fmt(total_cost)} {cur}", 0.57, 10, C_COST, "bold"),
-        (f"Gross Profit  {_fmt(gross_profit)} {cur}", 0.48, 10, C_PROFIT, "bold"),
-        (f"Gross Margin  {gross_margin:.1%}", 0.40, 10, C_PROFIT, "bold"),
-        ("", 0.32, 9, "black", "normal"),
-        (f"Tariff Cost   {_fmt(tariff)} {cur}", 0.27, 9, C_TARIFF, "normal"),
+        ("", 0.73, 9, "black", "normal"),
+        (f"Revenue       {_fmt(total_rev)} {cur}", 0.67, 10, C_REVENUE, "bold"),
+        (f"Total Cost    {_fmt(total_cost)} {cur}", 0.58, 10, C_COST, "bold"),
+        (f"Gross Profit  {_fmt(gross_profit)} {cur}", 0.49, 10, C_PROFIT, "bold"),
+        (f"Gross Margin  {gross_margin:.1%}", 0.41, 10, C_PROFIT, "bold"),
+        ("", 0.33, 9, "black", "normal"),
+        (f"Tariff Cost   {_fmt(tariff)} {cur}", 0.28, 9, C_TARIFF, "normal"),
     ]
-    jp_rev = rec_filtered.loc[
-        rec_filtered["channel_node"] == "JP_Channel", "market_revenue_base"
-    ].sum()
-    us_rev = rec_filtered.loc[
-        rec_filtered["channel_node"] == "US_Channel", "market_revenue_base"
-    ].sum()
-    lines += [
-        ("", 0.19, 9, "black", "normal"),
-        (f"JP Revenue    {_fmt(jp_rev)} {cur}", 0.14, 9, C_JP, "normal"),
-        (f"US Revenue    {_fmt(us_rev)} {cur}", 0.07, 9, C_US, "normal"),
-    ]
+
+    # Dynamic channel revenue breakdown (top 4 channels)
+    if "channel_node" in rec_filtered.columns:
+        ch_rev = (
+            rec_filtered.groupby("channel_node")["market_revenue_base"]
+            .sum().sort_values(ascending=False)
+        )
+        y_pos = 0.20
+        lines += [("", 0.22, 9, "black", "normal")]
+        for i, (ch_name, ch_val) in enumerate(ch_rev.head(4).items()):
+            color = CHANNEL_COLORS[i % len(CHANNEL_COLORS)]
+            label = _channel_short(ch_name)
+            lines += [(f"{label:<10}  {_fmt(ch_val)} {cur}", y_pos, 8, color, "normal")]
+            y_pos -= 0.065
+
     for text, y, fs, color, weight in lines:
-        ax.text(0.08, y, text, transform=ax.transAxes,
+        ax.text(0.06, y, text, transform=ax.transAxes,
                 fontsize=fs, color=color, fontweight=weight,
                 va="top", fontfamily="monospace")
 
@@ -180,7 +191,7 @@ def _draw_profit_zone(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
         "SUPPLIER_COST_BASE":        "Supplier",
         "MOM_PLANT_PROFIT":          "MOM Plant",
         "OPERATION_NODE_COST_BASE":  "DAD/Operation",
-        "OUTBOUND_CHANNEL_PROFIT":   "Channel (JP+US)",
+        "OUTBOUND_CHANNEL_PROFIT":   "Channel (All)",
     }
     ev_f = ev_filtered.dropna(subset=["profit_zone"])
 
@@ -200,8 +211,8 @@ def _draw_profit_zone(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
 
     y = np.arange(len(zone_order))
     bh = 0.35
-    ax.barh(y, costs,    bh, color=C_COST,    label="Cost",    alpha=0.85)
-    ax.barh(y, revenues, bh, color=C_REVENUE,  label="Revenue", alpha=0.85)
+    ax.barh(y, costs,    bh, color=C_COST,   label="Cost",    alpha=0.85)
+    ax.barh(y, revenues, bh, color=C_REVENUE, label="Revenue", alpha=0.85)
     ax.barh(y - bh, tariffs, bh * 0.7, color=C_TARIFF, label="Tariff", alpha=0.75)
     ax.set_yticks(y)
     ax.set_yticklabels([labels.get(z, z) for z in zone_order], fontsize=9)
@@ -213,28 +224,44 @@ def _draw_profit_zone(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
 
 
 def _draw_weekly_revenue(ax, nw: pd.DataFrame, periods: list, cur: str) -> None:
+    """Revenue trend — dynamically use all channel nodes with revenue > 0."""
     ax.set_facecolor(C_PANEL_BG)
-    ch = nw[nw["node_id"].isin(["JP_Channel", "US_Channel"])]
-    weekly = ch.pivot_table(
+
+    # Find channel-like nodes: nodes that have revenue (not zero)
+    node_rev = nw.groupby("node_id")["revenue_base"].sum()
+    channel_nodes = node_rev[node_rev > 0].sort_values(ascending=False).index.tolist()
+
+    if not channel_nodes:
+        ax.text(0.5, 0.5, "No revenue data", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("Revenue Trend", fontsize=10, fontweight="bold", color=C_HEADER)
+        return
+
+    # Limit to top 6 channels
+    top_channels = channel_nodes[:6]
+    weekly = nw[nw["node_id"].isin(top_channels)].pivot_table(
         index="week", columns="node_id", values="revenue_base", aggfunc="sum"
     ).reindex(periods).fillna(0.0)
+
     x = np.arange(len(periods))
-    xlabels = [p.replace("2026-", "") for p in periods]
+    xlabels = [_short_period(p) for p in periods]
 
-    jp_rev = weekly.get("JP_Channel", pd.Series(0.0, index=weekly.index)).values / 1e6
-    us_rev = weekly.get("US_Channel", pd.Series(0.0, index=weekly.index)).values / 1e6
+    cumulative = np.zeros(len(periods))
+    for i, ch in enumerate(top_channels):
+        if ch not in weekly.columns:
+            continue
+        vals = weekly[ch].values / 1e6
+        color = CHANNEL_COLORS[i % len(CHANNEL_COLORS)]
+        ax.fill_between(x, cumulative, cumulative + vals, alpha=0.25, color=color)
+        ax.plot(x, cumulative + vals, color=color, linewidth=1.6,
+                label=_channel_short(ch))
+        cumulative = cumulative + vals
 
-    ax.fill_between(x, jp_rev, alpha=0.3, color=C_JP)
-    ax.fill_between(x, jp_rev, jp_rev + us_rev, alpha=0.3, color=C_US)
-    ax.plot(x, jp_rev, color=C_JP, linewidth=1.8, label="JP Channel")
-    ax.plot(x, jp_rev + us_rev, color=C_US, linewidth=1.8, label="JP+US Total")
-
-    step = max(1, len(periods) // 6)
+    step = max(1, len(periods) // 8)
     ax.set_xticks(x[::step])
     ax.set_xticklabels(xlabels[::step], fontsize=7, rotation=30)
     ax.set_ylabel(f"{cur} (M)", fontsize=8)
-    ax.set_title("Revenue Trend", fontsize=10, fontweight="bold", color=C_HEADER)
-    ax.legend(fontsize=7)
+    ax.set_title("Revenue Trend (by Channel)", fontsize=10, fontweight="bold", color=C_HEADER)
+    ax.legend(fontsize=6, loc="upper left", ncol=2)
     ax.grid(alpha=0.3)
 
 
@@ -242,7 +269,7 @@ def _draw_weekly_cost(ax, nw: pd.DataFrame, periods: list, cur: str) -> None:
     ax.set_facecolor(C_PANEL_BG)
     weekly = nw.groupby("week")[["cost_base", "tariff_base"]].sum().reindex(periods).fillna(0.0)
     x = np.arange(len(periods))
-    xlabels = [p.replace("2026-", "") for p in periods]
+    xlabels = [_short_period(p) for p in periods]
 
     cost   = weekly["cost_base"].values   / 1e6
     tariff = weekly["tariff_base"].values / 1e6
@@ -251,7 +278,7 @@ def _draw_weekly_cost(ax, nw: pd.DataFrame, periods: list, cur: str) -> None:
     ax.bar(x, op,     color=C_COST,   alpha=0.75, label="Op Cost")
     ax.bar(x, tariff, bottom=op, color=C_TARIFF, alpha=0.85, label="Tariff")
 
-    step = max(1, len(periods) // 6)
+    step = max(1, len(periods) // 8)
     ax.set_xticks(x[::step])
     ax.set_xticklabels(xlabels[::step], fontsize=7, rotation=30)
     ax.set_ylabel(f"{cur} (M)", fontsize=8)
@@ -260,19 +287,33 @@ def _draw_weekly_cost(ax, nw: pd.DataFrame, periods: list, cur: str) -> None:
     ax.grid(axis="y", alpha=0.3)
 
 
-def _draw_margin_dist(ax, rec: pd.DataFrame, channels: list) -> None:
+def _draw_margin_dist(ax, rec: pd.DataFrame, selected_channels: list) -> None:
+    """Lot Gross Margin boxplot — uses actual channels from data."""
     ax.set_facecolor(C_PANEL_BG)
+
+    # Determine which channels to show
+    available = sorted(rec["channel_node"].dropna().unique().tolist())
+    if not available:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("Lot Gross Margin by Channel", fontsize=10, fontweight="bold", color=C_HEADER)
+        return
+
+    if len(selected_channels) == 1 and selected_channels[0] != "Both":
+        use_channels = [ch for ch in selected_channels if ch in available]
+    else:
+        use_channels = available
+
     data, xlabels, colors = [], [], []
-    for ch, color in [("JP_Channel", C_JP), ("US_Channel", C_US)]:
-        if ch in channels or "Both" in channels:
-            vals = rec.loc[rec["channel_node"] == ch, "gross_margin_pct"].dropna() * 100
-            if len(vals):
-                data.append(vals.values)
-                xlabels.append(ch.replace("_Channel", ""))
-                colors.append(color)
+    for i, ch in enumerate(use_channels[:8]):
+        vals = rec.loc[rec["channel_node"] == ch, "gross_margin_pct"].dropna() * 100
+        if len(vals) > 0:
+            data.append(vals.values)
+            xlabels.append(_channel_short(ch))
+            colors.append(CHANNEL_COLORS[i % len(CHANNEL_COLORS)])
 
     if not data:
         ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("Lot Gross Margin by Channel", fontsize=10, fontweight="bold", color=C_HEADER)
         return
 
     bp = ax.boxplot(data, labels=xlabels, patch_artist=True,
@@ -280,7 +321,8 @@ def _draw_margin_dist(ax, rec: pd.DataFrame, channels: list) -> None:
                     whiskerprops=dict(linewidth=1.2),
                     boxprops=dict(linewidth=1.2))
     for box, color in zip(bp["boxes"], colors):
-        box.set_facecolor(color); box.set_alpha(0.7)
+        box.set_facecolor(color)
+        box.set_alpha(0.7)
 
     for i, (vals, color) in enumerate(zip(data, colors)):
         jitter = np.random.uniform(-0.08, 0.08, len(vals))
@@ -291,37 +333,69 @@ def _draw_margin_dist(ax, rec: pd.DataFrame, channels: list) -> None:
     ax.set_title("Lot Gross Margin by Channel", fontsize=10, fontweight="bold", color=C_HEADER)
     ax.grid(axis="y", alpha=0.3)
     ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.1f%%"))
+    if len(xlabels) > 4:
+        ax.tick_params(axis="x", labelsize=7, rotation=20)
 
 
 def _draw_fwd_bwd(ax, rec: pd.DataFrame, periods: list, cur: str) -> None:
+    """Forward vs Backward vs Revenue — top 2 channels, dynamic."""
     ax.set_facecolor(C_PANEL_BG)
+
+    # Find top 2 channels by revenue
+    if rec.empty or "channel_node" not in rec.columns:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("Forward vs Backward vs Revenue", fontsize=9, fontweight="bold", color=C_HEADER)
+        return
+
+    top_channels = (
+        rec.groupby("channel_node")["market_revenue_base"].sum()
+        .sort_values(ascending=False).index.tolist()
+    )
+    if not top_channels:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("Forward vs Backward vs Revenue", fontsize=9, fontweight="bold", color=C_HEADER)
+        return
+
+    ch1 = top_channels[0]
+    ch2 = top_channels[1] if len(top_channels) > 1 else None
+
     agg = (
         rec.dropna(subset=["forward_cost_base"])
         .groupby(["week", "channel_node"])[
             ["forward_cost_base", "backward_allowable_base", "market_revenue_base"]
         ].mean().reset_index()
     )
-    jp = agg[agg["channel_node"] == "JP_Channel"].set_index("week").reindex(periods).fillna(0.0)
-    us = agg[agg["channel_node"] == "US_Channel"].set_index("week").reindex(periods).fillna(0.0)
+
+    def _get_ch(ch):
+        return agg[agg["channel_node"] == ch].set_index("week").reindex(periods).fillna(0.0)
+
+    d1 = _get_ch(ch1)
     x = np.arange(len(periods))
-    xlabels = [p.replace("2026-", "") for p in periods]
+    xlabels = [_short_period(p) for p in periods]
+    color1 = CHANNEL_COLORS[0]
 
     w = 0.28
-    ax.bar(x - w, jp["forward_cost_base"].values / 1e3,       w, color=C_COST,     alpha=0.8, label="JP Forward Cost")
-    ax.bar(x,     jp["backward_allowable_base"].values / 1e3, w, color=C_BACKWARD, alpha=0.8, label="JP Backward Allow.")
-    ax.bar(x + w, jp["market_revenue_base"].values / 1e3,     w, color=C_JP,       alpha=0.8, label="JP Market Rev.")
+    ax.bar(x - w, d1["forward_cost_base"].values / 1e3,       w, color=C_COST,     alpha=0.8,
+           label=f"{_channel_short(ch1)} Fwd Cost")
+    ax.bar(x,     d1["backward_allowable_base"].values / 1e3, w, color=C_BACKWARD, alpha=0.8,
+           label=f"{_channel_short(ch1)} Bwd Allow.")
+    ax.bar(x + w, d1["market_revenue_base"].values / 1e3,     w, color=color1,     alpha=0.8,
+           label=f"{_channel_short(ch1)} Revenue")
 
-    ax2 = ax.twinx()
-    ax2.plot(x, us["forward_cost_base"].values / 1e3,       color=C_COST,     linewidth=1.5, linestyle="--")
-    ax2.plot(x, us["backward_allowable_base"].values / 1e3, color=C_BACKWARD, linewidth=1.5, linestyle="--")
-    ax2.plot(x, us["market_revenue_base"].values / 1e3,     color=C_US,       linewidth=1.5, linestyle="--")
-    ax2.set_ylabel("US Channel (K JPY) --", fontsize=7, color="#888")
-    ax2.tick_params(axis="y", labelsize=7)
+    if ch2:
+        d2 = _get_ch(ch2)
+        color2 = CHANNEL_COLORS[1]
+        ax2 = ax.twinx()
+        ax2.plot(x, d2["forward_cost_base"].values / 1e3,       color=C_COST,     linewidth=1.5, linestyle="--")
+        ax2.plot(x, d2["backward_allowable_base"].values / 1e3, color=C_BACKWARD, linewidth=1.5, linestyle="--")
+        ax2.plot(x, d2["market_revenue_base"].values / 1e3,     color=color2,      linewidth=1.5, linestyle="--")
+        ax2.set_ylabel(f"{_channel_short(ch2)} (K {cur}) --", fontsize=7, color="#888")
+        ax2.tick_params(axis="y", labelsize=7)
 
-    step = max(1, len(periods) // 6)
+    step = max(1, len(periods) // 8)
     ax.set_xticks(x[::step])
     ax.set_xticklabels(xlabels[::step], fontsize=7, rotation=30)
-    ax.set_ylabel(f"JP Channel (K {cur})", fontsize=8)
+    ax.set_ylabel(f"{_channel_short(ch1)} (K {cur})", fontsize=8)
     ax.set_title("Forward vs Backward vs Revenue (avg/lot)", fontsize=9, fontweight="bold", color=C_HEADER)
     ax.legend(fontsize=6, loc="upper left")
     ax.grid(axis="y", alpha=0.3)
@@ -332,9 +406,7 @@ def _draw_fwd_bwd(ax, rec: pd.DataFrame, periods: list, cur: str) -> None:
 class PPCCockpitApp(tk.Frame):
     """
     Interactive PPC Cockpit as a Tk Frame.
-
-    Can be used standalone (as a root window) or embedded
-    in the WOM GUI as a tab frame (B1 integration).
+    Can be embedded in the WOM GUI Management tab (B1 integration).
     """
 
     def __init__(self, parent: tk.Widget, output_dir: str = "output/ppc"):
@@ -344,7 +416,7 @@ class PPCCockpitApp(tk.Frame):
         self._build_ui()
         self._redraw()
 
-    # ── Data loading ─────────────────────────────────────────────────────
+    # ── Data loading ──────────────────────────────────────────────────────
     def _load_data(self) -> None:
         kpi_path = os.path.join(self.output_dir, "ppc_kpi_summary.json")
         if not os.path.exists(kpi_path):
@@ -354,33 +426,28 @@ class PPCCockpitApp(tk.Frame):
             )
         with open(kpi_path, encoding="utf-8") as f:
             self._kpi = json.load(f)
-        self._cur   = self._kpi["base_currency"]
-        self._nw    = pd.read_csv(os.path.join(self.output_dir, "ppc_node_week_summary.csv"))
-        self._rec   = pd.read_csv(os.path.join(self.output_dir, "ppc_lot_reconciliation.csv"))
-        self._ev    = pd.read_csv(os.path.join(self.output_dir, "ppc_event_ledger.csv"), low_memory=False)
+        self._cur = self._kpi["base_currency"]
+        self._nw  = pd.read_csv(os.path.join(self.output_dir, "ppc_node_week_summary.csv"))
+        self._rec = pd.read_csv(os.path.join(self.output_dir, "ppc_lot_reconciliation.csv"))
+        self._ev  = pd.read_csv(os.path.join(self.output_dir, "ppc_event_ledger.csv"), low_memory=False)
 
-        # Clean: drop rows with NaN week (CSV artifact)
+        # Clean rows
         self._nw  = self._nw.dropna(subset=["week"])
         self._rec = self._rec.dropna(subset=["week", "channel_node"])
         self._ev  = self._ev.dropna(subset=["week"])
 
-        # Valid week list (sorted)
-        all_weeks = sorted(
-            self._nw["week"].unique().tolist(),
-            key=_week_to_order,
-        )
+        all_weeks = sorted(self._nw["week"].unique().tolist(), key=_week_to_order)
         self._all_weeks = all_weeks
         self._skus      = sorted(self._rec["product_id"].dropna().unique().tolist())
         self._channels  = sorted(self._rec["channel_node"].dropna().unique().tolist())
 
-    # ── UI Construction ──────────────────────────────────────────────────
+    # ── UI Construction ───────────────────────────────────────────────────
     def _build_ui(self) -> None:
-        # ── Left sidebar ────────────────────────────────────────────────
+        # Left sidebar
         sidebar = tk.Frame(self, bg=C_SIDEBAR, width=200)
         sidebar.pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=6)
         sidebar.pack_propagate(False)
 
-        # Title
         tk.Label(sidebar, text="PPC Filters", font=("Helvetica", 12, "bold"),
                  bg=C_SIDEBAR, fg=C_HEADER).pack(pady=(8, 4))
         ttk.Separator(sidebar, orient="horizontal").pack(fill=tk.X, padx=4, pady=4)
@@ -389,23 +456,17 @@ class PPCCockpitApp(tk.Frame):
         tk.Label(sidebar, text="SKU", font=("Helvetica", 9, "bold"),
                  bg=C_SIDEBAR, fg=C_HEADER).pack(anchor="w", padx=8)
         self._sku_var = tk.StringVar(value="All")
-        sku_combo = ttk.Combobox(
-            sidebar, textvariable=self._sku_var,
-            values=["All"] + self._skus,
-            state="readonly", width=18,
-        )
-        sku_combo.pack(padx=8, pady=(0, 8))
+        ttk.Combobox(sidebar, textvariable=self._sku_var,
+                     values=["All"] + self._skus,
+                     state="readonly", width=18).pack(padx=8, pady=(0, 8))
 
         # Channel
         tk.Label(sidebar, text="Channel", font=("Helvetica", 9, "bold"),
                  bg=C_SIDEBAR, fg=C_HEADER).pack(anchor="w", padx=8)
-        self._channel_var = tk.StringVar(value="Both")
-        ch_combo = ttk.Combobox(
-            sidebar, textvariable=self._channel_var,
-            values=["Both"] + self._channels,
-            state="readonly", width=18,
-        )
-        ch_combo.pack(padx=8, pady=(0, 8))
+        self._channel_var = tk.StringVar(value="All")
+        ttk.Combobox(sidebar, textvariable=self._channel_var,
+                     values=["All"] + self._channels,
+                     state="readonly", width=18).pack(padx=8, pady=(0, 8))
 
         ttk.Separator(sidebar, orient="horizontal").pack(fill=tk.X, padx=4, pady=4)
 
@@ -413,20 +474,14 @@ class PPCCockpitApp(tk.Frame):
         tk.Label(sidebar, text="Start Week", font=("Helvetica", 9, "bold"),
                  bg=C_SIDEBAR, fg=C_HEADER).pack(anchor="w", padx=8)
         self._start_var = tk.StringVar(value=self._all_weeks[0])
-        start_combo = ttk.Combobox(
-            sidebar, textvariable=self._start_var,
-            values=self._all_weeks, state="readonly", width=18,
-        )
-        start_combo.pack(padx=8, pady=(0, 6))
+        ttk.Combobox(sidebar, textvariable=self._start_var,
+                     values=self._all_weeks, state="readonly", width=18).pack(padx=8, pady=(0, 6))
 
         tk.Label(sidebar, text="End Week", font=("Helvetica", 9, "bold"),
                  bg=C_SIDEBAR, fg=C_HEADER).pack(anchor="w", padx=8)
         self._end_var = tk.StringVar(value=self._all_weeks[-1])
-        end_combo = ttk.Combobox(
-            sidebar, textvariable=self._end_var,
-            values=self._all_weeks, state="readonly", width=18,
-        )
-        end_combo.pack(padx=8, pady=(0, 8))
+        ttk.Combobox(sidebar, textvariable=self._end_var,
+                     values=self._all_weeks, state="readonly", width=18).pack(padx=8, pady=(0, 8))
 
         ttk.Separator(sidebar, orient="horizontal").pack(fill=tk.X, padx=4, pady=4)
 
@@ -435,43 +490,33 @@ class PPCCockpitApp(tk.Frame):
                  bg=C_SIDEBAR, fg=C_HEADER).pack(anchor="w", padx=8)
         self._agg_var = tk.StringVar(value="Weekly")
         for val in ("Weekly", "Monthly", "Quarterly"):
-            tk.Radiobutton(
-                sidebar, text=val, variable=self._agg_var, value=val,
-                bg=C_SIDEBAR, fg=C_HEADER, selectcolor="#B0BEC5",
-                font=("Helvetica", 9),
-            ).pack(anchor="w", padx=16)
+            tk.Radiobutton(sidebar, text=val, variable=self._agg_var, value=val,
+                           bg=C_SIDEBAR, fg=C_HEADER, selectcolor="#B0BEC5",
+                           font=("Helvetica", 9)).pack(anchor="w", padx=16)
 
         ttk.Separator(sidebar, orient="horizontal").pack(fill=tk.X, padx=4, pady=8)
 
-        # Apply button
-        apply_btn = tk.Button(
-            sidebar, text="Apply Filters",
-            font=("Helvetica", 10, "bold"),
-            bg="#1565C0", fg="white",
-            activebackground="#1976D2", activeforeground="white",
-            relief=tk.FLAT, padx=10, pady=6,
-            command=self._redraw,
-        )
-        apply_btn.pack(fill=tk.X, padx=8, pady=4)
+        # Buttons
+        tk.Button(sidebar, text="Apply Filters",
+                  font=("Helvetica", 10, "bold"),
+                  bg="#1565C0", fg="white",
+                  activebackground="#1976D2", activeforeground="white",
+                  relief=tk.FLAT, padx=10, pady=6,
+                  command=self._redraw).pack(fill=tk.X, padx=8, pady=4)
 
-        # Save PNG button
-        save_btn = tk.Button(
-            sidebar, text="Save PNG",
-            font=("Helvetica", 9),
-            bg="#455A64", fg="white",
-            activebackground="#546E7A", activeforeground="white",
-            relief=tk.FLAT, padx=8, pady=4,
-            command=self._save_png,
-        )
-        save_btn.pack(fill=tk.X, padx=8, pady=2)
+        tk.Button(sidebar, text="Save PNG",
+                  font=("Helvetica", 9),
+                  bg="#455A64", fg="white",
+                  activebackground="#546E7A", activeforeground="white",
+                  relief=tk.FLAT, padx=8, pady=4,
+                  command=self._save_png).pack(fill=tk.X, padx=8, pady=2)
 
-        # Status label
         self._status_var = tk.StringVar(value="")
         tk.Label(sidebar, textvariable=self._status_var, bg=C_SIDEBAR,
                  fg="#78909C", font=("Helvetica", 8), wraplength=180,
                  justify=tk.LEFT).pack(padx=8, pady=(8, 0))
 
-        # ── Right chart area ─────────────────────────────────────────────
+        # Right chart area
         chart_frame = tk.Frame(self, bg="white")
         chart_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -483,7 +528,7 @@ class PPCCockpitApp(tk.Frame):
         toolbar_frame.pack(side=tk.BOTTOM, fill=tk.X)
         NavigationToolbar2Tk(self._canvas, toolbar_frame)
 
-    # ── Filter & Redraw ──────────────────────────────────────────────────
+    # ── Filter & Redraw ───────────────────────────────────────────────────
     def _get_filtered_weeks(self) -> list:
         start = self._start_var.get()
         end   = self._end_var.get()
@@ -491,8 +536,7 @@ class PPCCockpitApp(tk.Frame):
         e_ord = _week_to_order(end)
         if s_ord > e_ord:
             s_ord, e_ord = e_ord, s_ord
-        return [w for w in self._all_weeks
-                if s_ord <= _week_to_order(w) <= e_ord]
+        return [w for w in self._all_weeks if s_ord <= _week_to_order(w) <= e_ord]
 
     def _filter_data(self):
         sku     = self._sku_var.get()
@@ -508,10 +552,12 @@ class PPCCockpitApp(tk.Frame):
             rec = rec[rec["product_id"] == sku]
             ev  = ev[ev["product_id"] == sku]
 
-        if channel != "Both":
+        if channel != "All":
             rec = rec[rec["channel_node"] == channel]
-            nw  = nw[nw["node_id"].isin(["Supplier_CN", "MOM_China", "DAD_Japan", channel])]
             ev  = ev[ev["lot_id"].isin(rec["lot_id"])]
+            # Keep supply-chain nodes + selected channel for cost chart
+            supply_nodes = nw[nw["revenue_base"] == 0]["node_id"].unique().tolist()
+            nw = nw[nw["node_id"].isin(supply_nodes + [channel])]
 
         return nw, rec, ev, weeks
 
@@ -520,15 +566,17 @@ class PPCCockpitApp(tk.Frame):
         granularity = self._agg_var.get().lower()
         nw, rec, periods = _aggregate_weekly(nw_raw, rec_raw, granularity)
 
-        channels = ([self._channel_var.get()]
-                    if self._channel_var.get() != "Both"
-                    else ["Both"])
+        selected_channels = (
+            [self._channel_var.get()]
+            if self._channel_var.get() != "All"
+            else ["Both"]
+        )
 
         n_lots = len(rec_raw.dropna(subset=["forward_cost_base"]))
         self._status_var.set(
             f"{len(weeks)} weeks | {n_lots} lots\n"
             f"SKU: {self._sku_var.get()}\n"
-            f"Channel: {self._channel_var.get()}"
+            f"Ch: {self._channel_var.get()}"
         )
 
         self._fig.clear()
@@ -545,12 +593,12 @@ class PPCCockpitApp(tk.Frame):
         _draw_profit_zone(ax2, ev_raw, cur)
         _draw_weekly_revenue(ax3, nw, periods, cur)
         _draw_weekly_cost(ax4, nw, periods, cur)
-        _draw_margin_dist(ax5, rec_raw, channels)
+        _draw_margin_dist(ax5, rec_raw, selected_channels)
         _draw_fwd_bwd(ax6, rec, periods, cur)
 
         sku_tag = self._sku_var.get()
         ch_tag  = self._channel_var.get()
-        w_tag   = f"{weeks[0].replace('2026-','')}-{weeks[-1].replace('2026-','')}" if weeks else "—"
+        w_tag   = (f"{weeks[0]}~{weeks[-1]}" if weeks else "—")
         self._fig.suptitle(
             f"WOM PPC Evaluation Cockpit  |  SKU: {sku_tag}  Channel: {ch_tag}  "
             f"Period: {w_tag}  [{granularity.capitalize()}]",
@@ -578,14 +626,6 @@ def run_app(output_dir: str = "output/ppc") -> None:
     root.title("WOM PPC Evaluation Cockpit")
     root.geometry("1280x760")
     root.configure(bg=C_SIDEBAR)
-
-def run_app(output_dir: str = "output/ppc") -> None:
-    """Launch the PPC Cockpit as a standalone Tk window."""
-    root = tk.Tk()
-    root.title("WOM PPC Evaluation Cockpit")
-    root.geometry("1280x760")
-    root.configure(bg=C_SIDEBAR)
-
     app = PPCCockpitApp(root, output_dir=output_dir)
     app.pack(fill=tk.BOTH, expand=True)
     root.mainloop()

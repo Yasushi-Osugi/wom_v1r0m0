@@ -9,6 +9,12 @@ Output files:
     ppc_profit_zone_summary.csv - aggregated by profit_zone
     ppc_lot_reconciliation.csv  - lot-level forward vs backward comparison
     ppc_kpi_summary.json        - top-level KPI dict
+
+Write strategy: atomic write via temp file + fsync.
+  1. Write to <file>.tmp
+  2. flush + fsync  (forces OS buffer → disk)
+  3. os.replace(.tmp → final)  (atomic on POSIX and Windows)
+This prevents partial files if the GUI thread is interrupted mid-write.
 """
 
 from __future__ import annotations
@@ -20,6 +26,42 @@ from typing import List
 import pandas as pd
 
 from .ppc_models import PPCEvent, PPCSimulationResult
+
+
+def _safe_write_csv(df: pd.DataFrame, path: str) -> None:
+    """Write DataFrame to CSV atomically (temp + fsync + replace)."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8", newline="") as f:
+            df.to_csv(f, index=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        raise
+
+
+def _safe_write_json(obj: dict, path: str) -> None:
+    """Write JSON atomically (temp + fsync + replace)."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(obj, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        raise
 
 
 def export_results(result: PPCSimulationResult, output_dir: str) -> None:
@@ -35,27 +77,24 @@ def export_results(result: PPCSimulationResult, output_dir: str) -> None:
 
     # ── ppc_event_ledger.csv ───────────────────────────────────────────
     events_df = _events_to_df(result.ppc_events)
-    events_df.to_csv(os.path.join(output_dir, "ppc_event_ledger.csv"), index=False)
+    _safe_write_csv(events_df,
+                    os.path.join(output_dir, "ppc_event_ledger.csv"))
 
     # ── ppc_node_week_summary.csv ──────────────────────────────────────
-    result.node_week_summary.to_csv(
-        os.path.join(output_dir, "ppc_node_week_summary.csv"), index=False
-    )
+    _safe_write_csv(result.node_week_summary,
+                    os.path.join(output_dir, "ppc_node_week_summary.csv"))
 
     # ── ppc_profit_zone_summary.csv ────────────────────────────────────
-    result.profit_zone_summary.to_csv(
-        os.path.join(output_dir, "ppc_profit_zone_summary.csv"), index=False
-    )
+    _safe_write_csv(result.profit_zone_summary,
+                    os.path.join(output_dir, "ppc_profit_zone_summary.csv"))
 
     # ── ppc_lot_reconciliation.csv ─────────────────────────────────────
-    result.lot_reconciliation.to_csv(
-        os.path.join(output_dir, "ppc_lot_reconciliation.csv"), index=False
-    )
+    _safe_write_csv(result.lot_reconciliation,
+                    os.path.join(output_dir, "ppc_lot_reconciliation.csv"))
 
     # ── ppc_kpi_summary.json ───────────────────────────────────────────
-    kpi_path = os.path.join(output_dir, "ppc_kpi_summary.json")
-    with open(kpi_path, "w", encoding="utf-8") as f:
-        json.dump(result.kpi_summary, f, indent=2, ensure_ascii=False)
+    _safe_write_json(result.kpi_summary,
+                     os.path.join(output_dir, "ppc_kpi_summary.json"))
 
     print(f"[PPC Export] Written to {output_dir}/")
     print(f"  ppc_event_ledger.csv        ({len(events_df)} events)")

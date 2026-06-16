@@ -15,11 +15,15 @@ The region string is mapped to a PPC channel_node name via ``channel_map``.
 Default mapping:
 
     JP, JAPAN, KANSAI, KANTO, TOHOKU, KYUSHU, CHUGOKU, HOKKAIDO
-        → "JP_Channel"
+        -> "JP_Channel"
     US, USA, AMERICA, WEST, EAST
-        → "US_Channel"
+        -> "US_Channel"
 
-Any region not matched falls back to ``"{region}_Channel"``.
+Any region not matched falls back to "{region}_Channel".
+
+Alternatively, set use_node_name=True to use node.node_name directly as
+the channel_node (e.g. "Retail_AMER", "Retail_AMER_i15").  This is the
+correct mode for models whose ppc_market_price.csv keys on actual node names.
 """
 
 from __future__ import annotations
@@ -29,11 +33,11 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 # ------------------------------------------------------------------
-# Default region → PPC channel_node mapping
+# Default region -> PPC channel_node mapping
 # Keys are matched case-insensitively as prefix/substring.
 # ------------------------------------------------------------------
 _DEFAULT_CHANNEL_MAP: Dict[str, str] = {
-    # Japanese domestic regions → JP_Channel
+    # Japanese domestic regions -> JP_Channel
     "JP":        "JP_Channel",
     "JAPAN":     "JP_Channel",
     "KANSAI":    "JP_Channel",
@@ -45,7 +49,7 @@ _DEFAULT_CHANNEL_MAP: Dict[str, str] = {
     "CHUBU":     "JP_Channel",
     "SHIKOKU":   "JP_Channel",
     "OKINAWA":   "JP_Channel",
-    # US / North America → US_Channel
+    # US / North America -> US_Channel
     "US":        "US_Channel",
     "USA":       "US_Channel",
     "AMERICA":   "US_Channel",
@@ -83,12 +87,13 @@ def psi_to_sales_records(
     weeks: List[str],
     channel_map: Optional[Dict[str, str]] = None,
     product_id_map: Optional[Dict[str, str]] = None,
+    use_node_name: bool = False,
 ) -> pd.DataFrame:
     """
     Extract leaf_out supply quantities from sc_tree and build sales_records.
 
     One aggregated record is created per (channel_node, week) combination
-    where supply > 0.  The ``qty`` field carries the total lot count.
+    where supply > 0.  The qty field carries the total lot count.
 
     Parameters
     ----------
@@ -98,10 +103,16 @@ def psi_to_sales_records(
         Ordered list of ISO week labels matching the planning horizon,
         e.g. ['2026-W01', '2026-W02', ...].
     channel_map : dict[str, str], optional
-        region → PPC channel_node override.  Merged on top of the defaults.
+        region -> PPC channel_node override.  Merged on top of the defaults.
+        Ignored when use_node_name=True.
     product_id_map : dict[str, str], optional
-        sku_id → PPC product_id override.
+        sku_id -> PPC product_id override.
         Default: identity (sku_id used as product_id as-is).
+    use_node_name : bool, optional
+        If True, use node.node_name directly as channel_node instead of
+        mapping from the region field.  Use this when ppc_market_price.csv
+        keys on actual leaf_out node names (e.g. "Retail_AMER", "Retail_AMER_i15").
+        Default: False (backward-compatible region-based mapping).
 
     Returns
     -------
@@ -110,7 +121,7 @@ def psi_to_sales_records(
     """
     from wom.model.plan_node import NODE_TYPE_LEAF_OUT, S as S_BUCKET
 
-    # Merge caller's overrides with defaults
+    # Merge caller's overrides with defaults (only used when use_node_name=False)
     merged_map = dict(_DEFAULT_CHANNEL_MAP)
     if channel_map:
         merged_map.update({k.upper(): v for k, v in channel_map.items()})
@@ -126,10 +137,14 @@ def psi_to_sales_records(
             if node.node_type != NODE_TYPE_LEAF_OUT:
                 continue
 
-            # Extract region from node_id: "OUT:Sales:{region}:{sku_id}"
-            parts = node.node_id.split(":")
-            region = parts[2] if len(parts) >= 3 else "UNKNOWN"
-            channel_node = _region_to_channel(region, merged_map)
+            if use_node_name:
+                # Use node_name directly as channel_node (e.g. "Retail_AMER_i15")
+                channel_node = node.node_name
+            else:
+                # Extract region from node_id: "OUT:leaf_out:{region}:{sku_id}"
+                parts = node.node_id.split(":")
+                region = parts[2] if len(parts) >= 3 else "UNKNOWN"
+                channel_node = _region_to_channel(region, merged_map)
 
             for w_idx, week_label in enumerate(weeks):
                 qty = node.qty_supply(w_idx, S_BUCKET)

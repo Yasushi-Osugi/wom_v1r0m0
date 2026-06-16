@@ -1,0 +1,33 @@
+node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,description
+SP_iPhone16,,iPhone16,supply_point,outbound,0,1,,Supply Point bridge OT/IN
+DC_AMER,SP_iPhone16,iPhone16,dad,outbound,2,1,AMER,Americas Distribution Center (Los Angeles)
+Retail_AMER,DC_AMER,iPhone16,leaf_out,outbound,1,1,AMER,Americas Retail / Online Sales
+DC_EMEA,SP_iPhone16,iPhone16,dad,outbound,3,1,EMEA,EMEA Distribution Center (Amsterdam)
+Retail_EMEA,DC_EMEA,iPhone16,leaf_out,outbound,1,1,EMEA,EMEA Retail / Online Sales
+DC_APAC,SP_iPhone16,iPhone16,dad,outbound,2,1,APAC,APAC Distribution Center (Singapore)
+Retail_APAC,DC_APAC,iPhone16,leaf_out,outbound,1,1,APAC,APAC Retail / Online Sales
+Foxconn_CN,,iPhone16,mom,inbound,4,1,CN,Final Assembly — Foxconn Zhengzhou (EMEA/APAC)
+TSMC_TW,Foxconn_CN,iPhone16,mom,inbound,6,1,TW,A18 SoC Wafer Fabrication — TSMC Taiwan
+SiliconWafer_TW,TSMC_TW,iPhone16,leaf_in,inbound,2,1,TW,Silicon Wafer (raw material)
+Foxconn_IN,,iPhone16,mom,inbound,5,1,IN,Final Assembly — Foxconn Pune (AMER dedicated)
+BoschSensor_IN,Foxconn_IN,iPhone16,leaf_in,inbound,3,1,IN,Sensors & Modules (India sourcing)
+SP_iPhone15,,iPhone15,supply_point,outbound,0,1,,Supply Point bridge OT/IN
+DC_AMER_i15,SP_iPhone15,iPhone15,dad,outbound,2,1,AMER,Americas DC — iPhone15
+Retail_AMER_i15,DC_AMER_i15,iPhone15,leaf_out,outbound,1,1,AMER,Americas Retail — iPhone15
+DC_EMEA_i15,SP_iPhone15,iPhone15,dad,outbound,3,1,EMEA,EMEA DC — iPhone15
+Retail_EMEA_i15,DC_EMEA_i15,iPhone15,leaf_out,outbound,1,1,EMEA,EMEA Retail — iPhone15
+DC_APAC_i15,SP_iPhone15,iPhone15,dad,outbound,2,1,APAC,APAC DC — iPhone15
+Retail_APAC_i15,DC_APAC_i15,iPhone15,leaf_out,outbound,1,1,APAC,APAC Retail — iPhone15
+Foxconn_CN_i15,,iPhone15,mom,inbound,4,1,CN,Final Assembly — Foxconn (iPhone15 line)
+TSMC_TW_i15,Foxconn_CN_i15,iPhone15,mom,inbound,8,1,TW,A16 SoC Wafer Fab — TSMC
+SiliconWafer_TW_i15,TSMC_TW_i15,iPhone15,leaf_in,inbound,2,1,TW,Silicon Wafer (iPhone15)
+SP_iPhone17,,iPhone17,supply_point,outbound,0,1,,Supply Point bridge OT/IN
+DC_AMER_i17,SP_iPhone17,iPhone17,dad,outbound,2,1,AMER,Americas DC — iPhone17
+Retail_AMER_i17,DC_AMER_i17,iPhone17,leaf_out,outbound,1,1,AMER,Americas Retail — iPhone17
+DC_EMEA_i17,SP_iPhone17,iPhone17,dad,outbound,3,1,EMEA,EMEA DC — iPhone17
+Retail_EMEA_i17,DC_EMEA_i17,iPhone17,leaf_out,outbound,1,1,EMEA,EMEA Retail — iPhone17
+DC_APAC_i17,SP_iPhone17,iPhone17,dad,outbound,2,1,APAC,APAC DC — iPhone17
+Retail_APAC_i17,DC_APAC_i17,iPhone17,leaf_out,outbound,1,1,APAC,APAC Retail — iPhone17
+Foxconn_CN_i17,,iPhone17,mom,inbound,4,1,CN,Final Assembly — Foxconn (iPhone17 line)
+TSMC_TW_i17,Foxconn_CN_i17,iPhone17,mom,inbound,5,1,TW,A19 SoC Wafer Fab — TSMC
+SiliconWafer_TW_i17,TSMC_TW_i17,iPhone17,leaf_in,inbound,2,1,TW,Silicon Wafer (iPhone17)
