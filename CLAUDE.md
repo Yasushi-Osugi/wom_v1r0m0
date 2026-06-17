@@ -322,3 +322,141 @@ BackwardPlanner はそれを参照するだけにする。
 | `wom/engine/holiday_calendar_plugin.py` | `explicit_closures` を PlanningContext に書き込む処理追加 |
 | `wom/model/sc_tree.py` | エッジ属性として LT 保持 |
 | `wom/engine/sc_tree_to_df.py` | DAD ノードも KPI DataFrame 対象に拡張 |
+
+---
+
+## WOM Original KPI Framework
+
+### 設計思想：3次元 KPI アーキテクチャ
+
+従来の財務 KPI ツリーは「財務指標 → 現場指標」へのトップダウン分解（静的・2次元）。
+WOM の KPI フレームワークは根本的に異なる 3 次元構造を持つ：
+
+```
+次元1（空間軸）: SC Node  leaf_in → MOM → supply_point → DAD → leaf_out
+次元2（財務軸）: KPI     現場活動指標 → 中間KPI → 事業損益 → 資本効率(ROE)
+次元3（時間軸）: PSI週次  Week 1 → Week 2 → ... → Week 156（アニメーション可能）
+```
+
+静的な財務報告ではなく、**サプライチェーンの因果連鎖が時間軸で動く "活きた KPI"** を実現する。
+
+---
+
+### WOM SC Node × KPI マッピング
+
+#### leaf_in（原材料・調達ノード）
+調達起点の現場活動指標：
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 調達 Lead Time (週) | P バケット配置週 | 工場部材在庫日数 → 棚卸資産回転日数 |
+| サプライヤー納入精度 | P 実績 vs 計画差 | 欠品率 → 在庫補償費比率 |
+| 調達ロック期間 (週) | 計画確定ホライズン | 部品関連変化対応率 → 販売機会損失率 |
+| 調達単価 | ppc_supplier_cost | 直材費比率 → 売上原価率 |
+
+#### MOM（製造・産地集荷ノード）
+製造起点の現場活動指標：
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 製造 Lead Time (週) | P→I バケット幅 | 工場仕掛在庫日数 → 棚卸資産回転日数 |
+| 工場安全在庫日数 | `psi4supply[w][I]` / 週次出荷 | 棚卸資産回転日数 → 資産コスト |
+| 生産能力充足率 (Fill Rate) | P 実績 / P 計画 | 欠品率 → 販売機会損失率 |
+| 製造ノードコスト | ppc_node_cost_rule | 労務費比率 → 売上原価率 |
+| Air 輸送発生率 | edge_cost（Air シナリオ） | Air コスト比率 → 物流コスト比率 |
+
+#### supply_point（HQ Bridge ノード）
+全体最適の調整指標：
+
+| WOM 指標 | 役割 | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| Multi-MOM 配分比率 | lane_assignment.csv | 物流コスト比率・製造コスト比率 |
+| Scenario Delta (Upside/Downside) | シナリオ感応度 | 変化対応率 → 販売機会損失率 |
+| Tariff & FX 影響額 | Landed Cost engine | 売上原価率・物流コスト比率 |
+
+#### DAD（DC・流通在庫ノード）
+※ v1r0m1 現在 pass-through 設計。v1r0m2 で回転在庫を実装予定。
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 販社在庫日数（回転在庫） | `psi4supply[w][I]`（v1r0m2〜） | 棚卸資産回転日数 → 資産コスト |
+| DC → Retail 輸送 LT | エッジ属性（v1r0m2〜） | 販社配送 LT → 販社在庫日数 |
+| DC スループット (週次) | S バケット | 物流コスト比率 → 販管費比率 |
+
+#### leaf_out（販売チャネル・需要ノード）
+市場起点の販売指標：
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 需要予測精度 | demand_forecast vs 実績差 | 販売予測精度 → 変化対応率 |
+| Fill Rate (充足率) | S 実績 / S 計画 | 販売機会損失率 → 売上高成長率 |
+| Sell-through サイクル (週) | S バケット連続性 | デイリー在庫日数 → 販社在庫日数 |
+| 販売チャネル Revenue | ppc_market_price × S | 売上高 → 事業損益 |
+| Gross Profit / Profit Zone | PPC engine 出力 | 事業利益 → ROE |
+
+---
+
+### WOM KPI 集約ツリー（SC Node ボトムアップ → 財務 KPI）
+
+```
+ROE
+├─ 事業損益（PPC engine が週次計算）
+│   ├─ Revenue（売上高）
+│   │   └─ 売上高成長率
+│   │       ├─ Fill Rate（leaf_out: S実績/S計画）       ← 販売機会損失率
+│   │       ├─ 需要予測精度（leaf_out: 予測vs実績）      ← 変化対応率
+│   │       └─ Scenario Upside/Downside 感応度          ← 変化対応率
+│   ├─ COGS（売上原価）
+│   │   └─ 売上原価率
+│   │       ├─ 直材費比率（leaf_in: ppc_supplier_cost）
+│   │       ├─ 労務費比率（MOM: ppc_node_cost_rule）
+│   │       └─ Tariff & FX 影響（supply_point: Landed Cost）
+│   └─ 物流・販管費
+│       └─ 物流コスト比率
+│           ├─ Air コスト比率（MOM: edge_cost Air シナリオ）
+│           └─ 通常輸送コスト（DAD: edge_cost Base シナリオ）
+│
+└─ 資産コスト（棚卸資産回転日数が主ドライバー）
+    ├─ 棚卸資産回転日数
+    │   ├─ 工場安全在庫日数（MOM: psi4supply[w][I] / 週次S）
+    │   ├─ 工場仕掛在庫日数（MOM: 製造LTから算出）
+    │   ├─ 販社在庫日数（DAD: psi4supply[w][I]、v1r0m2〜）
+    │   └─ 工場部材在庫日数（leaf_in: 調達LTから算出）
+    ├─ 売上債権回転日数
+    │   └─ Sell-through サイクル（leaf_out: S バケット）
+    └─ 固定資産
+        └─ 製造設備稼働率（MOM: cap_hard 充足率）
+```
+
+---
+
+### WOM KPI の時間軸展開（3次元目）
+
+上記ツリーの各指標は **週次 PSI アニメーション**と連動する：
+
+```
+Week t の ROE 分解：
+  Revenue[t]   = Σ leaf_out.psi4supply[t][S] × market_price
+  COGS[t]      = Σ leaf_in.psi4supply[t][P]  × supplier_cost
+                + Σ node.psi4supply[t][P]     × node_cost
+  在庫資産[t]  = Σ MOM.psi4supply[t][I]      × unit_cost   （現行）
+               + Σ DAD.psi4supply[t][I]      × unit_cost   （v1r0m2〜）
+```
+
+**これにより達成できること：**
+- 特定週の Supply Shock（台風・関税引上げ）が ROE に波及するまでの因果連鎖を可視化
+- Scenario Delta（Upside/Downside）が財務 KPI に与える感応度をアニメーションで確認
+- 在庫日数の週次推移から「どの Node・どの週に在庫コストが集中するか」を特定
+
+---
+
+### v1r0m2 以降の実装優先度（KPI 完全性の観点から）
+
+| 優先度 | 実装内容 | 解決する KPI ギャップ |
+| :---- | :---- | :---- |
+| ★★★ | DAD 回転在庫（`psi4supply[w][I]`） | 販社在庫日数 → 棚卸資産回転日数 |
+| ★★★ | Lead Time offset（BackwardPlanner） | 工場部材在庫日数・工場仕掛在庫日数 |
+| ★★  | Fill Rate の週次 KPI タブ表示 | 販売機会損失率の定量化 |
+| ★★  | 棚卸資産回転日数の Management タブ追加 | 資産コスト → ROE 接続 |
+| ★   | 需要予測精度の週次トラッキング | 変化対応率の定量化 |
+�� |
