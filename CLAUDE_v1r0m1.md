@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **WOM (Weekly Operation Model)** は週次PSI（Production/Sales/Inventory）を基本単位とするE2Eサプライチェーン計画・シミュレーションツール。Python \+ tkinter GUI。
 
 - 起動: `python -m main`（GUIモード）/ `python -m main --cli`（ヘッドレス）  
-- 現バージョン: v1r0m2（branch: `wom-v1r0m2`）  
+- 現バージョン: v1r0m1（branch: `wom-v1r0m1`）  
 - 適用事例: Japanese Rice SC（`data/sample/rice-japan-2027-2028/`）、iPhone Global SC（`data/sample/iphone-2027-2029/`）
 
 ---
@@ -213,12 +213,12 @@ Planning Engine完了後に自動実行（`_run_ppc_from_planning`）。
 
 ---
 
-## v1r0m2の開発方針
+## v1r0m1の開発方針
 
-- v1r0m1（branch: `wom-v1r0m1`）をベースラインとして保存済み  
-- v1r0m2では **Lead Time offset** と **DAD 回転在庫** の実装を進める  
+- v1r0m0（tag: `wom-v1r0m0`, commit: bbf0882）をベースラインとして保存済み  
+- v1r0m1では **iPhone Global Supply Chain** モデルの整備を進める  
 - `data/sample/iphone-2027-2029/` を参照・拡充する  
-- コード変更はすべて `wom-v1r0m2` ブランチで行い、GitHubへpushする  
+- コード変更はすべて `wom-v1r0m1` ブランチで行い、GitHubへpushする  
 - GitHub: `https://github.com/Yasushi-Osugi/wom_v1r0m0.git`
 
 ---
@@ -459,3 +459,4 @@ Week t の ROE 分解：
 | ★★  | Fill Rate の週次 KPI タブ表示 | 販売機会損失率の定量化 |
 | ★★  | 棚卸資産回転日数の Management タブ追加 | 資産コスト → ROE 接続 |
 | ★   | 需要予測精度の週次トラッキング | 変化対応率の定量化 |
+�� |

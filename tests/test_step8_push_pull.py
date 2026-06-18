@@ -217,3 +217,79 @@ if __name__ == "__main__":
         t()
     print(f"\n{'='*60}")
     print("All Step 8 PUSH/PULL tests passed.")
+
+
+
+# ------------------------------------------------------------------------------
+# v1r0m2: DAD 回転在庫テスト
+# ------------------------------------------------------------------------------
+
+def test_dad_inventory_surplus_opening_inv():
+    """
+    v1r0m2 DAD 回転在庫テスト (surplus case):
+    Opening inventory=4 lots at DAD, demand=2 -> DAD ships 2, holds 2 as inventory.
+    In v1r0m1 (_pull_subtree), psi4supply[I] was forced to 0 at DAD.
+    In v1r0m2, DAD accumulates the surplus as real inventory.
+    """
+    sc_tree, weeks, sku_id = build_base(demand_qty_per_region=2)
+
+    from wom.model.plan_node import NODE_TYPE_DAD
+    ot_root = sc_tree.get_ot_root(sku_id)
+    dad = [nd for nd in ot_root.walk_preorder() if nd.node_type == NODE_TYPE_DAD][0]
+
+    # Seed DAD with 4 lots of opening inventory
+    opening_inv = {dad.node_id: ["open-01", "open-02", "open-03", "open-04"]}
+    ForwardPlanner(sc_tree, opening_inv=opening_inv).run(sku_id)
+
+    total_dad_inv = sum(len(dad.psi4supply[w][I]) for w in range(len(weeks)))
+    dad_s = sum(len(dad.psi4supply[w][S]) for w in range(len(weeks)))
+    print(f"DAD total S={dad_s}, total I={total_dad_inv}  (demand=2, opening=4)")
+
+    assert dad_s == 2, f"DAD total S expected 2, got {dad_s}"
+    assert total_dad_inv > 0, f"DAD I should be >0 (surplus from opening_inv), got {total_dad_inv}"
+    print("PASS: test_dad_inventory_surplus_opening_inv")
+
+
+def test_dad_inventory_cap_hard_shortfall():
+    """
+    Original PySI decouple 設計の確認テスト:
+    demand=4, MOM cap_hard=2 -> supply constrained to 2.
+
+    Original PySI Step 4 (apply_pull_process) により:
+      - DAD は実供給 (2 lots) で処理 -> DAD.S = 2 (shortfall absorbed at DAD)
+      - leaf_out は PULL (demand-anchored) -> leaf_out.S = 4 (demand 通り)
+      - DAD.S < demand (shortfall visible only at DAD, not at leaf_out)
+
+    これが decouple point の本来の役割:
+      DAD が supply variability を吸収し、downstream を需要通りに供給する。
+
+    Note: CO bucket は _process_node が毎週クリア+転送するため
+          計画終了後の合計は 0 になる。DAD shortfall は DAD.S < demand で確認する。
+    """
+    sc_tree, weeks, sku_id = build_base(demand_qty_per_region=4)
+
+    mom = get_node(sc_tree, sku_id, f"IN:MFG:{sku_id}")
+    for w in range(len(weeks)):
+        mom.set_capacity(w, cap_hard=2.0)
+
+    ForwardPlanner(sc_tree).run(sku_id)
+
+    from wom.model.plan_node import NODE_TYPE_DAD
+    ot_root = sc_tree.get_ot_root(sku_id)
+    dad = [nd for nd in ot_root.walk_preorder() if nd.node_type == NODE_TYPE_DAD][0]
+    leaf = get_node(sc_tree, sku_id, f"OUT:Sales:JP:{sku_id}")
+
+    total_leaf_s = sum(len(leaf.psi4supply[w][S]) for w in range(len(weeks)))
+    total_dad_s  = sum(len(dad.psi4supply[w][S])  for w in range(len(weeks)))
+    print(f"leaf S={total_leaf_s}, DAD S={total_dad_s}  (demand=4, cap_hard=2)")
+
+    # leaf_out は PULL (demand-anchored) -> 常に demand 通り供給
+    assert total_leaf_s == 4, \
+        f"leaf_out.S should be 4 (demand-anchored via PULL), got {total_leaf_s}"
+    # MOM cap_hard=2 なので DAD は最大 2 lots しか受け取れない → DAD.S = 2
+    assert total_dad_s <= 2, \
+        f"DAD.S should be <=2 (constrained by MOM cap_hard=2), got {total_dad_s}"
+    # decouple の本質: leaf は demand 充足, DAD に供給制約が visible
+    assert total_leaf_s > total_dad_s, \
+        f"leaf_out.S ({total_leaf_s}) should exceed DAD.S ({total_dad_s}): DAD absorbs shortfall"
+    print("PASS: test_dad_inventory_cap_hard_shortfall (original PySI decouple)")

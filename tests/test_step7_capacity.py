@@ -250,11 +250,17 @@ def test_build_mom_capacity_profile():
 
 def test_e2e_cap_hard_causes_leaf_shortfall():
     """
-    Full E2E test:
+    Full E2E test: original PySI decouple 設計の確認。
       - demand=4 lots at leaf_out[JP]
-      - CapHard=2 at MOM → 2 lots sealed
-      - After forward planning: leaf_out S[W10] should be 2 (not 4)
-      - result.shortfall_weeks records leaf_out shortfall
+      - CapHard=2 at MOM → 2 lots sealed; MOM ships at most 2
+
+    Original PySI Step 4 (apply_pull_process) により:
+      - DAD は実供給 (≤2 lots) で処理 → DAD.S ≤ 2 (shortfall absorbed at DAD)
+      - leaf_out は PULL (demand-anchored) → leaf_out.S = 4 (demand 通り)
+      - cap_hard_sealed イベントは MOM で記録される
+
+    DAD が decouple point として supply variability を吸収し、
+    leaf_out (販売チャネル) を需要通りに充足するのが設計の本質。
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
         cap_hard=2.0, cap_soft=0.0, demand_qty=4
@@ -263,30 +269,45 @@ def test_e2e_cap_hard_causes_leaf_shortfall():
     fp     = ForwardPlanner(sc_tree)
     result = fp.run(sku_id)
 
-    # Find leaf_out node for JP
+    # Find leaf_out and DAD nodes
     leaf_node = None
+    dad_node  = None
+    from wom.model.plan_node import NODE_TYPE_DAD
     for node in sc_tree.iter_all_nodes(sku_id):
         if node.node_id == f"OUT:Sales:JP:{sku_id}":
             leaf_node = node
-            break
+        if node.node_type == NODE_TYPE_DAD:
+            dad_node = node
 
     assert leaf_node is not None, "Could not find leaf_out JP node"
+    assert dad_node  is not None, "Could not find DAD node"
 
-    w10 = weeks.index("2024-W10")
-    leaf_s = len(leaf_node.psi4supply[w10][S])
-    print(f"leaf_out JP S[W10] = {leaf_s}  (expected ≤ 4)")
+    weeks_n = sc_tree.num_weeks()
+    total_leaf_s = sum(len(leaf_node.psi4supply[w][S]) for w in range(weeks_n))
+    total_dad_s  = sum(len(dad_node.psi4supply[w][S])  for w in range(weeks_n))
 
     print(result)
-    print(f"shortfall_weeks: {result.shortfall_weeks[:5]}")
     print(f"cap_hard_events: {result.cap_hard_events}")
+    print(f"leaf_out total S={total_leaf_s}, DAD total S={total_dad_s}  (demand=4, cap_hard=2)")
 
-    # CapHard sealed 2 → at most 2 lots reach the leaf
-    assert leaf_s <= 2, (
-        f"Expected leaf S[W10] ≤ 2 after CapHard=2, got {leaf_s}"
+    # leaf_out は PULL (demand-anchored) → 常に demand 通り供給
+    assert total_leaf_s == 4, (
+        f"leaf_out.S should be 4 (demand-anchored via PULL), got {total_leaf_s}"
     )
-    assert result.cap_hard_sealed == 2
+    # DAD は実供給のみ受け取る → cap_hard=2 で上流から最大 2 lots
+    assert total_dad_s <= 2, (
+        f"DAD.S should be ≤2 (constrained by MOM cap_hard=2), got {total_dad_s}"
+    )
+    # MOM で CapHard イベントが記録されている
+    assert result.cap_hard_sealed == 2, (
+        f"Expected cap_hard_sealed=2, got {result.cap_hard_sealed}"
+    )
+    # decouple の本質: leaf は充足, DAD に供給制約が visible
+    assert total_leaf_s > total_dad_s, (
+        f"leaf_out.S ({total_leaf_s}) should exceed DAD.S ({total_dad_s})"
+    )
 
-    print("PASS: test_e2e_cap_hard_causes_leaf_shortfall")
+    print("PASS: test_e2e_cap_hard_causes_leaf_shortfall (original PySI decouple)")
 
 
 # ---------------------------------------------------------------------------

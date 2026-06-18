@@ -27,7 +27,7 @@ Usage
 from __future__ import annotations
 import pandas as pd
 from wom.data.schema import Cols
-from wom.model.plan_node import S, CO, I, P as P_
+from wom.model.plan_node import S, CO, I, P as P_, NODE_TYPE_DAD
 
 
 SCENARIO_PLANNING = "Planning"
@@ -112,6 +112,65 @@ def sc_tree_to_planning_df(
                     Cols.INV_COVER_WKS:    round(inv_cover,    2),
                     Cols.INV_VALUE:        0.0,   # filled by caller with unit_cost
                     # Extra Planning-specific columns
+                    "co_qty":              round(co_qty, 4),
+                })
+
+                prev_closing = closing_inv
+
+    # ── v1r0m2: DAD nodes (DC / 流通在庫) ────────────────────────────
+    # Include DAD inventory so that 販社在庫日数 appears in the KPI DataFrame.
+    # Region key is prefixed with "DAD:" to distinguish from leaf_out rows.
+    for prod_nm in sc_tree.products:
+        try:
+            ot_root = sc_tree.get_ot_root(prod_nm)
+            dad_nodes = [nd for nd in ot_root.walk_preorder()
+                         if nd.node_type == NODE_TYPE_DAD]
+        except Exception:
+            continue
+
+        for dad in dad_nodes:
+            # Derive region from node_id e.g. "OUT:DC:JP:SKU-A" -> "JP"
+            parts  = dad.node_id.split(":")
+            region = parts[2] if len(parts) >= 4 else dad.node_name
+            cpu    = getattr(dad, "cpu_size", cpu_size_default) or cpu_size_default
+
+            prev_closing = 0.0
+
+            for w, wk_label in enumerate(weeks):
+                d_psi = dad.psi4demand[w]
+                s_psi = dad.psi4supply[w]
+
+                demand_fcst      = len(d_psi[S]) * cpu
+                demand_fulfilled = len(s_psi[S]) * cpu
+                stockout_qty     = max(0.0, demand_fcst - demand_fulfilled)
+                closing_inv      = len(s_psi[I]) * cpu
+                supply_receipt   = len(s_psi[P_]) * cpu
+                co_qty           = len(s_psi[CO]) * cpu
+
+                opening_inv  = prev_closing
+                gross_avail  = opening_inv + supply_receipt
+                fill_rate    = (demand_fulfilled / demand_fcst
+                                if demand_fcst > 0 else 1.0)
+                avg_demand   = demand_fcst or 1.0
+                inv_cover    = min(closing_inv / avg_demand, 999.0)
+
+                rows.append({
+                    Cols.SCENARIO:         scenario_name,
+                    Cols.SKU_ID:           prod_nm,
+                    Cols.REGION:           f"DAD:{region}",
+                    Cols.WEEK:             wk_label,
+                    Cols.OPENING_INV:      round(opening_inv,  4),
+                    Cols.SUPPLY_RECEIPT:   round(supply_receipt, 4),
+                    Cols.GROSS_AVAIL:      round(gross_avail,  4),
+                    Cols.DEMAND_FCST:      round(demand_fcst,  4),
+                    Cols.DEMAND_FULFILLED: round(demand_fulfilled, 4),
+                    Cols.STOCKOUT_QTY:     round(stockout_qty, 4),
+                    Cols.CLOSING_INV:      round(closing_inv,  4),
+                    Cols.SAFETY_STOCK_QTY: 0.0,
+                    Cols.REORDER_QTY:      round(supply_receipt, 4),
+                    Cols.FILL_RATE:        round(fill_rate,    4),
+                    Cols.INV_COVER_WKS:    round(inv_cover,    2),
+                    Cols.INV_VALUE:        0.0,
                     "co_qty":              round(co_qty, 4),
                 })
 

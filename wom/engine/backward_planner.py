@@ -41,6 +41,16 @@ Lot-ID handling
 Lots that fall outside the planning horizon  (offset week < 0)  are
 accumulated in BackwardPlanResult.past_due_lots — they represent demand
 that would require procurement action BEFORE the planning horizon begins.
+
+─────────────────────────────────────────────────────────────────────────────
+v1r0m2: Holiday Calendar closure-week skip
+─────────────────────────────────────────────────────────────────────────────
+
+When HolidayCalendarPlugin runs on_pre_plan it writes
+    config["explicit_closures"] = {node_name: set(week_idx)}
+BackwardPlanner reads this via __init__(config=...) and uses _offset_week()
+to skip closed weeks when stepping back by lt_wks, adding extra offset for
+each closed week found in the range.
 """
 
 from __future__ import annotations
@@ -108,9 +118,15 @@ class BackwardPlanner:
     """
 
     def __init__(self, sc_tree: SCTree,
-                 lane_table: Optional[LaneTable] = None) -> None:
+                 lane_table: Optional[LaneTable] = None,
+                 config: Optional[dict] = None) -> None:
         self.sc_tree    = sc_tree
         self.lane_table = lane_table or LaneTable.empty()
+        # v1r0m2: explicit_closures from HolidayCalendarPlugin via config
+        # Structure: {node_name: set(week_idx)} — weeks that are supply-closed.
+        # BackwardPlanner uses this to skip closed weeks during LT offset calc.
+        cfg = config or {}
+        self._explicit_closures: Dict[str, set] = cfg.get("explicit_closures", {})
 
     # ======================================================================
     # Public API
@@ -184,6 +200,32 @@ class BackwardPlanner:
         }
 
     # ======================================================================
+    # v1r0m2: LT offset with closure-week skip
+    # ======================================================================
+
+    def _offset_week(self, week: int, lt_wks: int, node_name: str) -> int:
+        """
+        Compute the upstream week index by stepping back lt_wks weeks,
+        skipping any explicitly-closed weeks for the given node.
+
+        Example: lt=2, week=10, closure_weeks={9} for node_name
+            → step back from 10: skip 9 (closed), count 8, count 7 → return 7
+
+        If node_name has no closures, this is equivalent to week - lt_wks.
+        """
+        closure_set = self._explicit_closures.get(node_name, set())
+        if not closure_set:
+            return week - lt_wks
+
+        remaining = lt_wks
+        w = week - 1
+        while remaining > 0 and w >= -(lt_wks * 2 + len(closure_set)):
+            if w not in closure_set:
+                remaining -= 1
+            w -= 1
+        return w + 1  # w was decremented one extra at loop exit
+
+    # ======================================================================
     # Phase 1: OutBound propagation  (POST-ORDER)
     # ======================================================================
 
@@ -210,7 +252,9 @@ class BackwardPlanner:
                     # supply_point: no further parent on OT side
                     continue
 
-                parent_w = w - node.lt_wks
+                # v1r0m2: skip closure weeks of the parent node when stepping back
+                # ss_wks adds safety stock buffer on top of lead time
+                parent_w = self._offset_week(w, node.lt_wks + node.ss_wks, node.parent.node_name)
                 if parent_w < 0:
                     result.record_past_due(node.node_id, lot_id, w)
                 elif parent_w < n_weeks:
@@ -240,7 +284,9 @@ class BackwardPlanner:
 
                 # -- Propagate to each child (supplier) --------------------
                 for child in node.children:
-                    child_w = w - child.lt_wks
+                    # v1r0m2: skip closure weeks of the child node when stepping back
+                    # ss_wks adds safety stock buffer on top of lead time
+                    child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
                     if child_w < 0:
                         result.record_past_due(child.node_id, lot_id, w)
                     elif child_w < n_weeks:

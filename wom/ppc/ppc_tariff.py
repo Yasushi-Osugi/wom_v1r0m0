@@ -66,16 +66,20 @@ def run_tariff_and_landed_cost(
             tariff_rate = float(tariff_row["tariff_rate"])
             tariff_basis = str(tariff_row["tariff_basis"])
 
+            # Determine the actual TP currency from transfer price rule (e.g. CNY for China)
+            tp_rule = rules.get_transfer_price_rule(m_node, product)
+            actual_tp_currency = str(tp_rule["currency"]) if tp_rule is not None else "JPY"
+
             if tariff_basis == "transfer_price":
                 basis_local = acc.transfer_price_local
-                tp_currency = "USD"
+                tp_currency = actual_tp_currency
             elif tariff_basis == "material_cost":
-                mom_fx_rate, _ = fx.get_rate(week, "USD")
+                mom_fx_rate, _ = fx.get_rate(week, actual_tp_currency)
                 basis_local = acc.supplier_cost_base / mom_fx_rate if mom_fx_rate else 0.0
-                tp_currency = "USD"
+                tp_currency = actual_tp_currency
             else:
                 basis_local = acc.transfer_price_local
-                tp_currency = "USD"
+                tp_currency = actual_tp_currency
 
             tariff_local = basis_local * tariff_rate
             t_fx_rate, tariff_base = fx.convert(tariff_local, tp_currency, week)

@@ -62,6 +62,18 @@ class HolidayCalendarPlugin(WOMPlugin):
             else:
                 print(f"[HolidayCalendar] Unknown effect {rule['effect']!r} -- skipped")
 
+        # v1r0m2: Build explicit_closures and share via config so that
+        # BackwardPlanner can skip closure weeks during LT offset calculation.
+        # Structure: {node_name: set(week_idx)}
+        explicit_closures: Dict[str, set] = {}
+        for rule in rules:
+            if rule["effect"] == "supply_closure":
+                explicit_closures.setdefault(
+                    rule["node_name"], set()).update(rule["week_idxs"])
+        config["explicit_closures"] = explicit_closures
+        print(f"[HolidayCalendar] explicit_closures written to config: "
+              f"{len(explicit_closures)} nodes")
+
     def _apply_supply_closure(self, nodes, w_idxs, w_lbls, cap_val, name):
         for node in nodes:
             for w in w_idxs:
@@ -161,9 +173,6 @@ class HolidayCalendarPlugin(WOMPlugin):
                             if w not in node_closure_set]
 
             if not pre_open:
-                # All weeks in horizon are in closure set.
-                # Lots already cleared above -- do NOT reassign them.
-                # Reassigning to closure weeks causes CO blowup -> MemoryError.
                 print(
                     f"[HolidayCalendar] WARNING {node.node_name} ({prod_nm}): "
                     f"no open weeks -- {len(displaced)} lots dropped "
@@ -177,7 +186,6 @@ class HolidayCalendarPlugin(WOMPlugin):
             for w in pre_open:
                 ch        = node.cap_hard(w)
                 current_p = len(node.psi4demand[w][P_IDX])
-                # cap_hard default=0 means unconstrained; only limit if explicitly > 0
                 space     = max(0, int(ch) - current_p) if ch > 0 else len(displaced)
                 chunk: List[str] = []
                 for _ in range(space):

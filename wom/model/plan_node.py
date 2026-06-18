@@ -1,11 +1,11 @@
 """
 wom/model/plan_node.py
 ======================
-WOM Planning Layer — PlanNode dataclass
+WOM Planning Layer -- PlanNode dataclass
 
 PSI Bucket index convention (confirmed):
     S  = 0   Sales / Fulfilled shipment
-    CO = 1   Carry Over (受注残) — unfulfilled demand rolled forward
+    CO = 1   Carry Over (受注残) -- unfulfilled demand rolled forward
     I  = 2   Inventory
     P  = 3   Purchase / Production plan (replenishment)
 
@@ -17,24 +17,29 @@ CO is generated ONLY in Forward Planning when I+P < S demand.
 Backward Planning (demand allocation, ideal/unconstrained) never touches CO.
 
 Tier numbering:
-    tier = 0  →  closest to supply_point
+    tier = 0  ->  closest to supply_point
     tier increases toward leaf (farthest from supply_point)
 
     OutBound example:
         supply_point   (bridge)
-        └─ DAD         tier=0  (出荷ヤード)
-           └─ ...      tier=1  (域内倉庫)
-              └─ leaf  tier=N  (sales channel)
+        L- DAD         tier=0  (出荷ヤード)
+           L- ...      tier=1  (域内倉庫)
+              L- leaf  tier=N  (sales channel)
 
     InBound example:
         supply_point   (bridge)
-        └─ MOM         tier=0  (Mother Plant / 最終組立)
-           └─ ...      tier=1  (Tier-1 Supplier)
-              └─ leaf  tier=N  (raw material)
+        L- MOM         tier=0  (Mother Plant / 最終組立)
+           L- ...      tier=1  (Tier-1 Supplier)
+              L- leaf  tier=N  (raw material)
 
 lt_wks usage:
-    Backward Planning:  child.S[w]  →  parent.P[w + lt_wks]   (demand propagation)
-    Forward  Planning:  parent.P[w] →  child.S[w + lt_wks]    (supply propagation)
+    Backward Planning:  child.S[w]  ->  parent.P[w + lt_wks]   (demand propagation)
+    Forward  Planning:  parent.P[w] ->  child.S[w + lt_wks]    (supply propagation)
+
+ss_days usage:
+    Safety stock days; backward planner adds ceil(ss_days/7) extra weeks
+    on top of lt_wks offset so upstream sees demand earlier, creating a
+    buffer at this node.
 """
 
 from __future__ import annotations
@@ -72,27 +77,35 @@ class PlanNode:
     gui_node.sku_dict[product_name] = plan_node.
 
     Tree entry points (held on the SCTree / WOMModel level):
-        prod_tree_dict_OT[prod_nm]  →  OutBound tree root PlanNode
-        prod_tree_dict_IN[prod_nm]  →  InBound  tree root PlanNode
+        prod_tree_dict_OT[prod_nm]  ->  OutBound tree root PlanNode
+        prod_tree_dict_IN[prod_nm]  ->  InBound  tree root PlanNode
     """
 
-    # ── Identity ──────────────────────────────────────────────────────────
+    # -- Identity ──────────────────────────────────────────────────────────
     node_id:   str          # unique ID, e.g. "OUT:RegionA:SKU-001"
     node_name: str          # human-readable label
     product:   str          # product name (key into prod_tree_dict_OT/IN)
     side:      str          # "outbound" | "inbound"
 
-    # ── Topology ──────────────────────────────────────────────────────────
+    # -- Topology ──────────────────────────────────────────────────────────
     node_type: str          # see NODE_TYPE_* constants below
     tier:      int          # 0 = closest to supply_point, increases to leaf
 
-    # ── Planning parameters ───────────────────────────────────────────────
+    # -- Planning parameters ───────────────────────────────────────────────
     lt_wks:   int = 1       # lead time to parent [weeks]
-                            #   Backward: child.S[w] → parent.P[w + lt_wks]
-                            #   Forward:  parent.P[w] → child.S[w + lt_wks]
+                            #   Backward: child.S[w] -> parent.P[w + lt_wks]
+                            #   Forward:  parent.P[w] -> child.S[w + lt_wks]
     cpu_size: int = 1       # Common Planning Unit (minimum lot size)
+    ss_days:  int = 0       # safety stock [days]; 0 = no extra buffer
+                            # backward planner adds ceil(ss_days/7) to lt_wks offset
+                            # so upstream demand is placed earlier -> creates buffer at this node
 
-    # ── PSI lists  (initialized by init_psi) ─────────────────────────────
+    @property
+    def ss_wks(self) -> int:
+        """Safety stock additional offset weeks = ceil(ss_days / 7)."""
+        return (self.ss_days + 6) // 7 if self.ss_days > 0 else 0
+
+    # -- PSI lists  (initialized by init_psi) ─────────────────────────────
     # psi4demand[week_idx][bucket] = [lot_ID, ...]   (demand side)
     # psi4supply[week_idx][bucket] = [lot_ID, ...]   (supply side)
     # capacity  [week_idx][0:CapHard, 1:CapSoft] = float
@@ -100,16 +113,16 @@ class PlanNode:
     psi4supply: List[List[List[str]]] = field(default_factory=list)
     capacity:   List[List[float]]     = field(default_factory=list)
 
-    # ── Tree linkage ──────────────────────────────────────────────────────
+    # -- Tree linkage ──────────────────────────────────────────────────────
     parent:   Optional["PlanNode"]  = field(default=None,  repr=False)
     children: List["PlanNode"]      = field(default_factory=list, repr=False)
 
-    # ── Planning mode ─────────────────────────────────────────────────────
-    is_decoupling: bool = False    # True → PUSH/PULL boundary (buffer stock)
+    # -- Planning mode ─────────────────────────────────────────────────────
+    is_decoupling: bool = False    # True -> PUSH/PULL boundary (buffer stock)
     plan_mode:     str  = "pull"   # "pull" (backward/demand-driven)
                                    # "push" (forward/supply-driven)
 
-    # ── Week index lookup (set after init_psi) ────────────────────────────
+    # -- Week index lookup (set after init_psi) ────────────────────────────
     # week_labels[week_idx] = ISO week string, e.g. "2026-W01"
     week_labels: List[str] = field(default_factory=list, repr=False)
 
@@ -224,7 +237,7 @@ class PlanNode:
         CO is NEVER touched in Backward Planning.
         """
         if week + 1 >= len(self.psi4demand):
-            return   # last week — nowhere to carry over
+            return   # last week -- nowhere to carry over
 
         supply_lots = (
             self.psi4demand[week][I]
@@ -253,8 +266,8 @@ class PlanNode:
         """
         Yield nodes in POST-ORDER (children before parent).
         Used for:
-          - Backward planning on OutBound tree (Leaf → DAD → supply_point)
-          - Forward  planning on InBound tree  (Leaf → MOM → supply_point)
+          - Backward planning on OutBound tree (Leaf -> DAD -> supply_point)
+          - Forward  planning on InBound tree  (Leaf -> MOM -> supply_point)
         """
         for child in self.children:
             yield from child.walk_postorder()
@@ -264,8 +277,8 @@ class PlanNode:
         """
         Yield nodes in PRE-ORDER (parent before children).
         Used for:
-          - Backward planning on InBound tree  (MOM → Tier-1 → Leaf)
-          - Forward  planning on OutBound tree  (DAD → Intermediate → Leaf)
+          - Backward planning on InBound tree  (MOM -> Tier-1 -> Leaf)
+          - Forward  planning on OutBound tree  (DAD -> Intermediate -> Leaf)
         """
         yield self
         for child in self.children:
@@ -312,7 +325,7 @@ class PlanNode:
 
 
 # ---------------------------------------------------------------------------
-# node_type string constants (for readability — not enforced by dataclass)
+# node_type string constants (for readability -- not enforced by dataclass)
 # ---------------------------------------------------------------------------
 NODE_TYPE_LEAF_OUT     = "leaf_out"      # OutBound leaf (sales channel)
 NODE_TYPE_DAD          = "dad"           # OutBound intermediate (倉庫, DC等)

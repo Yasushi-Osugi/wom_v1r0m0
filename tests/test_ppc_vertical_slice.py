@@ -125,9 +125,9 @@ class TestT1_ForwardPropagation:
             e for e in result.ppc_events
             if e.ppc_event_type == "supplier_cost" and e.lot_id == "L-JP-001"
         )
-        # ppc_supplier_cost.csv W01: 1428 CNY, FX W01 CNY→JPY = 21.0
-        expected_local = 1428.0
-        expected_base = 1428.0 * 21.0
+        # ppc_supplier_cost.csv W01: 1437.09 CNY, FX W01 CNY→JPY = 21.144
+        expected_local = 1437.09
+        expected_base = 1437.09 * 21.144
         assert ev.amount_local == pytest.approx(expected_local, rel=1e-4)
         assert ev.amount_base  == pytest.approx(expected_base,  rel=1e-4)
         assert ev.currency == "CNY"
@@ -143,8 +143,8 @@ class TestT1_ForwardPropagation:
         ]
         assert len(conv_events) >= 1
         total_conv_base = sum(e.amount_base for e in conv_events)
-        # ppc_node_cost_rule: MOM_China conversion_cost qty=0 fixed=952 CNY
-        expected = 952.0 * 21.0  # 19,992 JPY
+        # ppc_node_cost_rule: MOM_China conversion_cost qty=0 fixed=952 CNY, FX W01 CNY→JPY = 21.144
+        expected = 952.0 * 21.144  # 20,129.09 JPY
         assert total_conv_base == pytest.approx(expected, rel=1e-4)
 
     def test_supplier_plus_conversion_in_accumulator(self, rules, sc_paths):
@@ -152,8 +152,8 @@ class TestT1_ForwardPropagation:
         sales = _sales([("L-JP-001", "2026-W01", "JP_Channel", "IPHONE")])
         eng = _run_engine(sales, rules, sc_paths)
         acc = eng._result.lot_accumulators[0]
-        expected_supplier = 1428.0 * 21.0   # 29,988 JPY
-        expected_conv     = 952.0  * 21.0   # 19,992 JPY
+        expected_supplier = 1437.09 * 21.144  # 30,385.83 JPY
+        expected_conv     = 952.0  * 21.144  # 20,129.09 JPY
         assert acc.supplier_cost_base == pytest.approx(expected_supplier, rel=1e-4)
         assert acc.conversion_cost_base == pytest.approx(expected_conv, rel=1e-4)
 
@@ -229,10 +229,10 @@ class TestT3_TariffCrossBorder:
             and e.lot_id == "L-JP-001"
         ]
         assert len(tariff_events) == 1, "One CN→JP tariff event"
-        # tariff = transfer_price_local × 0.05 (in CNY)
+        # tariff = transfer_price_local × 0.05 (in CNY), FX W01 CNY→JPY = 21.144
         acc = eng._result.lot_accumulators[0]
         expected_tariff_local = acc.transfer_price_local * 0.05
-        expected_tariff_base  = expected_tariff_local * 21.0
+        expected_tariff_base  = expected_tariff_local * 21.144
         assert tariff_events[0].amount_local == pytest.approx(expected_tariff_local, rel=1e-3)
         assert tariff_events[0].amount_base  == pytest.approx(expected_tariff_base,  rel=1e-3)
 
@@ -328,7 +328,8 @@ class TestT5_FX:
 
     def test_us_revenue_converted_correctly(self, rules, sc_paths):
         """
-        US revenue: 999 USD × 150.0 (W01 rate) = 149,850 JPY.
+        US revenue: 1024 USD × 150.0 (W01 rate) = 153,600 JPY.
+        (ppc_market_price.csv 2026-W01 US_Channel = 1024 USD)
         """
         sales = _sales([("L-US-001", "2026-W01", "US_Channel", "IPHONE")])
         eng = _run_engine(sales, rules, sc_paths)
@@ -336,9 +337,9 @@ class TestT5_FX:
             e for e in eng._result.ppc_events
             if e.ppc_event_type == "market_revenue" and e.lot_id == "L-US-001"
         )
-        assert rev_ev.amount_local == pytest.approx(999.0,     rel=1e-4)
+        assert rev_ev.amount_local == pytest.approx(1024.0,    rel=1e-4)
         assert rev_ev.fx_rate      == pytest.approx(150.0,     rel=1e-4)
-        assert rev_ev.amount_base  == pytest.approx(149_850.0, rel=1e-4)
+        assert rev_ev.amount_base  == pytest.approx(153_600.0, rel=1e-4)
 
     def test_jp_revenue_is_native_jpy(self, rules, sc_paths):
         """JP revenue is already JPY → fx_rate = 1.0."""
@@ -358,9 +359,9 @@ class TestT5_FX:
         """
         fx = FXConverter(rules.fx_rate, base_currency="JPY")
         rate, is_fallback = fx.get_rate("2026-W99", "USD")
-        # 2026-W99 doesn't exist → should fall back to 2026-W12 rate (150.0)
+        # 2026-W99 doesn't exist → falls back to latest prior 2026 week (W53, rate=151.68)
         assert is_fallback is True
-        assert rate == pytest.approx(150.0, rel=1e-4)
+        assert rate == pytest.approx(151.68, rel=1e-4)
         assert len(fx.fallback_warnings) >= 1
 
     def test_kpi_revenue_in_base_currency(self, rules, sc_paths):
@@ -371,8 +372,8 @@ class TestT5_FX:
         ])
         eng = _run_engine(sales, rules, sc_paths)
         kpi = eng._result.kpi_summary
-        # JP: 120,000 JPY + US: 999 × 150 = 149,850 → total = 269,850
-        expected = 120_000.0 + 149_850.0
+        # JP: 120,000 JPY + US: 1024 × 150 = 153,600 → total = 273,600
+        expected = 120_000.0 + 153_600.0
         assert kpi["total_revenue_base"] == pytest.approx(expected, rel=1e-3)
 
 

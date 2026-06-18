@@ -4,7 +4,7 @@ WOM GUI – main application window.
 Layout
 ------
 ┌────────────────────────────────────────────────────────────────┐
-│  WOM – Weekly Operation Model                          v1r0m0  │
+│  WOM – Weekly Operation Model                          v1r0m2  │
 ├──────────────┬─────────────────────────────────────────────────┤
 │  Left panel  │  Right panel (notebook tabs)                    │
 │  ─────────── │  ┌──────────────────────────────────────────┐  │
@@ -2693,10 +2693,27 @@ class WorldMapPanel(tk.Frame):
         paned.add(map_frame, minsize=820)
 
         from tkintermapview import TkinterMapView
+        # SQLite tile cache: <project>/data/worldmap_cache.db
+        # Pre-populate offline: python tools/download_worldmap_tiles.py
+        # If DB exists → served locally (works offline).
+        # If DB missing → created automatically; tiles cache on first online use.
+        _gui_dir  = os.path.dirname(os.path.abspath(__file__))   # wom/gui/
+        _wom_dir  = os.path.dirname(_gui_dir)                     # wom/
+        _proj_dir = os.path.dirname(_wom_dir)                     # project root
+        _tile_db  = os.path.join(_proj_dir, "data", "worldmap_cache.db")
         self._map_widget = TkinterMapView(
             map_frame, width=700, height=520,
-            corner_radius=0)
+            corner_radius=0,
+            database_path=_tile_db)
         self._map_widget.pack(fill="both", expand=True)
+        # Use CARTO tiles — not blocked by usage policy unlike OSM default.
+        # DB server key must match this URL exactly for offline cache lookup.
+        # download_worldmap_tiles.py uses the same URL for pre-caching.
+        _CARTO = "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+        try:
+            self._map_widget.set_tile_server(_CARTO, max_zoom=19)
+        except Exception:
+            pass
         # Center on world view
         self._map_widget.set_position(20.0, 10.0)
         self._map_widget.set_zoom(2)
@@ -2806,7 +2823,7 @@ class WorldMapPanel(tk.Frame):
                     marker_color_circle=cc,
                     marker_color_outside=co,
                     command=lambda m, n=node: self._on_marker_click(m, n),
-                    text_color=FG_WHITE,
+                    text_color="#222222",
                     font=("Segoe UI", 8, "bold"))
                 self._markers.append(marker)
             except Exception:
@@ -3003,7 +3020,7 @@ class WOMApp(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("WOM – Weekly Operation Model  v1r0m0")
+        self.title("WOM – Weekly Operation Model  v1r0m2")
         self.configure(bg=BG_DARK)
         self.geometry("1280x820")
         self.minsize(900, 600)
@@ -3030,7 +3047,7 @@ class WOMApp(tk.Tk):
         tk.Label(title_bar, text="WOM  –  Weekly Operation Model",
                  bg="#0D1B2A", fg=FG_WHITE,
                  font=("Segoe UI", 14, "bold")).pack(side="left", padx=16)
-        tk.Label(title_bar, text="v1r0m0",
+        tk.Label(title_bar, text="v1r0m2",
                  bg="#0D1B2A", fg=FG_ACC,
                  font=("Segoe UI", 10)).pack(side="right", padx=16)
 
@@ -3405,6 +3422,14 @@ class WOMApp(tk.Tk):
         if missing:
             msg += f"  (not found: {', '.join(missing)})"
         self._status(msg)
+
+        # Load node_master into WorldMap immediately on folder selection
+        node_path = os.path.join(folder, "node_master.csv")
+        if os.path.exists(node_path):
+            try:
+                self._worldmap_panel.load_default(node_path)
+            except Exception as _wm_exc:
+                print(f"[WorldMap] node load on folder select failed: {_wm_exc}")
 
     def _toggle_file_entries(self):
         """Toggle collapse/expand of the 5 individual FileEntry widgets."""
@@ -3795,7 +3820,7 @@ class WOMApp(tk.Tk):
             _bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree,
                       weeks=weeks, config=_cfg)
             for prod_nm in sc_tree.products:
-                BackwardPlanner(sc_tree, lane_table=_lane_table).run(prod_nm)
+                BackwardPlanner(sc_tree, lane_table=_lane_table, config=_cfg).run(prod_nm)
                 _bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree,
                           prod_nm=prod_nm, weeks=weeks, config=_cfg)
                 copy_demand_to_supply(sc_tree, prod_nm)

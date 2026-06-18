@@ -11,8 +11,8 @@ Respects PUSH/PULL mode flags (Step 8).
 plan_mode handling
 ------------------
 "pull"     : normal PSI roll-forward (demand-constrained shipment)
-"push"     : decoupling node (MOM) — normal PSI; holds buffer inventory
-"push_sub" : InBound pass-through — ship ALL available supply upward;
+"push"     : decoupling node (MOM) -- normal PSI; holds buffer inventory
+"push_sub" : InBound pass-through -- ship ALL available supply upward;
              no demand-side gate; I always = 0 at these nodes
 
 Algorithm
@@ -108,41 +108,51 @@ class ForwardPlanner:
     ) -> None:
         self.sc_tree             = sc_tree
         self.opening_inv         = opening_inv or {}
-        self.decouple_node_ids   = decouple_node_ids  # None = auto-detect (dad nodes)
+        self.decouple_node_ids   = decouple_node_ids  # None = auto-detect
         self._lot_leaf_index: Dict[str, PlanNode] = {}
 
     def run(self, prod_nm: str) -> ForwardPlanResult:
         result  = ForwardPlanResult(prod_nm=prod_nm)
         n_weeks = self.sc_tree.num_weeks()
 
-        ot_root = self.sc_tree.get_ot_root(prod_nm)
-        in_root = self.sc_tree.get_in_root(prod_nm)
+        ot_root  = self.sc_tree.get_ot_root(prod_nm)
+        in_roots = self.sc_tree.get_in_roots(prod_nm)  # Dict[node_id, PlanNode]
 
-        self._clear_derived_p(in_root, ot_root, n_weeks)
+        self._clear_derived_p(in_roots, ot_root, n_weeks)
 
-        # Phase 1: InBound POST-ORDER
-        for node in in_root.walk_postorder():
-            opening = list(self.opening_inv.get(node.node_id, []))
-            self._process_node(node, n_weeks, result, opening_lots=opening)
-            result.in_processed += 1
-            if node.parent is not None:
-                self._propagate_to_parent(node, n_weeks)
+        # Phase 1: InBound POST-ORDER (all MOM roots)
+        for mom_root in in_roots.values():
+            for node in mom_root.walk_postorder():
+                opening = list(self.opening_inv.get(node.node_id, []))
+                self._process_node(node, n_weeks, result, opening_lots=opening)
+                result.in_processed += 1
+                if node.parent is not None:
+                    self._propagate_to_parent(node, n_weeks)
 
-        # Phase 2: Bridge MOM -> supply_point
+        # Phase 2: Bridge ALL MOM roots -> supply_point
         for w in range(n_weeks):
-            mom_s = list(in_root.psi4supply[w][S])
-            ot_root.psi4supply[w][P] = mom_s
-            result.bridge_lots += len(mom_s)
+            all_lots: list = []
+            for mom_root in in_roots.values():
+                all_lots.extend(mom_root.psi4supply[w][S])
+            ot_root.psi4supply[w][P] = all_lots
+            result.bridge_lots += len(all_lots)
 
         # Phase 3: OutBound PUSH/PULL
         # Build lot -> leaf_out index once before traversal.
         self._lot_leaf_index = self._build_lot_leaf_index(ot_root)
 
-        # Resolve decouple nodes: explicit set, or auto-detect (all 'dad' nodes)
+        # Resolve decouple nodes:
+        #   1. Explicit set passed by caller (highest priority)
+        #   2. is_decoupling flag from CSV (buffering_stock_flag column)
+        #   3. Fallback: auto-detect all 'dad' nodes (backward compat for older CSVs)
         if self.decouple_node_ids is not None:
             decouple_ids = set(self.decouple_node_ids)
         else:
-            decouple_ids = {
+            flag_nodes = {
+                n.node_id for n in ot_root.walk_preorder()
+                if n.is_decoupling
+            }
+            decouple_ids = flag_nodes if flag_nodes else {
                 n.node_id for n in ot_root.walk_preorder()
                 if n.node_type == "dad"
             }
@@ -162,31 +172,73 @@ class ForwardPlanner:
         """
         Apply push_pull_all_psi2i_decouple4supply5 logic to the OT tree.
 
-        Non-decouple (PUSH) nodes (e.g. supply_point):
-            calcPS2I (ship demand-driven s_plan, buffer surplus in I)
-            propagate S to children via lot routing, recurse
+        Reproduces the original PySI 4-step decouple design:
 
-        Decouple (BUFFER) nodes (e.g. dad/DC):
-            calcPS2I (absorbs P from parent, ships flat demand s_plan, CO if short)
-            PULL all children: copy psi4demand[w][P] -> psi4supply[w][P]
-            then calcPS2I (P=demand, S=demand -> I=0 at leaf_out)
+        The decouple point is NOT fixed to DAD -- it is any node designated in
+        decouple_ids (equivalent to original PySI's decouple_nodes parameter).
+        Typical choices include DAD (DC buffer), leaf_out (VMI / consignment),
+        or any intermediate node in the SC lane.
+
+            Step 1+3 (PUSH at decouple node):
+                _process_node(decouple) runs with actual supply from upstream.
+                decouple.I > 0 when supply surplus; CO when supply short.
+                (In WOM lot-based: supply.S is already demand-anchored by
+                 copy_demand_to_supply(), so _process_node handles both steps
+                 in one pass -- equivalent to original calcPS2I + copy_S + PUSH.)
+
+            Step 4 (PULL at all descendants of decouple node):
+                Descendants receive demand-anchored supply:
+                    psi4supply[w][P] = psi4demand[w][P]
+                _process_node then fully satisfies each node's demand,
+                hiding any decouple-level CO from downstream nodes.
+                (Equivalent to apply_pull_process() in original PySI.)
+
+        Supply propagation summary:
+            upstream  -> _propagate_to_child -> decouple.P  (PUSH: actual supply)
+            decouple  -> (no propagation)    -> child.P     (PULL: demand.P copied)
         """
         self._push_pull_node(ot_root, decouple_ids, n_weeks, result)
 
-    def _push_pull_node(self, node, decouple_ids, n_weeks, result):
+    def _push_pull_node(self, node, decouple_ids, n_weeks, result, pull_mode=False):
+        """
+        Recursively process one OT node.
+
+        pull_mode=False (default): PUSH -- uses supply.P as set by _propagate_to_child
+                                   (actual supply from parent).
+        pull_mode=True:            PULL -- overrides supply.P with demand.P before
+                                   processing (demand-anchored, original PySI Step 4).
+
+        decouple_ids drives the PUSH->PULL transition.  Any node whose node_id
+        is in decouple_ids becomes the buffer/decouple point: it is processed
+        with PUSH (real supply), while all its descendants switch to PULL.
+        The node_type (DAD etc.) has no bearing on this decision.
+        """
+        if pull_mode:
+            # Original PySI Step 4 (apply_pull_process equivalent):
+            # Demand-anchor this node's P so _process_node sees full demand supply.
+            # supply.S is already demand-anchored from copy_demand_to_supply().
+            for w in range(n_weeks):
+                node.psi4supply[w][P] = list(node.psi4demand[w][P])
+
         opening = list(self.opening_inv.get(node.node_id, []))
         self._process_node(node, n_weeks, result, opening_lots=opening)
         result.ot_processed += 1
 
-        if node.node_id in decouple_ids:
-            # DECOUPLE: PULL all children (copy demand P directly)
-            for child in node.children:
-                self._pull_subtree(child, n_weeks, result)
-        else:
-            # PUSH: route S to children, recurse
-            for child in node.children:
+        # Is THIS node the designated decouple/buffer point?
+        # Determined solely by decouple_ids -- NOT by node_type.
+        # (decouple_ids is set by ForwardPlanner caller or auto-detected as
+        #  all DAD nodes when decouple_node_ids is None in __init__.)
+        is_decouple = (node.node_id in decouple_ids)
+
+        for child in node.children:
+            if not pull_mode and not is_decouple:
+                # PUSH: propagate actual supply (S[w]) to child's P[w + lt_wks]
                 self._propagate_to_child(node, child, n_weeks)
-                self._push_pull_node(child, decouple_ids, n_weeks, result)
+            # In pull_mode or is_decouple: do NOT call _propagate_to_child.
+            # Child's P will be overwritten with demand.P at the top of the next
+            # recursive call (pull_mode=True branch above).
+            self._push_pull_node(child, decouple_ids, n_weeks, result,
+                                 pull_mode=pull_mode or is_decouple)
 
     def _pull_subtree(self, node, n_weeks, result):
         """
@@ -209,17 +261,20 @@ class ForwardPlanner:
     # Preparation
     # ------------------------------------------------------------------
 
-    def _clear_derived_p(self, in_root, ot_root, n_weeks):
+    def _clear_derived_p(self, in_roots, ot_root, n_weeks):
         """
         Clear P on derived nodes (rebuilt by forward propagation).
         Source nodes whose P is KEPT:
             leaf_in  -- external supply (PULL demand or PUSH schedule)
             supply_point -- P filled by bridge in Phase 2
+
+        in_roots: Dict[node_id, PlanNode] -- all MOM roots for this product.
         """
-        for node in in_root.walk_preorder():
-            if node.node_type != NODE_TYPE_LEAF_IN:
-                for w in range(n_weeks):
-                    node.psi4supply[w][P] = []
+        for mom_root in in_roots.values():
+            for node in mom_root.walk_preorder():
+                if node.node_type != NODE_TYPE_LEAF_IN:
+                    for w in range(n_weeks):
+                        node.psi4supply[w][P] = []
 
         for node in ot_root.walk_preorder():
             if node is not ot_root:

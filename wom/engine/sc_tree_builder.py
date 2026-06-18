@@ -18,26 +18,28 @@ CSV schema (required)
 CSV schema (optional)
 ---------------------
     cpu_size     : int   — lot size (default 1)
+    ss_days      : int   — safety stock days (default 0); backward planner adds
+                           ceil(ss_days/7) extra offset weeks on top of lt_wks
     region       : str   — geographic region; REQUIRED on leaf_out nodes for
                            demand-lot assignment to work (e.g. "AMER")
 
 Tree topology rules
 -------------------
 OutBound (demand side):
-    supply_point  ← OT root (no parent, side=outbound, node_type=supply_point)
-      └─ dad(s)   ← distribution centres, warehouses
-           └─ leaf_out(s)  ← sales channels; MUST have region
+    supply_point  <- OT root (no parent, side=outbound, node_type=supply_point)
+      └─ dad(s)   <- distribution centres, warehouses
+           └─ leaf_out(s)  <- sales channels; MUST have region
 
 InBound (supply side):
-    mom  ← IN root (no parent, side=inbound, node_type=mom)
-      └─ mom(s)   ← tier-1, tier-2 suppliers / factories
-           └─ leaf_in(s)  ← raw material / component sources
+    mom  <- IN root (no parent, side=inbound, node_type=mom)
+      └─ mom(s)   <- tier-1, tier-2 suppliers / factories
+           └─ leaf_in(s)  <- raw material / component sources
 
-Backward planning order (demand → supply):
-    OT postorder → bridge SP→MOM → IN preorder
+Backward planning order (demand -> supply):
+    OT postorder -> bridge SP->MOM -> IN preorder
 
-Forward planning order (supply → demand):
-    IN postorder → bridge MOM→SP → OT preorder
+Forward planning order (supply -> demand):
+    IN postorder -> bridge MOM->SP -> OT preorder
 
 Compatibility
 -------------
@@ -93,7 +95,7 @@ def _make_node_id(
 
     Convention (from lot_generator.py):
         OT leaf_out :  "OUT:<anything>:<region>:<prod_nm>"
-                       →  parts[0]=="OUT", len>=4, region=parts[2]
+                       ->  parts[0]=="OUT", len>=4, region=parts[2]
         All other   :  "OUT:<type>:<name>:<prod_nm>"  or
                        "IN:<type>:<name>:<prod_nm>"
     """
@@ -126,7 +128,7 @@ def build_sc_tree_from_master(
         DataFrame loaded from sc_tree_master.csv.
         Required columns: node_name, parent_node, product_name,
                           node_type, side, lt_wks
-        Optional columns: cpu_size, region
+        Optional columns: cpu_size, ss_days, region
     week_labels:
         Ordered ISO week strings for the planning horizon.
 
@@ -171,25 +173,29 @@ def _build_product_tree(
         node_name = str(row["node_name"]).strip()
         node_type = str(row["node_type"]).strip()
         side      = str(row["side"]).strip()
-        lt_wks    = int(row.get("lt_wks", 1) or 1)
-        cpu_size  = int(row.get("cpu_size", 1) or 1)
-        region    = str(row.get("region", "") or "").strip()
+        lt_wks        = int(row.get("lt_wks", 1) or 1)
+        cpu_size      = int(row.get("cpu_size", 1) or 1)
+        ss_days       = int(row.get("ss_days", 0) or 0)
+        region        = str(row.get("region", "") or "").strip()
+        is_decoupling = bool(int(row.get("buffering_stock_flag", 0) or 0))
 
         node_id = _make_node_id(node_type, side, node_name, region, prod_nm)
 
         pnode = PlanNode(
-            node_id   = node_id,
-            node_name = node_name,
-            product   = prod_nm,
-            side      = side,
-            node_type = node_type,
-            tier      = 0,       # calculated in Step 3
-            lt_wks    = lt_wks,
-            cpu_size  = cpu_size,
+            node_id       = node_id,
+            node_name     = node_name,
+            product       = prod_nm,
+            side          = side,
+            node_type     = node_type,
+            tier          = 0,       # calculated in Step 3
+            lt_wks        = lt_wks,
+            cpu_size      = cpu_size,
+            ss_days       = ss_days,
+            is_decoupling = is_decoupling,
         )
         nodes[node_name] = pnode
 
-    # ── Step 2: Wire parent → child ──────────────────────────────────────
+    # ── Step 2: Wire parent -> child ──────────────────────────────────────
     for _, row in prod_df.iterrows():
         node_name   = str(row["node_name"]).strip()
         parent_name = str(row.get("parent_node", "") or "").strip()
