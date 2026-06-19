@@ -254,6 +254,96 @@ v1r0m1の `backward_planner.py` と `holiday_calendar.csv` にnullバイトが�
 
 ---
 
+## v1r0m2 実装済み機能（新しいClaude君へ）
+
+### JIT週次同期：cap_hard envelope in `_in_propagate`（commit 7a22648）
+
+`wom/engine/backward_planner.py` の `_in_propagate` に cap_hard envelope を追加した。
+Foxconn_CN の cap_hard（週次能力上限）を上流への伝播クリップとして使用し、
+TSMC_TW・Buffer_Wafer_TW がFoxconn_CN と同一の階段波形（800→534→267→0）に
+JIT同期する設計を実現。
+
+```python
+cap_w = node.cap_hard(w)
+propagate_lots = all_lots[:int(cap_w)] if cap_w > 0 else all_lots
+```
+
+**設計意図：** Foxconn_CN = DBRのDrum（ペースメーカー）。cap_hard が
+OutBound需要をクリップし、その信号が InBound 全体に伝播する。
+
+---
+
+### DBR設計：PUSH/PULL break-point at Buffer_Wafer_TW（commit 7a22648）
+
+iPhone Global SC の InBound チェーン：
+
+```
+SiliconWafer_TW (leaf_in, PUSH sub)
+  → Buffer_Wafer_TW (decoupling node, PUSH) ← PUSH/PULL break-point
+    → TSMC_TW (PULL)
+      → Foxconn_CN (PULL MOM, Drum)
+```
+
+- **Drum**: Foxconn_CN（cap_hard staircase: 800→534→267→0/wk）
+- **Buffer**: Buffer_Wafer_TW（在庫クッション、DBRバッファ）
+- **SiliconWafer_TW**: 自律PUSH（ウェーハFab = 高固定費・常時稼働型）
+
+`push_config.csv` でBuffer_Wafer_TWをdecoupling nodeとして設定。
+
+---
+
+### Mode 4 LT-shifted PUSH：`push_lead_time_weeks`（commit f9ebc37）
+
+`wom/engine/push_pull.py` の `PushConfig` に `push_lead_time_weeks` フィールドを追加。
+`push[w] = demand_ref_node.psi4demand[w + LT][S]`
+
+この1パラメータで**DBRバッファの完全なライフサイクルPSIパターン**が自動生成される：
+
+| フェーズ | 期間 | 動作 |
+| :---- | :---- | :---- |
+| Pre-build | demand[w]=0, demand[w+LT]>0 | 生産開始、バッファ積み上がり（差分が積み上がる） |
+| Steady | demand[w] == demand[w+LT] | 生産=消費=staircase、バッファ平坦 |
+| Staircase gap | demand[w+LT] < demand[w] | 生産が先行してステップダウン、バッファが差分を吸収 |
+| EOL stop | demand[w+LT]=0, demand[w]>0 | 生産停止、バッファが最終需要を賄いゼロに収束 |
+
+**iPhone16モデルでの設定** (`push_config.csv`)：
+
+```csv
+push_lead_time_weeks=26
+mom_ref_node_id=""（decoupling node自身 = staircase信号を使用）
+```
+
+**確認済み波形** (Buffer_Wafer_TW PSIチャート)：
+- 2026-W01〜W27: 生産ゼロ（demand[w+26]がまだ0）
+- 2026-W28〜W52: 800/wk pre-build、I上昇（〜20,800 lots）
+- 2027-W01〜: P=S=800/wk（平坦）
+- 2027-W40〜: 生産534 < 消費800、I段階的低下
+- 2030-W13付近: I→0（製品ライフサイクル終了と同時に自然消滅）
+
+Foxconn_CN の生産シフトが TSMC_TW 経由で Buffer_Wafer_TW の在庫減少パターンとして
+伝播する「SC lane node間のPSI連動」を実現。
+
+**push_config.csv スキーマ（全フィールド）**：
+
+| フィールド | 説明 |
+| :---- | :---- |
+| `node_id` | decouplingノードのnode_id |
+| `push_qty_per_week` | Mode1: 固定週次生産量（>0でMode1） |
+| `buffer_lots` | Mode2/3: 目標バッファ在庫 |
+| `mode_only` | plan_modeフラグのみ設定（P-schedule上書きなし） |
+| `mom_ref_node_id` | Mode2: 需要参照ノード（空=decoupling node自身） |
+| `pre_build_qty_per_week` | Mode3: Phase1固定生産量 |
+| `pre_build_end_week` | Mode3: Phase1終了週ラベル（例: "2026-W52"） |
+| `push_lead_time_weeks` | Mode4: LTオフセット週数（優先度最高） |
+
+**Mode選択ロジック**：
+1. `push_qty_per_week > 0` → Mode 1（固定）
+2. `push_lead_time_weeks > 0` → Mode 4（LT-shifted、最優先）
+3. `pre_build_qty_per_week > 0` AND `pre_build_end_week` → Mode 3（時間軸分割）
+4. それ以外 → Mode 2（古典的補充）
+
+---
+
 ## v1r0m2 設計課題：Lead Time offset と DAD 回転在庫
 
 ### 背景（PySI v0r8 からの継承設計思想）
