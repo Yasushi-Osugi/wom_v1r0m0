@@ -276,16 +276,36 @@ class BackwardPlanner:
           1. Copy lot to node.P[w]                  (ideal: receive = ship)
           2. For each child:
              child.S[w - child.lt_wks] += lot       (child ships lt_wks earlier)
+
+        v1r0m2: Capacity envelope (JIT weekly synchronization)
+        -------------------------------------------------------
+        When node.cap_hard(w) > 0, only the first cap_hard(w) lots are
+        propagated to children (suppliers).  This models the MOM node as a
+        capacity pacemaker: suppliers receive exactly the capped supply order,
+        not the raw unconstrained market demand.
+
+        Effect: a step-function cap_hard at Foxconn_CN (3→2→1→0 shifts)
+        propagates backward through the entire InBound tree, so TSMC_TW,
+        Buffer_Wafer_TW, and SiliconWafer_TW all synchronize to the same
+        stepped production rhythm (JIT "drum-buffer-rope" behaviour).
+
+        Nodes with cap_hard(w) == 0.0 (unlimited) are unaffected.
         """
         for w in range(n_weeks):
-            for lot_id in list(node.psi4demand[w][S]):
-                # -- P = S  (ideal backward) --------------------------------
+            all_lots = list(node.psi4demand[w][S])
+
+            # -- P = S  (record full demand signal) -------------------------
+            for lot_id in all_lots:
                 node.psi4demand[w][P].append(lot_id)
 
-                # -- Propagate to each child (supplier) --------------------
+            # -- Capacity envelope: clip propagation at cap_hard(w) ---------
+            cap_w = node.cap_hard(w)
+            propagate_lots = all_lots[:int(cap_w)] if cap_w > 0 else all_lots
+
+            # -- Propagate (capped) lots to each child (supplier) -----------
+            for lot_id in propagate_lots:
                 for child in node.children:
-                    # v1r0m2: skip closure weeks of the child node when stepping back
-                    # ss_wks adds safety stock buffer on top of lead time
+                    # v1r0m2: skip closure weeks; ss_wks adds safety-stock offset
                     child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
                     if child_w < 0:
                         result.record_past_due(child.node_id, lot_id, w)

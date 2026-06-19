@@ -3921,6 +3921,7 @@ class WOMApp(tk.Tk):
                                     buffer_lots=int(_pr.get("buffer_lots") or 0),
                                     sku_id=_pn,
                                     mode_only=_pr.get("mode_only", "").strip().lower() == "true",
+                                    mom_ref_node_id=_pr.get("mom_ref_node_id", "").strip(),
                                 )
                     if _push_cfgs:
                         print(f"[PushPull] Applying push config for {prod_nm}: {_push_cfgs}")
