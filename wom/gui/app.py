@@ -3924,6 +3924,7 @@ class WOMApp(tk.Tk):
                                     mom_ref_node_id=_pr.get("mom_ref_node_id", "").strip(),
                                     pre_build_qty_per_week=int(_pr.get("pre_build_qty_per_week") or 0),
                                     pre_build_end_week=_pr.get("pre_build_end_week", "").strip(),
+                                    push_lead_time_weeks=int(_pr.get("push_lead_time_weeks") or 0),
                                 )
                     if _push_cfgs:
                         print(f"[PushPull] Applying push config for {prod_nm}: {_push_cfgs}")
