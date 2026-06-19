@@ -68,6 +68,45 @@ BTN_EXP  = "#FF9800"
 
 
 # ──────────────────────────────────────────────────────────────────────
+# 4-4-5 Retail Calendar X-axis helper
+# ──────────────────────────────────────────────────────────────────────
+_445_MONTH_END_WEEKS = {4, 8, 13, 17, 21, 26, 30, 34, 39, 43, 47, 52}
+_445_WEEK_TO_MONTH   = {
+    4: 1, 8: 2, 13: 3, 17: 4, 21: 5, 26: 6,
+    30: 7, 34: 8, 39: 9, 43: 10, 47: 11, 52: 12,
+}
+_445_MONTH_ABBR = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _445_ticks(week_labels):
+    """
+    Return (tick_indices, tick_labels) for 4-4-5 monthly X-axis display.
+
+    Shows end-of-month ticks only (13 per year / ~39 ticks for 156-week model):
+      W04->Jan, W08->Feb, W13->Mar, W17->Apr, W21->May, W26->Jun,
+      W30->Jul, W34->Aug, W39->Sep, W43->Oct, W47->Nov, W52->Dec
+
+    Labels: "Mon'YY" (e.g., "Jan'27").
+    Returns ([], []) if week_labels are not in YYYY-Www format.
+    """
+    indices = []
+    labels  = []
+    for i, lbl in enumerate(week_labels):
+        try:
+            year_str, wk_str = lbl.split("-W")
+            wk = int(wk_str)
+        except Exception:
+            continue
+        if wk in _445_MONTH_END_WEEKS:
+            year  = int(year_str)
+            month = _445_WEEK_TO_MONTH[wk]
+            indices.append(i)
+            labels.append(f"{_445_MONTH_ABBR[month]}'{str(year)[2:]}")
+    return indices, labels
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Helper widgets
 # ──────────────────────────────────────────────────────────────────────
 
@@ -376,10 +415,15 @@ class ChartPanel(tk.Frame):
                     ha="center", va="center", color=FG_ACC,
                     transform=ax.transAxes, fontsize=10)
 
-        # x-axis tick labels (show every 13th = quarterly)
-        tick_step = max(1, n // 12)
-        ax.set_xticks(x[::tick_step])
-        ax.set_xticklabels(weeks[::tick_step], rotation=45, ha="right", fontsize=7)
+        # x-axis tick labels — 4-4-5 retail calendar monthly ticks
+        _t_idx, _t_lbl = _445_ticks(weeks)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=7)
+        else:
+            tick_step = max(1, n // 12)
+            ax.set_xticks(x[::tick_step])
+            ax.set_xticklabels(weeks[::tick_step], rotation=45, ha="right", fontsize=7)
         self._ax_style(ax, "Buffer Stock by Week — MOM Nodes (産地集荷センター玄米バッファ在庫)", "Lots (closing inventory)")
 
     def _plot_harvest_input(self, sku_filter: str) -> None:
@@ -440,9 +484,15 @@ class ChartPanel(tk.Frame):
                     ha="center", va="center", color=FG_ACC,
                     transform=ax.transAxes, fontsize=10)
 
-        tick_step = max(1, n // 12)
-        ax.set_xticks(x[::tick_step])
-        ax.set_xticklabels(weeks[::tick_step], rotation=45, ha="right", fontsize=7)
+        # x-axis tick labels — 4-4-5 retail calendar monthly ticks
+        _t_idx, _t_lbl = _445_ticks(weeks)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=7)
+        else:
+            tick_step = max(1, n // 12)
+            ax.set_xticks(x[::tick_step])
+            ax.set_xticklabels(weeks[::tick_step], rotation=45, ha="right", fontsize=7)
         self._ax_style(ax,
                        "Harvest Input by Week — 稲作田 週次収穫・出荷量 (leaf_in → 産地集荷センター)",
                        "Lots dispatched")
@@ -1380,12 +1430,17 @@ class PSIListPanel(tk.Frame):
             ax.axhline(max_cs, color="#FF9800", linewidth=1.5,
                        linestyle=":",  label=f"CapSoft = {max_cs:.0f}")
 
-        # X-axis ticks: sparse to avoid clutter
-        step = max(1, n // 6)
-        ticks = list(range(0, n, step))
-        ax.set_xticks(ticks)
-        ax.set_xticklabels([node.week_labels[i] for i in ticks],
-                           rotation=28, ha="right", fontsize=5)
+        # X-axis ticks: 4-4-5 retail calendar monthly ticks
+        _t_idx, _t_lbl = _445_ticks(node.week_labels)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=5)
+        else:
+            step = max(1, n // 6)
+            ticks = list(range(0, n, step))
+            ax.set_xticks(ticks)
+            ax.set_xticklabels([node.week_labels[i] for i in ticks],
+                               rotation=28, ha="right", fontsize=5)
 
         ax.set_ylabel("P (lots)", color=FG_ACC, fontsize=7)
         ax.set_title("P vs Capacity Limits", color=FG_WHITE, fontsize=8, pad=3)
@@ -1852,8 +1907,13 @@ class SCNetworkPanel(tk.Frame):
         ax2.tick_params(colors=FG_WHITE, labelsize=6)
         ax2.set_facecolor(BG_MID)
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(weeks, rotation=45, ha="right", fontsize=5)
+        _t_idx, _t_lbl = _445_ticks(weeks)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=6)
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels(weeks, rotation=45, ha="right", fontsize=5)
         ax.set_ylabel("Units", color=FG_ACC, fontsize=7)
         ax.tick_params(colors=FG_WHITE, labelsize=6)
         for spine in ax.spines.values():
@@ -1914,8 +1974,13 @@ class SCNetworkPanel(tk.Frame):
         ax2.tick_params(colors=FG_WHITE, labelsize=6)
         ax2.set_facecolor(BG_MID)
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(week_labels, rotation=45, ha="right", fontsize=5)
+        _t_idx, _t_lbl = _445_ticks(week_labels)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=6)
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels(week_labels, rotation=45, ha="right", fontsize=5)
         ax.set_ylabel("Units", color=FG_ACC, fontsize=7)
         ax.tick_params(colors=FG_WHITE, labelsize=6)
         for spine in ax.spines.values():
@@ -2038,8 +2103,13 @@ class SCNetworkPanel(tk.Frame):
                 color="#FF9800", linewidth=1.8, markersize=4,
                 label="Revenue")
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(week_labels, rotation=45, ha="right", fontsize=5)
+        _t_idx, _t_lbl = _445_ticks(week_labels)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=6)
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels(week_labels, rotation=45, ha="right", fontsize=5)
         ax.set_ylabel("JPY", color=FG_ACC, fontsize=7)
         ax.tick_params(colors=FG_WHITE, labelsize=6)
         for spine in ax.spines.values():
@@ -2100,8 +2170,13 @@ class SCNetworkPanel(tk.Frame):
                 color="#FF9800", linewidth=1.8, markersize=4,
                 label="Revenue")
 
-        ax.set_xticks(x)
-        ax.set_xticklabels(weeks, rotation=45, ha="right", fontsize=5)
+        _t_idx, _t_lbl = _445_ticks(weeks)
+        if _t_idx:
+            ax.set_xticks(_t_idx)
+            ax.set_xticklabels(_t_lbl, rotation=0, ha="center", fontsize=5)
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels(weeks, rotation=45, ha="right", fontsize=5)
         ax.set_ylabel("USD", color=FG_ACC, fontsize=7)
         ax.tick_params(colors=FG_WHITE, labelsize=6)
         for spine in ax.spines.values():
@@ -3828,7 +3903,11 @@ class WOMApp(tk.Tk):
                           prod_nm=prod_nm, weeks=weeks, config=_cfg)
                 # Step 8: PUSH/PULL — apply before ForwardPlanner if push_config.csv provided
                 _push_path = self._f_push.get() if hasattr(self, "_f_push") else ""
-                if _push_path and os.path.exists(_push_path):
+                if not _push_path:
+                    print(f"[PushPull] push_config.csv not configured (skip for {prod_nm})")
+                elif not os.path.exists(_push_path):
+                    print(f"[PushPull] push_config.csv not found: {_push_path}")
+                else:
                     import csv as _csv
                     from wom.engine.push_pull import PushProductionPlanner, PushConfig
                     _push_cfgs = {}
@@ -3844,7 +3923,10 @@ class WOMApp(tk.Tk):
                                     mode_only=_pr.get("mode_only", "").strip().lower() == "true",
                                 )
                     if _push_cfgs:
+                        print(f"[PushPull] Applying push config for {prod_nm}: {_push_cfgs}")
                         PushProductionPlanner(sc_tree).setup_all(_push_cfgs)
+                    else:
+                        print(f"[PushPull] push_config.csv loaded but no rows matched sku_id={prod_nm}")
                 # Collect opening_inv from HarvestBatchPlugin if active
                 _harvest_plugin = getattr(self, '_plugin_instances', {}).get('harvest_batch')
                 _opening_inv = (
