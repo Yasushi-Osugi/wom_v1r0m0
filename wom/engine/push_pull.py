@@ -42,6 +42,12 @@ Mode 2 - Replenishment-to-buffer  (push_qty_per_week == 0):
         push[w] = max(buffer_lots - I_prev + demand_w, 0)
         I[w]    = max(I_prev + push[w] - demand_w, 0)
 
+Mode 3 - Time-phased (pre_build_qty_per_week > 0 AND pre_build_end_week set):
+    Phase 1 (w <= pre_build_end_week): fixed pre_build_qty_per_week
+        -> buffer accumulates intentionally (差分が積み上がる: pre-build intent)
+    Phase 2 (w > pre_build_end_week): classic order-up-to replenishment
+        from decoupling node itself (staircase signal, no further accumulation)
+
 Region-proportional lot assignment
 ------------------------------------
 PUSH lots must carry region tags to route correctly through SP -> DAD in
@@ -72,32 +78,42 @@ class PushConfig:
     """
     PUSH production configuration for one decoupling node.
 
-    node_id           : node_id of the decoupling node (MOM/InBound root)
-    push_qty_per_week : fixed lots/week (0 = replenishment mode)
-    buffer_lots       : target buffer inventory (replenishment + initial fill)
-    sku_id            : SKU for lot-ID generation (inferred from node_id if empty)
-    mode_only         : True = set plan_mode flags ONLY; do NOT overwrite leaf_in
-                        P-schedule.  Use when another plugin (e.g. HarvestBatch)
-                        has already placed the production schedule.
-    mom_ref_node_id   : node_id whose psi4demand[w][S] is used as the demand
-                        signal in replenishment mode.  Default "" = use the
-                        decoupling node itself.
-                        Set to the InBound MOM root (e.g. Foxconn_CN) to let
-                        SiliconWafer_TW respond to RAW market demand (before
-                        cap_hard clipping) rather than the already-capped signal
-                        at Buffer_Wafer_TW.  This implements the PUSH/PULL split:
-                          upstream (leaf_in -> decoupling): autonomous PUSH
-                          downstream (decoupling -> MOM):   JIT-synchronized PULL
+    node_id                : node_id of the decoupling node (MOM/InBound root)
+    push_qty_per_week      : fixed lots/week (0 = replenishment/time-phased mode)
+    buffer_lots            : target buffer inventory (replenishment + initial fill)
+    sku_id                 : SKU for lot-ID generation (inferred from node_id if empty)
+    mode_only              : True = set plan_mode flags ONLY; do NOT overwrite leaf_in
+                             P-schedule.  Use when another plugin (e.g. HarvestBatch)
+                             has already placed the production schedule.
+    mom_ref_node_id        : node_id whose psi4demand[w][S] is used as the demand
+                             signal in replenishment mode.  Default "" = use the
+                             decoupling node itself (classic staircase-tracking).
+                             Set to the InBound MOM root (e.g. Foxconn_CN) to let
+                             SiliconWafer_TW respond to RAW market demand (before
+                             cap_hard clipping).
+    pre_build_qty_per_week : Phase 1 fixed production qty (lots/week).
+                             When > 0 AND pre_build_end_week is set, enables
+                             Mode 3 (time-phased):
+                               Phase 1: explicit pre-build (差分が積み上がる)
+                               Phase 2: classic staircase-tracking replenishment
+    pre_build_end_week     : ISO week label (e.g. "2026-W52") marking the last
+                             week of Phase 1 pre-build.  Phase 2 starts the
+                             following week.
     """
-    node_id:           str
-    push_qty_per_week: int  = 0
-    buffer_lots:       int  = 0
-    sku_id:            str  = ""
-    mode_only:         bool = False
-    mom_ref_node_id:   str  = ""
+    node_id:                str
+    push_qty_per_week:      int  = 0
+    buffer_lots:            int  = 0
+    sku_id:                 str  = ""
+    mode_only:              bool = False
+    mom_ref_node_id:        str  = ""
+    pre_build_qty_per_week: int  = 0
+    pre_build_end_week:     str  = ""
 
     def is_fixed_mode(self) -> bool:
         return self.push_qty_per_week > 0
+
+    def is_time_phased_mode(self) -> bool:
+        return self.pre_build_qty_per_week > 0 and bool(self.pre_build_end_week)
 
     def effective_sku(self) -> str:
         if self.sku_id:
@@ -148,14 +164,18 @@ class PushProductionPlanner:
         2. Mark all InBound nodes BELOW it as plan_mode="push_sub".
            ForwardPlanner._process_node treats push_sub nodes as pass-through
            (ship ALL available supply upward, no demand gate).
-        3. Compute push quantities per week.
+        3. Compute push quantities per week (mode 1 / 2 / 3).
         4. Compute total regional demand ratio for lot tagging.
         5. Generate + assign lots to each leaf_in.
         """
         n_weeks = self.sc_tree.num_weeks()
         result  = PushSetupResult(
             prod_nm = prod_nm,
-            mode    = "fixed" if config.is_fixed_mode() else "replenishment",
+            mode    = (
+                "fixed"       if config.is_fixed_mode()       else
+                "time_phased" if config.is_time_phased_mode() else
+                "replenishment"
+            ),
         )
 
         # 1. Locate decoupling node
@@ -168,10 +188,10 @@ class PushProductionPlanner:
         # 1b. Locate demand reference node for replenishment signal.
         #     Default = decoupling node itself (classic behaviour).
         #     When mom_ref_node_id is set (e.g. Foxconn_CN), replenishment
-        #     reads RAW market demand before cap_hard clipping, implementing
-        #     the PUSH/PULL break-point at the decoupling node.
+        #     reads RAW market demand before cap_hard clipping.
+        #     Not used in time_phased mode (Phase 2 always uses decoupling node).
         demand_ref_node = decoupling_node
-        if config.mom_ref_node_id:
+        if config.mom_ref_node_id and not config.is_time_phased_mode():
             _ref = self._find_node(prod_nm, config.mom_ref_node_id)
             if _ref is not None:
                 demand_ref_node = _ref
@@ -189,7 +209,7 @@ class PushProductionPlanner:
             if node is not decoupling_node:
                 node.plan_mode = PUSH_SUB_MODE   # pass-through pipeline
 
-        # 3. Compute push quantities (demand signal from demand_ref_node)
+        # 3. Compute push quantities
         push_qtys = self._compute_push_quantities(
             decoupling_node, config, n_weeks, demand_ref_node
         )
@@ -257,11 +277,58 @@ class PushProductionPlanner:
     ) -> List[int]:
         if config.is_fixed_mode():
             return [config.push_qty_per_week] * n_weeks
-        # replenishment mode: use demand_ref_node if provided, else decoupling_node
+        # Mode 3: time-phased (pre-build + classic replenishment)
+        if config.is_time_phased_mode():
+            return self._time_phased_schedule(decoupling_node, config, n_weeks)
+        # Mode 2: classic replenishment
         ref = demand_ref_node if demand_ref_node is not None else decoupling_node
-        return self._replenishment_schedule(
-            ref, config.buffer_lots, n_weeks
-        )
+        return self._replenishment_schedule(ref, config.buffer_lots, n_weeks)
+
+    def _time_phased_schedule(
+        self,
+        decoupling_node: PlanNode,
+        config:          PushConfig,
+        n_weeks:         int,
+    ) -> List[int]:
+        """
+        Two-phase production schedule:
+
+        Phase 1 (w <= pre_build_end_week):
+            Fixed pre_build_qty_per_week — explicit external pre-build.
+            demand = 0 during this period → buffer accumulates intentionally.
+            (差分が積み上がる: designed to pre-fill the DBR buffer.)
+
+        Phase 2 (w > pre_build_end_week):
+            Classic order-up-to replenishment from decoupling_node itself.
+            demand signal = staircase (cap_hard-clipped) → production = staircase.
+            No further gap accumulation; pre-built inventory remains as cushion.
+        """
+        week_labels = self.sc_tree.week_labels
+
+        # Determine Phase 2 start index (first week AFTER pre_build_end_week)
+        cutoff = n_weeks
+        for i, label in enumerate(week_labels):
+            if label > config.pre_build_end_week:
+                cutoff = i
+                break
+
+        # Phase 1: explicit fixed pre-build
+        schedule: List[int] = [config.pre_build_qty_per_week] * min(cutoff, n_weeks)
+
+        # Phase 2: classic order-up-to from decoupling node (staircase signal)
+        # I_prev = buffer_lots: assumes buffer at target at Phase 2 start.
+        # Formula: push[w] = max(buffer_lots - I_prev + demand_w, 0)
+        # With I_prev = buffer_lots → push[w] = demand_w (steady-state: produce = consume).
+        I_prev = config.buffer_lots
+        for w in range(cutoff, n_weeks):
+            demand_w = len(decoupling_node.psi4demand[w][S])
+            deficit  = max(config.buffer_lots - I_prev + demand_w, 0)
+            push_w   = deficit
+            I_w      = max(I_prev + push_w - demand_w, 0)
+            schedule.append(push_w)
+            I_prev = I_w
+
+        return schedule
 
     def _replenishment_schedule(
         self,
@@ -274,17 +341,13 @@ class PushProductionPlanner:
         push[w] = max(buffer_lots - I_prev + demand_w, 0)
         I[w]    = max(I_prev + push[w] - demand_w, 0)
 
-        NOTE: I_prev starts at 0 (actual initial inventory is empty).
-        Week 0 will produce buffer_lots + demand_0 to pre-fill the buffer.
+        I_prev starts at buffer_lots (buffer assumed full at start).
         Subsequent weeks produce only demand_w (steady-state replenishment).
 
         v1r0m2 PUSH/PULL break-point (DBR design):
         When called with mom = Foxconn_CN (InBound MOM root), demand_w reflects
-        RAW market demand BEFORE cap_hard clipping.  This means SiliconWafer_TW
-        produces to meet market need, not Foxconn_CN's capacity-constrained
-        output.  The gap between SiliconWafer_TW supply and TSMC_TW actual
-        consumption accumulates as buffer inventory at Buffer_Wafer_TW (the
-        decoupling node), making it a true DBR buffer.
+        RAW market demand BEFORE cap_hard clipping.  The gap between production
+        and actual cap-constrained consumption accumulates as buffer inventory.
 
         When called with mom = Buffer_Wafer_TW (classic), demand_w is the
         already-capped staircase signal -> steady-state push ≈ staircase.
