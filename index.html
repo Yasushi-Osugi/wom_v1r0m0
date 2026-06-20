@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOM CLAUDE.md Knowledge Viewer — v1r0m2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;min-height:100vh}
+.app{max-width:1100px;margin:0 auto;padding:16px}
+.header{padding:12px 0 14px;border-bottom:1px solid #d3d1c7;margin-bottom:14px;display:flex;align-items:baseline;gap:12px}
+.header h1{font-size:16px;font-weight:600;color:#1a1a18}
+.header span{font-size:12px;color:#888780}
+.viewer{display:flex;gap:0;border:1px solid #d3d1c7;border-radius:12px;overflow:hidden;background:#fff;min-height:580px}
+.sidebar{width:185px;min-width:185px;background:#f5f4f0;border-right:1px solid #d3d1c7;display:flex;flex-direction:column}
+.sb-head{padding:10px 13px 5px;font-size:10px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.07em}
+.nav-item{padding:9px 13px;font-size:12.5px;cursor:pointer;color:#5f5e5a;border-left:2px solid transparent;display:flex;align-items:center;gap:7px;line-height:1.3;transition:all .12s}
+.nav-item:hover{color:#1a1a18;background:#eeede8}
+.nav-item.active{color:#1a1a18;background:#fff;border-left-color:#378add;font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.vheader{padding:12px 18px 9px;border-bottom:1px solid #e8e6e0;flex-shrink:0}
+.vtitle{font-size:15px;font-weight:600;color:#1a1a18}
+.vdesc{font-size:11.5px;color:#5f5e5a;margin-top:3px;line-height:1.4}
+.diagram{flex:1;overflow:auto;padding:4px 0;min-height:420px}
+.detail{width:200px;min-width:200px;border-left:1px solid #d3d1c7;padding:13px;overflow-y:auto;background:#f9f8f4;display:flex;flex-direction:column;gap:9px}
+.dt{font-size:12.5px;font-weight:600;color:#1a1a18;line-height:1.3}
+.db{font-size:11px;color:#5f5e5a;line-height:1.55}
+.dtags{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.tag{font-size:10px;padding:2px 7px;border-radius:99px;background:#e6f1fb;color:#0c447c;font-weight:500}
+.dhint{font-size:10px;color:#b4b2a9;font-style:italic;margin-top:auto;padding-top:10px;border-top:1px solid #e8e6e0;line-height:1.5}
+.askbtn{font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid #d3d1c7;background:#fff;color:#5f5e5a;cursor:pointer;width:100%;margin-top:4px;transition:all .12s}
+.askbtn:hover{background:#f5f4f0;color:#1a1a18}
+.badge{display:inline-block;font-size:9.5px;padding:1px 6px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.footer{padding:12px 0;font-size:11px;color:#b4b2a9;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>WOM CLAUDE.md Knowledge Viewer</h1>
+    <span>v1r0m2 · GitHub: Yasushi-Osugi/wom_v1r0m0 · 自動解析済み</span>
+  </div>
+
+  <div class="viewer">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main">
+      <div class="vheader">
+        <div class="vtitle" id="vtitle">—</div>
+        <div class="vdesc" id="vdesc">—</div>
+      </div>
+      <div class="diagram" id="diagram"></div>
+    </div>
+    <div class="detail">
+      <div class="dt" id="dt">ノードをクリック</div>
+      <div class="db" id="db">ダイアグラム上の要素をクリックすると詳細が表示されます。</div>
+      <div class="dtags" id="dtags"></div>
+      <div class="dhint">ノードをクリック → 詳細表示<br><br>このViewerはCLAUDE.mdを自動解析して生成されました。</div>
+      <button class="askbtn" id="askbtn" onclick="copyAsk()">📋 質問をコピー</button>
+    </div>
+  </div>
+  <div class="footer">WOM Knowledge Viewer — CLAUDE.md → Interactive Viewer · Vibe Coding × 知識体系可視化</div>
+</div>
+
+<script>
+const DATA = {
+  project: "WOM v1r0m2",
+  sections: [
+    {
+      id:"arch", title:"三層アーキテクチャ", color:"purple",
+      desc:"Physical / Planning / Management の3層構造。Planning Engineが中核。app.pyが約3900行の単一ファイルでGUIを実装。",
+      nodes:[
+        {id:"phy", label:"Physical層", sub:"ノード/地図/NetworkX",
+         detail:"実ノードと地図表示を担う基盤層。WorldMapPanel（起動時初期タブ）がtkintermapviewで世界地図上にノードを可視化。_render_nodes()後にself.after(200, self._fit_to_nodes)でauto-zoom。",
+         tags:["WorldMapPanel","tkintermapview","NetworkX","node_master","起動時初期タブ"]},
+        {id:"plan", label:"Planning層", sub:"SCTree + PSI計画エンジン",
+         detail:"BackwardPlanner→ForwardPlannerの順で実行する10ステップのPlanning Engine。PSI4demand/PSI4supplyの2バケット構造。HookBusプラグインが5点で介入可能。",
+         tags:["BackwardPlanner","ForwardPlanner","PSI","SCTree","HookBus","10ステップ"]},
+        {id:"mgmt", label:"Management層", sub:"KPI / PPC / P&L",
+         detail:"ManagementPanel・PPCPanel・ChartPanel・NetworkPanelの4主要パネル。PPC engine（Revenue→COGS→Gross Profit）とLanded Cost engineが自動実行。",
+         tags:["ManagementPanel","PPCPanel","KPI","PPC","LandedCost","ChartPanel"]},
+        {id:"hookbus", label:"HookBus", sub:"5フック・4プラグイン",
+         detail:"HOOK_PRE_PLAN / POST_BACKWARD / POST_COPY / POST_FORWARD / POST_PLANの5フック。HarvestBatch・HolidayCalendar・CapacityOverride・DemandSmoothingの4組み込みプラグイン。新プラグインはWOMPluginを継承してALL_BUILTIN_PLUGINSに追加。",
+         tags:["HookBus","Plugin","HarvestBatch","HolidayCalendar","CapacityOverride","DemandSmoothing"]}
+      ],
+      edges:[
+        {from:"phy", to:"plan", label:"SCTree構築"},
+        {from:"plan", to:"mgmt", label:"KPI/PPC出力"},
+        {from:"hookbus", to:"plan", label:"5点で介入"}
+      ]
+    },
+    {
+      id:"sctree", title:"SCTree構造", color:"teal",
+      desc:"InBound（供給側）とOutBound（需要側）の二分木。MOM S = DAD P がブリッジ原則。",
+      nodes:[
+        {id:"leaf_in", label:"leaf_in", sub:"原材料・稲作田・ウェーハFab",
+         detail:"InBound leafノード。SiliconWafer_TW等の高固定費Fabが該当。自律PUSHで常時稼働型。調達LTとppc_supplier_costを保持。lot_idのregion部分はlot_id.split(':')[1]で抽出。",
+         tags:["InBound","PUSH","調達LT","leaf_in","SiliconWafer_TW"]},
+        {id:"mom", label:"MOM（母）", sub:"製造拠点・産地集荷センター",
+         detail:"InBound rootノード（Mother of Manufacturing）。psi4supply[w][I]に実際のバッファ在庫が蓄積。Foxconn_CNがDBRのDrum（ペースメーカー）。cap_hard staircase: 800→534→267→0/wk。",
+         tags:["InBound","製造","BufferStock","cap_hard","Drum","Foxconn_CN"]},
+        {id:"sp", label:"supply_point", sub:"InBound/OutBound Bridge",
+         detail:"HQ BridgeノードでInBoundとOutBoundを接続（MOM S=DAD P）。Multi-MOM配分比率をlane_assignment.csvで管理。Tariff&FX影響額（Landed Cost）の集約点。",
+         tags:["Bridge","MOM_S_DAD_P","lane_assignment","HQ","Tariff","FX"]},
+        {id:"dad", label:"DAD（父）", sub:"倉庫・DC（v1r0m2で回転在庫追加）",
+         detail:"OutBoundノード（Demand Anchored Decoupling point）。v1r0m1はpass-through設計でpsi4supply[w][I]=0（需要アンカー型ロット方式）。v1r0m2でDAD回転在庫を実装予定（★★★優先度）。",
+         tags:["OutBound","DC","pass-through","v1r0m2","回転在庫","decoupling"]},
+        {id:"leaf_out", label:"leaf_out", sub:"販売チャネル（region必須）",
+         detail:"OutBound leafノード。region属性が必須（sc_tree_master.csvのleaf_out node_name例: Retail_AMER, Retail_EMEA）。需要予測・Fill Rate・Revenue計算の起点。sc_tree_to_planning_df()がleaf_outのみを処理。",
+         tags:["OutBound","需要","FillRate","Revenue","region","Retail_AMER"]}
+      ],
+      edges:[
+        {from:"leaf_in", to:"mom", label:"PUSH伝播"},
+        {from:"mom", to:"sp", label:"InBound→Bridge"},
+        {from:"sp", to:"dad", label:"Bridge→DC"},
+        {from:"dad", to:"leaf_out", label:"DC→販売チャネル"}
+      ]
+    },
+    {
+      id:"planner", title:"Planning Engine 10ステップ", color:"blue",
+      desc:"demand_forecast.csv → lot生成 → BackwardPlanner → copy → ForwardPlanner → PPC の実行順序。",
+      nodes:[
+        {id:"lot_gen", label:"需要ロット生成", sub:"demand_forecast.csv → lot_id付与",
+         detail:"demand_forecast.csvからlot_idとweekを付与した需要ロットを生成（lot_generator.py）。STEP1。lot_id構造でlot_id.split(':')[1]がregion。sc_tree_master.csvでSCTree構築（STEP2）。",
+         tags:["lot_generator","demand_forecast","lot_id","STEP1","STEP2","sc_tree_builder"]},
+        {id:"pre_hook", label:"HOOK_PRE_PLAN", sub:"HarvestBatch等が介入",
+         detail:"STEP3。HarvestBatchPluginが収穫期バッチ生産を設定。HolidayCalendarPluginがcap_hard設定とexplicit_closuresをPlanningContextに書き込む（v1r0m2設計）。",
+         tags:["HOOK_PRE_PLAN","HarvestBatch","HolidayCalendar","cap_hard","explicit_closures"]},
+        {id:"bwd", label:"BackwardPlanner", sub:"leaf_out → 上流へ逆伝播（STEP4）",
+         detail:"STEP4。leaf_outから上流へ需要を逆伝播。v1r0m2でweek_idx -= lead_time_weeksのLT offsetと閉鎖週スキップを追加予定。cap_hard envelopeによるJIT同期（commit 7a22648）実装済み。Multi-MOMパスで_build_lot_leaf_index実装済み（iPhoneモデルのAttributeError修正）。",
+         tags:["BackwardPlanner","STEP4","LT_offset","cap_hard_envelope","JIT","commit_7a22648"]},
+        {id:"copy", label:"copy_demand_to_supply", sub:"psi4demand → psi4supply（STEP6）",
+         detail:"STEP5: HOOK_POST_BACKWARD、STEP6: copy_demand_to_supply()でpsi4demand→psi4supplyへコピー。STEP7: HOOK_POST_COPYプラグインが介入可能。",
+         tags:["psi4demand","psi4supply","STEP6","HOOK_POST_COPY","コピー"]},
+        {id:"fwd", label:"ForwardPlanner", sub:"能力制約を適用・CO生成（STEP8）",
+         detail:"STEP8。供給能力制約（cap_hard）を適用してCO（Carry Over繰越需要）を生成。STEP9: HOOK_POST_FORWARD/POST_PLAN。STEP10: sc_tree_to_planning_df()でKPI DataFrame生成（leaf_outのみ処理）。v1r0m2でDADノード在庫計算を追加予定。",
+         tags:["ForwardPlanner","STEP8","cap_hard","CO","CarryOver","sc_tree_to_planning_df"]},
+        {id:"ppc_eng", label:"PPC Engine", sub:"自動実行（STEP11相当）",
+         detail:"_run_ppc_from_planning()がPlanning完了後に自動実行。ppc_market_price.csv・ppc_supplier_cost.csv・ppc_node_cost_rule.csvを入力。Revenue→COGS→Gross Profit→Profit Zoneを計算。GUIのPPCタブに表示。",
+         tags:["PPC","Revenue","COGS","GrossProfit","ProfitZone","自動実行"]}
+      ],
+      edges:[
+        {from:"lot_gen", to:"pre_hook", label:"SCTree構築後"},
+        {from:"pre_hook", to:"bwd", label:"HOOK_PRE_PLAN"},
+        {from:"bwd", to:"copy", label:"Backward完了"},
+        {from:"copy", to:"fwd", label:"supply確定"},
+        {from:"fwd", to:"ppc_eng", label:"計画完了→PPC"}
+      ]
+    },
+    {
+      id:"dbr", title:"DBR設計（iPhone Global SC）", color:"coral",
+      desc:"SiliconWafer → Buffer_Wafer → TSMC → Foxconn のPUSH/PULL構造。Drum-Buffer-Rope設計。",
+      nodes:[
+        {id:"sw", label:"SiliconWafer_TW", sub:"leaf_in（自律PUSH・常時稼働）",
+         detail:"InBound leaf_in。高固定費Fab＝常時稼働型。自律PUSHで週次固定量を生産。Buffer_Wafer_TWに供給。push_config.csvでmode_only設定。",
+         tags:["leaf_in","PUSH","高固定費","Fab","SiliconWafer","常時稼働"]},
+        {id:"buf", label:"Buffer_Wafer_TW", sub:"PUSH/PULL break-point（Mode 4）",
+         detail:"decouplingノード。Mode 4 LT-shifted PUSH（push_lead_time_weeks=26）で制御。PSI4フェーズ: Pre-build（〜W27: 生産0）→ Pre-build積上（W28〜W52: 800/wk, I→20,800）→ Steady（P=S=800）→ Staircase gap（534→267→0）→ EOL stop。2030-W13付近にI→0。",
+         tags:["decoupling","Mode4","LT-shifted","push_lead_time_weeks_26","Buffer","EOL"]},
+        {id:"tsmc", label:"TSMC_TW", sub:"PULL（Foxconn cap_hardに同期）",
+         detail:"cap_hard envelopeでFoxconn_CNのスケジュールにJIT同期（commit 7a22648）。Buffer_Wafer_TWからウェーハを受け取りチップを製造してFoxconn_CNへ供給。",
+         tags:["PULL","JIT","cap_hard_envelope","同期","TSMC","commit_7a22648"]},
+        {id:"fox", label:"Foxconn_CN", sub:"Drum（DBRペースメーカー・MOM）",
+         detail:"DBRのDrum = ペースメーカー。cap_hard staircase: 800→534→267→0 lots/wk。このリズムがSC全体に伝播。_in_propagateでall_lots[:int(cap_w)]にクリップ。commit 7a22648で実装済み。",
+         tags:["Drum","DBR","cap_hard","staircase","MOM","Foxconn","ペースメーカー"]}
+      ],
+      edges:[
+        {from:"sw", to:"buf", label:"ウェーハFab PUSH"},
+        {from:"buf", to:"tsmc", label:"ウェーハ供給"},
+        {from:"tsmc", to:"fox", label:"チップ→Foxconn組立"}
+      ]
+    },
+    {
+      id:"kpi", title:"KPI Framework（3次元）", color:"amber",
+      desc:"空間軸（SCノード）× 財務軸（KPI）× 時間軸（週次PSI）の3次元アーキテクチャ。静的財務報告でなく「活きたKPI」。",
+      nodes:[
+        {id:"kpi_rev", label:"Revenue（売上高）", sub:"leaf_out × market_price × Fill Rate",
+         detail:"Σ leaf_out.psi4supply[w][S] × ppc_market_price の週次集計。Fill Rate（S実績/S計画）と需要予測精度が売上高成長率のドライバー。Scenario Upside/Downside感応度も連動。",
+         tags:["Revenue","FillRate","market_price","leaf_out","売上高成長率","感応度"]},
+        {id:"kpi_cogs", label:"COGS（売上原価）", sub:"直材費＋製造費＋Tariff&FX",
+         detail:"Σ leaf_in.psi4supply[w][P]×supplier_cost + Σ node.psi4supply[w][P]×node_cost + Landed Cost（Tariff&FX）の合計。Air輸送発生率（edge_cost Airシナリオ）が物流コスト比率を大きく左右。",
+         tags:["COGS","直材費","製造費","LandedCost","Air輸送","Tariff","FX"]},
+        {id:"kpi_inv", label:"棚卸資産回転日数", sub:"MOM在庫（v1r0m2でDAD追加）★★★",
+         detail:"現行: Σ MOM.psi4supply[w][I]×unit_cost。v1r0m2以降: DAD.psi4supply[w][I]を追加（★★★最優先）。工場安全在庫日数・工場仕掛在庫日数（LT実装後）・販社在庫日数（DAD実装後）の3要素が揃うとROE接続が完成。",
+         tags:["在庫回転","MOM在庫","DAD在庫","v1r0m2","資産コスト","★★★","ROE接続"]},
+        {id:"kpi_roe", label:"ROE（統合目標）", sub:"事業損益 ÷ 資産コスト（週次分解可能）",
+         detail:"WOM KPIフレームワークの頂点。Supply Shock（台風・関税引上げ）がROEに波及する因果連鎖を週次アニメーションで可視化可能。特定週のScenario Delta（Upside/Downside）が財務KPIに与える感応度をリアルタイム確認。",
+         tags:["ROE","因果連鎖","Scenario","感応度","週次アニメーション","Supply_Shock"]}
+      ],
+      edges:[
+        {from:"kpi_rev", to:"kpi_roe", label:"売上貢献"},
+        {from:"kpi_cogs", to:"kpi_roe", label:"原価影響"},
+        {from:"kpi_inv", to:"kpi_roe", label:"資産コスト→ROE"}
+      ]
+    },
+    {
+      id:"v1r0m2", title:"v1r0m2 実装計画", color:"green",
+      desc:"Lead Time offset・DAD回転在庫・KPI完全性の3テーマ。★★★が最優先。",
+      nodes:[
+        {id:"lt", label:"LT Offset実装", sub:"BackwardPlanner拡張 ★★★",
+         detail:"week_idx -= lead_time_weeksをBackwardPlannerに追加。HolidayCalendarPluginがHOOK_PRE_PLANでexplicit_closures dict（node_name→set[week_idx]）をPlanningContextに書き込む。BackwardPlannerは直接依存せず参照のみ（疎結合）。O(1) lookup。影響ファイル: backward_planner.py, sc_tree.py, sc_tree_master.csv（lead_time_weeks列追加）。",
+         tags:["LT_offset","BackwardPlanner","explicit_closures","PlanningContext","疎結合","★★★"]},
+        {id:"dad_inv", label:"DAD回転在庫", sub:"ForwardPlanner拡張 ★★★",
+         detail:"DADノードのpsi4supply[w][I]を0固定（pass-through）から解放。ForwardPlannerにDADノード在庫計算を追加。sc_tree_to_planning_df()もDADノードをKPI DataFrame対象に拡張。影響ファイル: forward_planner.py, sc_tree_to_df.py。",
+         tags:["DAD","回転在庫","ForwardPlanner","sc_tree_to_df","KPI DataFrame","★★★"]},
+        {id:"fillrate", label:"Fill Rate KPI表示", sub:"Managementタブ追加 ★★",
+         detail:"S実績/S計画の週次Fill Rate計算をManagementタブに追加。販売機会損失率の定量化に直結。leaf_outのpsi4supply[w][S]を使用。",
+         tags:["FillRate","KPI","ManagementPanel","販売機会損失","週次","★★"]},
+        {id:"inv_turn", label:"棚卸資産回転日数", sub:"Managementタブ追加 ★★",
+         detail:"MOM在庫+DAD在庫（v1r0m2以降）の棚卸資産回転日数をManagementタブに追加。ROEへの接続を完成させる。DAD回転在庫実装後に実施。",
+         tags:["棚卸資産","回転日数","ROE接続","Managementタブ","★★","DAD実装後"]}
+      ],
+      edges:[
+        {from:"lt", to:"dad_inv", label:"LT確定後に着手"},
+        {from:"dad_inv", to:"inv_turn", label:"DAD在庫→回転日数"},
+        {from:"fillrate", to:"inv_turn", label:"KPI完全性"}
+      ]
+    },
+    {
+      id:"csv", title:"Master CSV スキーマ", color:"gray",
+      desc:"モデルフォルダ必須ファイル群。data/sample/配下にフラット配置（サブフォルダ未使用）。",
+      nodes:[
+        {id:"node_m", label:"node_master.csv", sub:"node_id・lat/lon・node_type",
+         detail:"WorldMapの_MAP_NODE_STYLEと整合必須。procurement=オレンジ, mother_plant=紫, sku_supplier=緑, region_dc=青, marketing=赤。sc_tree_master.csvのnode_type（WOMモデル用語）とは別体系。",
+         tags:["node_master","lat/lon","node_type","WorldMap","_MAP_NODE_STYLE","スタイル"]},
+        {id:"sc_tree_m", label:"sc_tree_master.csv", sub:"SCTree構造定義（v1r0m2でLT列追加）",
+         detail:"node_name, product_nameが主キー。v1r0m2でlead_time_weeks列追加予定。node_typeはWOMモデル用語（mom/dad/leaf_in/leaf_out/supply_point）を使用。rice-japan-2027-2028/を参考に全CSVを揃えること。",
+         tags:["sc_tree","LT","v1r0m2","WOMモデル用語","mom","dad","supply_point"]},
+        {id:"demand_f", label:"demand_forecast.csv", sub:"sku_id・region・week（週次需要起点）",
+         detail:"週次需要予測の起点。lot_generatorがこのCSVからlot_id付き需要ロットを生成。regionはleaf_outのregion属性と対応。iPhoneモデル: data/sample/iphone-2027-2029/。",
+         tags:["demand_forecast","lot_generator","region","週次","sku_id","iphone"]},
+        {id:"push_c", label:"push_config.csv", sub:"PUSHモード設定（Mode 1〜4）",
+         detail:"Mode選択: push_qty_per_week>0→Mode1（固定）、push_lead_time_weeks>0→Mode4（LT-shifted、最優先）、pre_build系→Mode3（時間軸分割）、それ以外→Mode2（補充）。Buffer_Wafer_TW: push_lead_time_weeks=26でライフサイクルPSIを自動生成。",
+         tags:["push_config","Mode4","LT-shifted","decoupling","Mode1","Mode2","Mode3"]},
+        {id:"edge_cost", label:"edge_cost_master.csv", sub:"輸送コストシナリオ別",
+         detail:"scenario・src_region・dst_regionが主キー。Base/FreightUp/DriverShortage等のシナリオ別コスト。ManagementタブのTariff&FXパネルに表示。Phase 1: 単純平均按分。Phase 2: 出荷量加重按分（予定）。",
+         tags:["edge_cost","Tariff","FX","LandedCost","シナリオ","Phase1","Phase2"]}
+      ],
+      edges:[
+        {from:"node_m", to:"sc_tree_m", label:"ノードID参照"},
+        {from:"demand_f", to:"push_c", label:"需要信号"},
+        {from:"sc_tree_m", to:"edge_cost", label:"ルート・LT定義"}
+      ]
+    },
+    {
+      id:"bugs", title:"既知バグ修正履歴", color:"pink",
+      desc:"新しいClaude君（AI）へ引き継ぐバグ修正の記録。再発防止のための設計注意事項。",
+      nodes:[
+        {id:"bug1", label:"HolidayCalendarPlugin MemoryError", sub:"修正済み",
+         detail:"on_post_backwardでcap_hard(w)==0.0で閉鎖週判定していたが、plan_node.pyがデフォルト全週cap_hard=0.0に初期化するため全週閉鎖扱いになりdisplaced lotsが指数的増加してMemoryError。修正: explicit_closures dictを構築しCSVに明示定義した週のみ閉鎖週とする。",
+         tags:["HolidayCalendar","MemoryError","cap_hard","explicit_closures","修正済"]},
+        {id:"bug2", label:"_build_lot_leaf_index 未実装", sub:"修正済み（iPhone AttributeError）",
+         detail:"backward_planner.pyの多MOMパスで_build_lot_leaf_indexを呼び出していたが未実装だった（iPhoneモデルでAttributeError）。修正: OTツリーのleaf_outノードを走査してlot_id→PlanNodeインデックスを構築。leaf.regionはlot_id.split(':')[1]で抽出。",
+         tags:["BackwardPlanner","MultiMOM","AttributeError","lot_id","修正済","iPhone"]},
+        {id:"bug3", label:"holiday_calendar.csvノード名誤り", sub:"修正済み",
+         detail:"demand_multiplier行のノード名がSales_US_iPhone16/Sales_EU_iPhone16（存在しない）。正しくはRetail_AMER/Retail_EMEA（sc_tree_master.csvのleaf_out node_name）。",
+         tags:["holiday_calendar","ノード名","Retail_AMER","Retail_EMEA","修正済"]},
+        {id:"bug4", label:"ファイルnullバイト汚染", sub:"修正済み（Windowsコピー起因）",
+         detail:"v1r0m1のbackward_planner.pyとholiday_calendar.csvにnullバイト混入（Windowsでのコピー操作が原因の可能性）。Linux bashのcpで上書きして修復。app.pyはLinux bashで約172KB切り捨て→Windowsで構文チェック: python -c \"import ast; ast.parse(open('wom/gui/app.py').read())\"",
+         tags:["nullバイト","Windows","bash","app.py","172KB","構文チェック","修正済"]}
+      ],
+      edges:[
+        {from:"bug1", to:"bug2", label:"同一プラグイン系"},
+        {from:"bug3", to:"bug1", label:"ノード名不一致が原因"}
+      ]
+    }
+  ]
+};
+
+const COLORS={purple:'#7F77DD',teal:'#1D9E75',coral:'#D85A30',blue:'#378ADD',amber:'#BA7517',green:'#639922',gray:'#888780',pink:'#D4537E'};
+const FILLS={purple:'#EEEDFE',teal:'#E1F5EE',coral:'#FAECE7',blue:'#E6F1FB',amber:'#FAEEDA',green:'#EAF3DE',gray:'#F1EFE8',pink:'#FBEAF0'};
+const TEXTS={purple:'#3C3489',teal:'#085041',coral:'#712B13',blue:'#0C447C',amber:'#633806',green:'#27500A',gray:'#444441',pink:'#72243E'};
+
+let currentAsk='WOMのアーキテクチャについて説明してください';
+
+function init(){
+  const sb=document.getElementById('sidebar');
+  sb.innerHTML=`<div class="sb-head">${DATA.project}</div>`;
+  DATA.sections.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='nav-item'+(i===0?' active':'');
+    el.id='nav-'+s.id;
+    el.innerHTML=`<span class="dot" style="background:${COLORS[s.color]||COLORS.gray}"></span>${s.title}`;
+    el.onclick=()=>showSection(s.id);
+    sb.appendChild(el);
+  });
+  showSection(DATA.sections[0].id);
+}
+
+function showSection(id){
+  const s=DATA.sections.find(x=>x.id===id);
+  if(!s)return;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const nav=document.getElementById('nav-'+id);
+  if(nav)nav.classList.add('active');
+  document.getElementById('vtitle').textContent=s.title;
+  document.getElementById('vdesc').textContent=s.desc;
+  currentAsk=`WOMの「${s.title}」について詳しく説明してください`;
+  clearDet();
+  renderDiagram(s);
+}
+
+function renderDiagram(s){
+  const nodes=s.nodes||[],edges=s.edges||[];
+  const col=s.color||'gray';
+  const fill=FILLS[col],stroke=COLORS[col],txt=TEXTS[col];
+  const W=430,NW=126,NH=60,GAP=16,PAD=26;
+  const cols=Math.min(3,nodes.length);
+  const rows=Math.ceil(nodes.length/cols);
+  const totalW=cols*NW+(cols-1)*GAP;
+  const startX=(W-totalW)/2;
+  const pos={};
+  nodes.forEach((n,i)=>{
+    const c=i%cols,r=Math.floor(i/cols);
+    pos[n.id]={x:startX+c*(NW+GAP),y:PAD+r*(NH+50)};
+  });
+  const H=PAD+rows*(NH+50)+20;
+  let lines='',nsvg='';
+  edges.forEach(e=>{
+    const a=pos[e.from],b=pos[e.to];
+    if(!a||!b)return;
+    const x1=a.x+NW/2,y1=a.y+NH,x2=b.x+NW/2,y2=b.y,my=(y1+y2)/2;
+    lines+=`<path d="M${x1} ${y1} C${x1} ${my+8} ${x2} ${my-8} ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="0.8" opacity="0.5" marker-end="url(#ar)"/>`;
+    if(e.label)lines+=`<text x="${(x1+x2)/2+6}" y="${my}" font-size="9" fill="${txt}" font-family="sans-serif" opacity="0.8">${e.label}</text>`;
+  });
+  nodes.forEach(n=>{
+    const p=pos[n.id];
+    if(!p)return;
+    const cx=p.x+NW/2;
+    const esc=s=>s.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    nsvg+=`<g style="cursor:pointer" onclick="selNode('${esc(n.label)}','${esc(n.detail||'')}','${esc((n.tags||[]).join(','))}')">
+      <rect x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="0.5"/>
+      <text x="${cx}" y="${p.y+22}" text-anchor="middle" font-size="12" font-weight="600" fill="${txt}" font-family="sans-serif">${n.label}</text>
+      <text x="${cx}" y="${p.y+41}" text-anchor="middle" font-size="9.5" fill="${txt}" font-family="sans-serif" opacity="0.8">${n.sub||''}</text>
+    </g>`;
+  });
+  document.getElementById('diagram').innerHTML=`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img"><title>${s.title}</title><defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>${lines}${nsvg}</svg>`;
+}
+
+function selNode(label,detail,tags){
+  document.getElementById('dt').textContent=label;
+  document.getElementById('db').textContent=detail||'詳細なし';
+  const tArr=tags?tags.split(',').filter(Boolean):[];
+  document.getElementById('dtags').innerHTML=tArr.map(t=>`<span class="tag">${t}</span>`).join('');
+  currentAsk=`WOMの「${label}」について詳しく説明してください`;
+}
+
+function clearDet(){
+  document.getElementById('dt').textContent='ノードをクリック';
+  document.getElementById('db').textContent='ダイアグラム上の要素をクリックすると詳細が表示されます。';
+  document.getElementById('dtags').innerHTML='';
+}
+
+function copyAsk(){
+  navigator.clipboard.writeText(currentAsk).then(()=>{
+    const btn=document.getElementById('askbtn');
+    btn.textContent='✓ コピーしました';
+    setTimeout(()=>{btn.textContent='📋 質問をコピー';},1800);
+  }).catch(()=>alert(currentAsk));
+}
+
+init();
+</script>
+</body>
+</html>
