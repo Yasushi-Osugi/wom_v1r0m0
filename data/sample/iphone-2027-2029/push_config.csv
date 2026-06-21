@@ -1,2 +1,1 @@
 sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks
-iPhone16,IN:mom:Buffer_Wafer_TW:iPhone16,0,1600,false,,,, 26

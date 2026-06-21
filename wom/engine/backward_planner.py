@@ -300,9 +300,21 @@ class BackwardPlanner:
 
             # -- Capacity envelope: clip propagation at cap_hard(w) ---------
             cap_w = node.cap_hard(w)
-            propagate_lots = all_lots[:int(cap_w)] if cap_w > 0 else all_lots
+            propagate_lots = list(all_lots[:int(cap_w)]) if cap_w > 0 else list(all_lots)
 
-            # -- Propagate (capped) lots to each child (supplier) -----------
+            # -- Decoupling node fill-up: InBound demand up to cap_hard -----
+            # Buffer nodes (is_decoupling) fill upstream demand to cap_hard.
+            # This ensures leaf_in (SiliconWafer_TW) sees a flat 800/wk
+            # demand signal even when downstream (Foxconn_CN) steps down.
+            # When received demand == 0 (EOL), nothing propagates → natural stop.
+            if (node.is_decoupling and cap_w > 0
+                    and len(all_lots) > 0
+                    and len(propagate_lots) < int(cap_w)):
+                fill_target = int(cap_w)
+                for _fi in range(len(propagate_lots), fill_target):
+                    propagate_lots.append(f"FILL:{node.node_name}:{w}:{_fi:05d}")
+
+            # -- Propagate (capped / filled) lots to each child (supplier) --
             for lot_id in propagate_lots:
                 for child in node.children:
                     # v1r0m2: skip closure weeks; ss_wks adds safety-stock offset

@@ -9,7 +9,7 @@ Retail_APAC,DC_APAC,iPhone16,leaf_out,outbound,1,1,APAC,APAC Retail / Online Sal
 Foxconn_CN,,iPhone16,mom,inbound,4,1,CN,Final Assembly — Foxconn Zhengzhou (EMEA/APAC),0,0
 TSMC_TW,Foxconn_CN,iPhone16,mom,inbound,6,1,TW,A18 SoC Wafer Fabrication — TSMC Taiwan,0,0
 Buffer_Wafer_TW,TSMC_TW,iPhone16,mom,inbound,0,1,TW,Silicon Wafer Buffer Warehouse (Decoupling Point),0,1
-SiliconWafer_TW,Buffer_Wafer_TW,iPhone16,leaf_in,inbound,2,1,TW,Silicon Wafer (raw material),0,0
+SiliconWafer_TW,Buffer_Wafer_TW,iPhone16,leaf_in,inbound,26,1,TW,Silicon Wafer (raw material),0,0
 Foxconn_IN,,iPhone16,mom,inbound,5,1,IN,Final Assembly — Foxconn Pune (AMER dedicated),0,0
 BoschSensor_IN,Foxconn_IN,iPhone16,leaf_in,inbound,3,1,IN,Sensors & Modules (India sourcing),0,0
 SP_iPhone15,,iPhone15,supply_point,outbound,0,1,,Supply Point bridge OT/IN,0,0

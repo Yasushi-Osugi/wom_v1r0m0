@@ -81,11 +81,12 @@ def build_tree_with_demand(cap_hard=0.0, cap_soft=0.0, demand_qty=4):
 def test_cap_hard_sealing():
     """
     CapHard=2, demand=4 at MOM week W06 (backward-propagated from leaf W10).
-    Expected:
-      - MOM P[W06] sealed to 2 lots
-      - 2 lots deferred into MOM CO[W07]
-      - result.cap_hard_sealed == 2
-      - result.cap_hard_events has 1 entry: (mom_id, "2024-W06", 2)
+
+    v1r0m2 design: cap_hard clipping is applied in BackwardPlanner._in_propagate,
+    so only 2 lots propagate to leaf_in.  ForwardPlanner rebuilds MOM.P from
+    the propagation chain -> MOM.P = 2, no excess -> cap_hard_sealed = 0.
+
+    Verified constraint: bridge_lots == cap_hard (2); excess is dropped in backward pass.
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
         cap_hard=2.0, cap_soft=0.0, demand_qty=4
@@ -98,17 +99,21 @@ def test_cap_hard_sealing():
     print(f"cap_hard_events  : {result.cap_hard_events}")
     print(f"cap_soft_violations: {result.cap_soft_violations}")
 
-    # Sealing must have occurred
-    assert result.cap_hard_sealed > 0, "Expected CapHard sealing to occur"
-    assert result.cap_hard_sealed == 2, (
-        f"Expected 2 lots sealed, got {result.cap_hard_sealed}"
+    # v1r0m2: cap_hard constraint is enforced in BackwardPlanner (not ForwardPlanner).
+    # ForwardPlanner cap_hard_sealed == 0 because backward pass already clipped to cap.
+    assert result.cap_hard_sealed == 0, (
+        f"v1r0m2: cap_hard enforced in BackwardPlanner, ForwardPlanner sealed={result.cap_hard_sealed}"
+    )
+    # Only cap_hard (2) lots crossed the bridge
+    assert result.bridge_lots == 2, (
+        f"Expected bridge_lots=2 (cap_hard constraint), got {result.bridge_lots}"
     )
 
     print("PASS: test_cap_hard_sealing")
 
 
 # ---------------------------------------------------------------------------
-# Test 2: CapSoft violation — no lot movement
+# Test 2: CapSoft violation -- no lot movement
 # ---------------------------------------------------------------------------
 
 def test_cap_soft_violation_no_movement():
@@ -151,9 +156,10 @@ def test_cap_soft_violation_no_movement():
 def test_combined_cap_hard_soft():
     """
     CapHard=3, CapSoft=2, demand=5.
-    Expected:
-      - 2 lots CapHard-sealed (P truncated from 5 → 3; excess=2 to CO[w+1])
-      - 1 CapSoft violation (3 > 2 by 1, after sealing)
+
+    v1r0m2 design: BackwardPlanner clips propagation to cap_hard=3.
+    Only 3 lots reach leaf_in; ForwardPlanner sees MOM.P=3, no excess -> sealed=0.
+    CapSoft=2 is violated (3 > 2).
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
         cap_hard=3.0, cap_soft=2.0, demand_qty=5
@@ -166,8 +172,13 @@ def test_combined_cap_hard_soft():
     print(f"cap_hard_events  : {result.cap_hard_events}")
     print(f"cap_soft_violations: {result.cap_soft_violations}")
 
-    assert result.cap_hard_sealed == 2, (
-        f"Expected 2 hard-sealed, got {result.cap_hard_sealed}"
+    # v1r0m2: cap_hard constraint applied in BackwardPlanner; ForwardPlanner sealed=0.
+    # Only cap_hard (3) lots propagated to leaf_in and crossed the bridge.
+    assert result.cap_hard_sealed == 0, (
+        f"v1r0m2: cap_hard enforced in BackwardPlanner, ForwardPlanner sealed={result.cap_hard_sealed}"
+    )
+    assert result.bridge_lots == 3, (
+        f"Expected bridge_lots=3 (cap_hard=3), got {result.bridge_lots}"
     )
     assert len(result.cap_soft_violations) > 0, "Expected CapSoft violation"
 
@@ -245,22 +256,20 @@ def test_build_mom_capacity_profile():
 
 
 # ---------------------------------------------------------------------------
-# Test 6: E2E propagation — CapHard sealing causes leaf_out shortfall
+# Test 6: E2E propagation -- CapHard sealing causes leaf_out shortfall
 # ---------------------------------------------------------------------------
 
 def test_e2e_cap_hard_causes_leaf_shortfall():
     """
-    Full E2E test: original PySI decouple 設計の確認。
+    Full E2E test: original PySI decouple design.
       - demand=4 lots at leaf_out[JP]
-      - CapHard=2 at MOM → 2 lots sealed; MOM ships at most 2
+      - CapHard=2 at MOM: BackwardPlanner clips to 2 lots
 
-    Original PySI Step 4 (apply_pull_process) により:
-      - DAD は実供給 (≤2 lots) で処理 → DAD.S ≤ 2 (shortfall absorbed at DAD)
-      - leaf_out は PULL (demand-anchored) → leaf_out.S = 4 (demand 通り)
-      - cap_hard_sealed イベントは MOM で記録される
+    Original PySI Step 4 (apply_pull_process):
+      - DAD receives real supply (<= 2 lots) -> DAD.S <= 2 (shortfall absorbed at DAD)
+      - leaf_out is PULL (demand-anchored) -> leaf_out.S = 4 (full demand)
 
-    DAD が decouple point として supply variability を吸収し、
-    leaf_out (販売チャネル) を需要通りに充足するのが設計の本質。
+    DAD as decouple point absorbs supply variability; leaf_out stays demand-anchored.
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
         cap_hard=2.0, cap_soft=0.0, demand_qty=4
@@ -290,19 +299,20 @@ def test_e2e_cap_hard_causes_leaf_shortfall():
     print(f"cap_hard_events: {result.cap_hard_events}")
     print(f"leaf_out total S={total_leaf_s}, DAD total S={total_dad_s}  (demand=4, cap_hard=2)")
 
-    # leaf_out は PULL (demand-anchored) → 常に demand 通り供給
+    # leaf_out is PULL (demand-anchored) -> always supplies full demand
     assert total_leaf_s == 4, (
         f"leaf_out.S should be 4 (demand-anchored via PULL), got {total_leaf_s}"
     )
-    # DAD は実供給のみ受け取る → cap_hard=2 で上流から最大 2 lots
+    # DAD receives real supply only -> capped at 2 by MOM cap_hard
     assert total_dad_s <= 2, (
-        f"DAD.S should be ≤2 (constrained by MOM cap_hard=2), got {total_dad_s}"
+        f"DAD.S should be <=2 (constrained by MOM cap_hard=2), got {total_dad_s}"
     )
-    # MOM で CapHard イベントが記録されている
-    assert result.cap_hard_sealed == 2, (
-        f"Expected cap_hard_sealed=2, got {result.cap_hard_sealed}"
+    # v1r0m2: cap_hard constraint applied in BackwardPlanner._in_propagate.
+    # ForwardPlanner cap_hard_sealed == 0 (backward pass already clipped to 2).
+    assert result.cap_hard_sealed == 0, (
+        f"v1r0m2: cap_hard enforced in BackwardPlanner, got {result.cap_hard_sealed}"
     )
-    # decouple の本質: leaf は充足, DAD に供給制約が visible
+    # decouple essence: leaf is PULL-anchored; DAD shows supply constraint
     assert total_leaf_s > total_dad_s, (
         f"leaf_out.S ({total_leaf_s}) should exceed DAD.S ({total_dad_s})"
     )
@@ -354,7 +364,7 @@ if __name__ == "__main__":
     ]
     for t in tests:
         print(f"\n{'='*60}")
-        print(f"Running {t.__name__} …")
+        print(f"Running {t.__name__} ...")
         t()
     print(f"\n{'='*60}")
     print("All Step 7 capacity tests passed.")
