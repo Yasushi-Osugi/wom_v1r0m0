@@ -3087,6 +3087,609 @@ class WorldMapPanel(tk.Frame):
                         pass
 
 # ──────────────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────────
+# Planning Operation Debugger panel
+# ──────────────────────────────────────────────────────────────────────
+
+class DebugPanel(tk.Frame):
+    """
+    Step-by-step Planning Operation Debugger.
+
+    Layout:
+      ┌── top bar ──────────────────────────────────────────────────────┐
+      │  [⚙ Init Debugger]  Product: [▼]  Node: [▼]  Step: N / M       │
+      ├── left (operator list) ──┬── right (PSI charts + delta) ────────┤
+      │  ○ 1. LotGenerator       │  [DEMAND LAYER]  psi4demand           │
+      │  ○ 2. HOOK_PRE_PLAN      │  ────────────────────────────────────  │
+      │  ● 3. BackwardPlanner    │  [SUPPLY LAYER]  psi4supply           │
+      │  ○ 4. copy_D→S           │  ────────────────────────────────────  │
+      │  ○ 5. PushEngine         │  Delta (this step):                    │
+      │  ○ 6. ForwardPlanner     │  Demand: P: +800 @ W28               │
+      │  ○ 7. HOOK_POST_PLAN     │  Supply: no change                    │
+      │  ──────────────────────  │                                        │
+      │  [◀ Prev][▶ Next][▶▶ All]│                                        │
+      │  [🔄 Reset]              │                                        │
+      └──────────────────────────┴───────────────────────────────────────┘
+    """
+
+    _BUCKET_NAMES = ["S", "CO", "I", "P"]
+
+    def __init__(self, parent, app_ref, **kw):
+        super().__init__(parent, bg=BG_DARK, **kw)
+        self._app = app_ref           # reference to WOMApp
+        self._debugger = None         # PlanningDebugger instance (set on init)
+        self._product_var = tk.StringVar(value="")
+        self._node_var    = tk.StringVar(value="")
+        self._step_label_var = tk.StringVar(value="Step: — / —")
+        self._status_var  = tk.StringVar(value="Click ⚙ Init to load the model and register operators.")
+        self._build_ui()
+
+    # ── UI construction ───────────────────────────────────────────────
+
+    def _build_ui(self):
+        # ── Top bar ───────────────────────────────────────────────────
+        top = tk.Frame(self, bg=BG_MID, pady=4)
+        top.pack(fill="x")
+
+        tk.Button(
+            top, text="⚙  Init Debugger",
+            command=self._on_init,
+            bg="#7B1FA2", fg="white", relief="flat",
+            font=("Segoe UI", 9, "bold"), cursor="hand2", padx=8,
+        ).pack(side="left", padx=(8, 4))
+
+        tk.Button(
+            top, text="🔄 Reset",
+            command=self._on_reset,
+            bg=BG_LIGHT, fg=FG_WHITE, relief="flat",
+            font=("Segoe UI", 9), cursor="hand2", padx=6,
+        ).pack(side="left", padx=2)
+
+        tk.Label(top, text="Product:", bg=BG_MID, fg=FG_ACC,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(12, 2))
+        self._product_om = tk.OptionMenu(top, self._product_var, "—",
+                                         command=self._on_product_change)
+        self._product_om.config(bg=BG_LIGHT, fg=FG_WHITE, relief="flat",
+                                font=("Segoe UI", 9), highlightthickness=0,
+                                activebackground=BG_MID)
+        self._product_om["menu"].config(bg=BG_LIGHT, fg=FG_WHITE)
+        self._product_om.pack(side="left")
+
+        tk.Label(top, text="Node:", bg=BG_MID, fg=FG_ACC,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(10, 2))
+        self._node_om = tk.OptionMenu(top, self._node_var, "—",
+                                      command=self._on_node_change)
+        self._node_om.config(bg=BG_LIGHT, fg=FG_WHITE, relief="flat",
+                             font=("Segoe UI", 9), highlightthickness=0,
+                             activebackground=BG_MID)
+        self._node_om["menu"].config(bg=BG_LIGHT, fg=FG_WHITE)
+        self._node_om.pack(side="left")
+
+        tk.Label(top, textvariable=self._step_label_var,
+                 bg=BG_MID, fg=FG_ACC, font=("Segoe UI", 9)).pack(
+            side="right", padx=12)
+
+        # ── Status bar ────────────────────────────────────────────────
+        tk.Label(self, textvariable=self._status_var,
+                 bg="#0D1B2A", fg="#90A4AE",
+                 font=("Segoe UI", 8), anchor="w", padx=8,
+                 ).pack(fill="x", side="bottom", pady=(0, 0))
+
+        # ── Main body: left list + right charts ───────────────────────
+        body = tk.Frame(self, bg=BG_DARK)
+        body.pack(fill="both", expand=True)
+
+        # Left: operator list
+        left = tk.Frame(body, bg=BG_MID, width=230)
+        left.pack(side="left", fill="y", padx=(4, 0), pady=4)
+        left.pack_propagate(False)
+
+        tk.Label(left, text="Operator Sequence",
+                 bg=BG_MID, fg=FG_ACC,
+                 font=("Segoe UI", 9, "bold")).pack(pady=(6, 2))
+
+        list_fr = tk.Frame(left, bg=BG_MID)
+        list_fr.pack(fill="both", expand=True, padx=4)
+
+        self._op_list = tk.Listbox(
+            list_fr, bg=BG_DARK, fg=FG_WHITE,
+            font=("Segoe UI", 9), selectmode="single",
+            activestyle="none", highlightthickness=0, bd=0,
+            width=26,
+        )
+        vsb = ttk.Scrollbar(list_fr, orient="vertical",
+                            command=self._op_list.yview)
+        self._op_list.configure(yscrollcommand=vsb.set)
+        self._op_list.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
+
+        # Step control buttons
+        btn_fr = tk.Frame(left, bg=BG_MID)
+        btn_fr.pack(fill="x", padx=4, pady=6)
+
+        self._btn_prev = tk.Button(
+            btn_fr, text="◀ Prev",
+            command=self._on_prev,
+            bg=BG_LIGHT, fg=FG_WHITE, relief="flat",
+            font=("Segoe UI", 9), cursor="hand2", state="disabled")
+        self._btn_prev.pack(side="left", fill="x", expand=True, padx=(0, 2))
+
+        self._btn_next = tk.Button(
+            btn_fr, text="Next ▶",
+            command=self._on_next,
+            bg="#1565C0", fg="white", relief="flat",
+            font=("Segoe UI", 9, "bold"), cursor="hand2", state="disabled")
+        self._btn_next.pack(side="left", fill="x", expand=True, padx=(2, 2))
+
+        self._btn_all = tk.Button(
+            btn_fr, text="▶▶ All",
+            command=self._on_run_all,
+            bg=BTN_RUN, fg="white", relief="flat",
+            font=("Segoe UI", 9, "bold"), cursor="hand2", state="disabled")
+        self._btn_all.pack(side="left", fill="x", expand=True, padx=(2, 0))
+
+        # Right: charts + delta
+        right = tk.Frame(body, bg=BG_DARK)
+        right.pack(side="left", fill="both", expand=True, padx=4, pady=4)
+
+        # Two PSI charts (demand top / supply bottom) using subplot(2,1,*)
+        chart_fr = tk.Frame(right, bg=BG_DARK)
+        chart_fr.pack(fill="both", expand=True)
+
+        self._fig = Figure(figsize=(9, 6), dpi=88, facecolor=BG_DARK)
+        self._canvas = FigureCanvasTkAgg(self._fig, master=chart_fr)
+        self._canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        # Delta text
+        delta_fr = tk.LabelFrame(
+            right, text="  Delta (this step)  ",
+            bg=BG_MID, fg=FG_ACC, font=("Segoe UI", 8, "bold"),
+            relief="groove", bd=1)
+        delta_fr.pack(fill="x", pady=(2, 0))
+
+        inner = tk.Frame(delta_fr, bg=BG_MID)
+        inner.pack(fill="x", padx=4, pady=2)
+        self._delta_text = tk.Text(
+            inner, height=4, bg=BG_LIGHT, fg=FG_WHITE,
+            font=("Consolas", 8), relief="flat", wrap="none", state="disabled")
+        delta_vsb = ttk.Scrollbar(inner, orient="vertical",
+                                  command=self._delta_text.yview)
+        self._delta_text.configure(yscrollcommand=delta_vsb.set)
+        delta_vsb.pack(side="right", fill="y")
+        self._delta_text.pack(side="left", fill="x", expand=True)
+
+        # Draw empty charts initially
+        self._draw_empty()
+
+    # ── Event handlers ────────────────────────────────────────────────
+
+    def _on_init(self):
+        """Build planning context and initialize debugger (runs in thread)."""
+        import threading
+        self._status_var.set("Initializing… (loading CSVs, building sc_tree)")
+        self._set_buttons_enabled(False)
+        threading.Thread(target=self._init_worker, daemon=True).start()
+
+    def _init_worker(self):
+        try:
+            ctx = self._app._build_planning_context()
+            self.after(0, lambda: self._on_init_done(ctx))
+        except Exception:
+            import traceback
+            tb = traceback.format_exc()
+            self.after(0, lambda: self._on_init_error(tb))
+
+    def _on_init_done(self, ctx):
+        from wom.engine.planning_debugger import PlanningDebugger, OperatorStep
+
+        sc_tree    = ctx["sc_tree"]
+        weeks      = ctx["weeks"]
+        bus        = ctx["bus"]
+        cfg        = ctx["cfg"]
+        lane_table = ctx["lane_table"]
+        push_path  = ctx["push_path"]
+        opening_inv = ctx["opening_inv"]
+        prod_list  = list(sc_tree.products)
+
+        # ── Build ordered operator steps + callables ───────────────────
+        steps: list = []
+        calls: list = []
+
+        from wom.engine.hook_bus import (
+            HOOK_PRE_PLAN, HOOK_POST_BACKWARD,
+            HOOK_POST_COPY, HOOK_POST_FORWARD, HOOK_POST_PLAN)
+        from wom.engine.backward_planner import BackwardPlanner
+        from wom.engine.plan_copy import copy_demand_to_supply
+        from wom.engine.forward_planner import ForwardPlanner
+        from wom.engine.push_pull import PushProductionPlanner, PushConfig
+        import csv as _csv
+        import os as _os
+
+        # Step 1: HOOK_PRE_PLAN
+        steps.append(OperatorStep("HOOK_PRE_PLAN", "hook_pre_plan",
+            "Plugins: HarvestBatch, HolidayCalendar cap_hard setup"))
+        calls.append(lambda: bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree,
+                                      weeks=weeks, config=cfg))
+
+        # Per-product steps
+        for prod_nm in prod_list:
+            # BackwardPlanner
+            pn = prod_nm  # capture
+            steps.append(OperatorStep(
+                f"BackwardPlanner [{pn}]", "backward_planner",
+                f"Propagate demand lots from leaf_out upstream (LT offset, SS)"))
+            calls.append(lambda p=pn:
+                BackwardPlanner(sc_tree, lane_table=lane_table, config=cfg).run(p))
+
+            # HOOK_POST_BACKWARD
+            steps.append(OperatorStep(
+                f"HOOK_POST_BACKWARD [{pn}]", "hook_post_backward",
+                "Plugins: HolidayCalendar closure correction"))
+            calls.append(lambda p=pn:
+                bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree,
+                         prod_nm=p, weeks=weeks, config=cfg))
+
+            # copy_demand_to_supply
+            steps.append(OperatorStep(
+                f"copy_D→S [{pn}]", "copy_demand_to_supply",
+                "Copy psi4demand → psi4supply for all nodes"))
+            calls.append(lambda p=pn: copy_demand_to_supply(sc_tree, p))
+
+            # HOOK_POST_COPY
+            steps.append(OperatorStep(
+                f"HOOK_POST_COPY [{pn}]", "hook_post_copy",
+                "Plugins post-copy hooks"))
+            calls.append(lambda p=pn:
+                bus.fire(HOOK_POST_COPY, sc_tree=sc_tree,
+                         prod_nm=p, weeks=weeks, config=cfg))
+
+            # PushEngine (if push_config.csv exists)
+            if push_path and _os.path.exists(push_path):
+                steps.append(OperatorStep(
+                    f"PushEngine [{pn}]", "push_engine",
+                    "Apply PUSH/PULL config (Mode4 LT-shifted pre-build)"))
+                def _push_step(p=pn):
+                    _push_cfgs = {}
+                    with open(push_path, newline="", encoding="utf-8") as _pf:
+                        for _pr in _csv.DictReader(_pf):
+                            _pn2 = _pr.get("sku_id", "").strip()
+                            if _pn2 == p:
+                                _push_cfgs[_pn2] = PushConfig(
+                                    node_id=_pr.get("node_id","").strip(),
+                                    push_qty_per_week=int(_pr.get("push_qty_per_week") or 0),
+                                    buffer_lots=int(_pr.get("buffer_lots") or 0),
+                                    sku_id=_pn2,
+                                    mode_only=_pr.get("mode_only","").strip().lower()=="true",
+                                    mom_ref_node_id=_pr.get("mom_ref_node_id","").strip(),
+                                    pre_build_qty_per_week=int(_pr.get("pre_build_qty_per_week") or 0),
+                                    pre_build_end_week=_pr.get("pre_build_end_week","").strip(),
+                                    push_lead_time_weeks=int(_pr.get("push_lead_time_weeks") or 0),
+                                )
+                    if _push_cfgs:
+                        PushProductionPlanner(sc_tree).setup_all(_push_cfgs)
+                calls.append(_push_step)
+
+            # ForwardPlanner
+            steps.append(OperatorStep(
+                f"ForwardPlanner [{pn}]", "forward_planner",
+                "Apply capacity constraints, generate CO, PULL/PUSH supply"))
+            calls.append(lambda p=pn:
+                ForwardPlanner(sc_tree, opening_inv=opening_inv).run(p))
+
+            # HOOK_POST_FORWARD
+            steps.append(OperatorStep(
+                f"HOOK_POST_FORWARD [{pn}]", "hook_post_forward",
+                "Plugins post-forward hooks"))
+            calls.append(lambda p=pn:
+                bus.fire(HOOK_POST_FORWARD, sc_tree=sc_tree,
+                         prod_nm=p, weeks=weeks, config=cfg))
+
+        # HOOK_POST_PLAN
+        steps.append(OperatorStep("HOOK_POST_PLAN", "hook_post_plan",
+            "All products complete — final plugin hooks"))
+        calls.append(lambda: bus.fire(HOOK_POST_PLAN, sc_tree=sc_tree,
+                                      weeks=weeks, config=cfg))
+
+        # ── Create debugger ────────────────────────────────────────────
+        dbg = PlanningDebugger()
+        dbg.initialize(sc_tree, weeks, steps, calls)
+        self._debugger = dbg
+
+        # ── Update product + node selectors ───────────────────────────
+        self._update_product_menu(prod_list)
+        if prod_list:
+            self._product_var.set(prod_list[0])
+            self._update_node_menu(prod_list[0])
+
+        # ── Refresh operator list ──────────────────────────────────────
+        self._refresh_op_list()
+
+        # ── Enable buttons ─────────────────────────────────────────────
+        self._set_buttons_enabled(True)
+        self._step_label_var.set(f"Step: 0 / {dbg.total_steps}  (before any operator)")
+        self._status_var.set(
+            f"✅ Initialized: {len(prod_list)} product(s), "
+            f"{len(dbg.all_node_names())} nodes, {dbg.total_steps} operator steps. "
+            "Click ▶ Next to run the first operator."
+        )
+        # Draw initial (empty) PSI state
+        self._refresh_charts()
+
+    def _on_init_error(self, tb: str):
+        self._status_var.set(f"❌ Init failed: {tb[:120]}")
+        print(f"[DebugPanel] Init error:\n{tb}")
+
+    def _on_reset(self):
+        """Re-initialize from scratch (re-reads all CSVs)."""
+        self._debugger = None
+        self._op_list.delete(0, "end")
+        self._draw_empty()
+        self._set_buttons_enabled(False)
+        self._step_label_var.set("Step: — / —")
+        self._status_var.set("Reset. Click ⚙ Init to reload.")
+
+    def _on_next(self):
+        if self._debugger is None:
+            return
+        dbg = self._debugger
+        if dbg.is_at_end:
+            self._status_var.set("All operators complete.")
+            return
+        step_idx = dbg.current_step + 1
+        step = dbg.steps[step_idx]
+        self._status_var.set(f"Running: {step.name}…")
+        self.update_idletasks()
+        dbg.step_forward()
+        self._on_step_done()
+
+    def _on_prev(self):
+        """Move back to view the previous step's snapshot (no re-execution)."""
+        if self._debugger is None:
+            return
+        dbg = self._debugger
+        if dbg.is_at_start:
+            return
+        # We don't re-execute; just move the view pointer
+        dbg.current_step -= 1
+        self._on_step_done(direction="back")
+
+    def _on_run_all(self):
+        if self._debugger is None:
+            return
+        import threading
+        self._set_buttons_enabled(False)
+        self._status_var.set("Running all remaining operators…")
+        def _worker():
+            self._debugger.run_all()
+            self.after(0, lambda: self._on_step_done())
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_product_change(self, *_):
+        self._update_node_menu(self._product_var.get())
+        self._refresh_charts()
+
+    def _on_node_change(self, *_):
+        self._refresh_charts()
+
+    def _on_step_done(self, direction="forward"):
+        dbg = self._debugger
+        if dbg is None:
+            return
+        self._refresh_op_list()
+        self._refresh_charts()
+        self._set_buttons_enabled(True)
+        n = dbg.total_steps
+        cur = dbg.current_step
+        self._step_label_var.set(
+            f"Step: {cur + 1} / {n}  ({dbg.steps[cur].name if cur >= 0 else 'initial'})")
+        if dbg.is_at_end:
+            self._status_var.set("✅ All operators complete.")
+        elif cur == -1:
+            self._status_var.set("Showing initial state (no operators run yet).")
+        else:
+            step = dbg.steps[cur]
+            self._status_var.set(
+                f"Step {cur + 1}/{n}: {step.name} — {step.description}")
+
+    # ── UI helpers ────────────────────────────────────────────────────
+
+    def _update_product_menu(self, products):
+        menu = self._product_om["menu"]
+        menu.delete(0, "end")
+        for p in products:
+            menu.add_command(label=p,
+                             command=lambda v=p: self._product_var.set(v) or
+                             self._on_product_change())
+        if products:
+            self._product_var.set(products[0])
+
+    def _update_node_menu(self, product):
+        if self._debugger is None:
+            return
+        dbg = self._debugger
+        node_names = dbg.all_node_names()
+
+        menu = self._node_om["menu"]
+        menu.delete(0, "end")
+        for nn in node_names:
+            menu.add_command(label=nn,
+                             command=lambda v=nn: self._node_var.set(v) or
+                             self._on_node_change())
+        if node_names:
+            current = self._node_var.get()
+            if current not in node_names:
+                self._node_var.set(node_names[0])
+
+    def _refresh_op_list(self):
+        if self._debugger is None:
+            return
+        dbg = self._debugger
+        self._op_list.delete(0, "end")
+        for i, step in enumerate(dbg.steps):
+            if i < dbg.current_step:
+                marker = "✓"
+                bg = "#1B5E20"  # completed: dark green
+            elif i == dbg.current_step:
+                marker = "●"
+                bg = "#0D47A1"  # current: dark blue
+            else:
+                marker = "○"
+                bg = BG_DARK   # pending: default
+            label = f"  {marker} {i+1:02d}. {step.name}"
+            self._op_list.insert("end", label)
+            self._op_list.itemconfig(i, bg=bg, fg=FG_WHITE)
+
+        # Scroll to current step
+        if dbg.current_step >= 0:
+            self._op_list.see(dbg.current_step)
+
+    def _set_buttons_enabled(self, enabled: bool):
+        state = "normal" if enabled else "disabled"
+        self._btn_prev.config(state=state)
+        self._btn_next.config(state=state)
+        self._btn_all.config(state=state)
+
+    # ── Chart drawing ─────────────────────────────────────────────────
+
+    def _draw_empty(self):
+        self._fig.clf()
+        for i, title in enumerate(["DEMAND LAYER  (psi4demand)", "SUPPLY LAYER  (psi4supply)"], 1):
+            ax = self._fig.add_subplot(2, 1, i)
+            ax.set_facecolor(BG_MID)
+            ax.text(0.5, 0.5, "No data — click ⚙ Init",
+                    color="#546E7A", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=9)
+            ax.set_title(title, color=FG_ACC, fontsize=9, pad=4)
+            ax.axis("off")
+        self._fig.patch.set_facecolor(BG_DARK)
+        self._fig.tight_layout(pad=1.5)
+        self._canvas.draw()
+        self._set_delta_text("(no data)")
+
+    def _refresh_charts(self):
+        if self._debugger is None:
+            self._draw_empty()
+            return
+        dbg = self._debugger
+        node_name = self._node_var.get()
+        step_idx  = dbg.current_step
+
+        # Get PSI arrays from snapshot
+        demand_psi = dbg.get_psi_arrays(step_idx, node_name, "demand")
+        supply_psi = dbg.get_psi_arrays(step_idx, node_name, "supply")
+        weeks = dbg.weeks
+
+        self._fig.clf()
+        self._fig.patch.set_facecolor(BG_DARK)
+
+        self._draw_psi_subplot(
+            self._fig.add_subplot(2, 1, 1),
+            demand_psi, weeks, node_name,
+            title=f"DEMAND LAYER  (psi4demand)  │  {node_name}",
+            layer_color="#64B5F6",
+        )
+        self._draw_psi_subplot(
+            self._fig.add_subplot(2, 1, 2),
+            supply_psi, weeks, node_name,
+            title=f"SUPPLY LAYER  (psi4supply)  │  {node_name}",
+            layer_color="#A5D6A7",
+        )
+
+        self._fig.tight_layout(pad=1.5)
+        self._canvas.draw()
+
+        # Delta
+        if step_idx >= 0:
+            delta = dbg.get_delta(step_idx, node_name)
+            if delta and (delta["changes_demand"] or delta["changes_supply"]):
+                text = "\n".join(delta["summary_lines"])
+            else:
+                text = "(no change in this step for selected node)"
+        else:
+            text = "(initial state — before any operator)"
+        self._set_delta_text(text)
+
+    def _draw_psi_subplot(self, ax, psi_data, weeks, node_name, title, layer_color):
+        """
+        Draw a single PSI chart (P/S/CO bars + I line) on the given axes.
+        psi_data: [[S, CO, I, P] x n_weeks] or None
+        """
+        ax.set_facecolor(BG_MID)
+        ax.set_title(title, color=layer_color, fontsize=8, pad=4)
+
+        if not psi_data or not weeks:
+            ax.text(0.5, 0.5, "No PSI data",
+                    color="#546E7A", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=8)
+            ax.axis("off")
+            return
+
+        n = len(psi_data)
+        s_vals  = [psi_data[w][0] for w in range(n)]
+        co_vals = [psi_data[w][1] for w in range(n)]
+        i_vals  = [psi_data[w][2] for w in range(n)]
+        p_vals  = [psi_data[w][3] for w in range(n)]
+
+        if not any(v > 0 for v in s_vals + co_vals + i_vals + p_vals):
+            ax.text(0.5, 0.5, "All buckets empty",
+                    color="#546E7A", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=8)
+            ax.set_title(title, color=layer_color, fontsize=8, pad=4)
+            for sp in ax.spines.values():
+                sp.set_visible(False)
+            ax.tick_params(left=False, bottom=False,
+                           labelleft=False, labelbottom=False)
+            return
+
+        x = list(range(n))
+        bw = 0.28
+
+        ax.bar([xi - bw for xi in x], p_vals,  width=bw,
+               label="P: Production/Receipt",  color="#4CAF50", alpha=0.85)
+        ax.bar([xi       for xi in x], s_vals,  width=bw,
+               label="S: Sales/Shipment",      color="#2196F3", alpha=0.85)
+        if any(v > 0 for v in co_vals):
+            ax.bar([xi + bw for xi in x], co_vals, width=bw,
+                   label="CO: Carry-Over",     color="#F44336", alpha=0.85)
+
+        ax2 = ax.twinx()
+        ax2.fill_between(x, i_vals, alpha=0.15, color="#FF9800")
+        ax2.plot(x, i_vals, color="#FF9800", linewidth=1.2,
+                 marker=".", markersize=2, label="I: Inventory")
+        ax2.set_ylabel("Inventory", color="#FF9800", fontsize=6)
+        ax2.tick_params(colors=FG_WHITE, labelsize=5)
+        ax2.set_facecolor(BG_MID)
+
+        # X-axis ticks
+        t_idx, t_lbl = _445_ticks(weeks)
+        if t_idx:
+            ax.set_xticks(t_idx)
+            ax.set_xticklabels(t_lbl, rotation=0, ha="center", fontsize=5)
+        else:
+            ax.set_xticks(x[::4])
+            ax.set_xticklabels(weeks[::4], rotation=45, ha="right", fontsize=5)
+
+        ax.set_ylabel("Lots", color=FG_ACC, fontsize=6)
+        ax.tick_params(colors=FG_WHITE, labelsize=5)
+        for sp in ax.spines.values():
+            sp.set_edgecolor(BG_LIGHT)
+        ax.set_title(title, color=layer_color, fontsize=8, pad=4)
+
+        h1, l1 = ax.get_legend_handles_labels()
+        h2, l2 = ax2.get_legend_handles_labels()
+        ax.legend(h1 + h2, l1 + l2,
+                  facecolor=BG_LIGHT, labelcolor=FG_WHITE,
+                  fontsize=6, loc="upper right",
+                  framealpha=0.7, ncol=2)
+
+    def _set_delta_text(self, text: str):
+        self._delta_text.config(state="normal")
+        self._delta_text.delete("1.0", "end")
+        self._delta_text.insert("end", text)
+        self._delta_text.config(state="disabled")
+
+
 # Main application window
 # ──────────────────────────────────────────────────────────────────────
 
@@ -3400,6 +4003,10 @@ class WOMApp(tk.Tk):
 
         self._worldmap_panel = WorldMapPanel(nb)
         nb.add(self._worldmap_panel, text="  \U0001f5fa World Map  ")
+
+        # ── Planning Debugger tab ──────────────────────────────────────
+        self._debug_panel = DebugPanel(nb, app_ref=self)
+        nb.add(self._debug_panel, text="  \U0001f50d Debug  ")
 
         # ── 初期表示タブ: World Map（計画対象の地理スコープを即座に把握）
         nb.select(self._worldmap_panel)
@@ -3717,6 +4324,161 @@ class WOMApp(tk.Tk):
     # Planning Engine (lot-based PSI, Steps 3-8)
     # ------------------------------------------------------------------ #
 
+    def _build_planning_context(self) -> dict:
+        """
+        Build the shared planning context (sc_tree, weeks, HookBus, etc.)
+        without running any planning operators.
+
+        Called by both _planning_thread (normal run) and DebugPanel (step-by-step).
+        Returns a dict with keys:
+          sc_tree, weeks, bus, cfg, lane_table, push_path, opening_inv, n_weeks
+        """
+        import re
+        import datetime
+        from wom.model.sc_tree       import build_demo_sc_tree
+        from wom.model.lot_generator import assign_demand_lots_from_dict
+        from wom.engine.lane_assignment import LaneTable
+        from wom.engine.hook_bus import HookBus
+
+        # ── Build week labels ───────────────────────────────────────
+        n_weeks = int(self._e_weeks.get() or 26)
+        start   = self._e_start.get() or "2024-W01"
+        m = re.match(r"(\d{4})-W(\d+)", start)
+        yr, wk = (int(m.group(1)), int(m.group(2))) if m else (2024, 1)
+        weeks, d = [], datetime.date.fromisocalendar(yr, wk, 1)
+        for _ in range(n_weeks):
+            yr2, wk2, _ = d.isocalendar()
+            weeks.append(f"{yr2}-W{wk2:02d}")
+            d += datetime.timedelta(weeks=1)
+
+        # ── SKU master ──────────────────────────────────────────────
+        sku_path = self._f_sku.get()
+        if sku_path and os.path.exists(sku_path):
+            sku_df = pd.read_csv(sku_path)
+        else:
+            sku_df = pd.DataFrame([
+                {"sku_id": "SKU-A", "sku_name": "Product A",
+                 "region": "JP", "lead_time_wks": 2},
+                {"sku_id": "SKU-A", "sku_name": "Product A",
+                 "region": "US", "lead_time_wks": 2},
+            ])
+        if "lead_time_wks" not in sku_df.columns:
+            sku_df["lead_time_wks"] = 2
+
+        # ── SC Tree ─────────────────────────────────────────────────
+        sc_tree_path = (self._f_sc_tree.get()
+                        if hasattr(self, "_f_sc_tree") else "")
+        if sc_tree_path:
+            self._model_dir = os.path.dirname(sc_tree_path)
+            self._node_cost_master = None
+        if sc_tree_path and os.path.exists(sc_tree_path):
+            try:
+                from wom.engine.sc_tree_builder import build_sc_tree_from_master
+                sc_tree_df = pd.read_csv(sc_tree_path)
+                sc_tree = build_sc_tree_from_master(sc_tree_df, weeks)
+                print(f"[SCTreeBuilder] Loaded multi-tier tree from {sc_tree_path}")
+                print(f"  Products: {sc_tree.products}")
+            except Exception as _stb_exc:
+                import traceback
+                print(f"[SCTreeBuilder] Failed: {_stb_exc}")
+                traceback.print_exc()
+                sc_tree = build_demo_sc_tree(sku_df, weeks, lt_wks_ot=1, lt_wks_in=2)
+        else:
+            sc_tree = build_demo_sc_tree(sku_df, weeks, lt_wks_ot=1, lt_wks_in=2)
+
+        # ── HookBus + active plugins ────────────────────────────────
+        _bus = HookBus()
+        _cfg = {"n_weeks": n_weeks, "start_week": start,
+                "cap_path":         self._f_cap.get()     if hasattr(self, "_f_cap")     else "",
+                "holiday_cal_path": self._f_holiday.get() if hasattr(self, "_f_holiday") else ""}
+        for _plugin in getattr(self, "_active_plugins", []):
+            _plugin.register(_bus)
+
+        # ── Demand ──────────────────────────────────────────────────
+        demand_dict = {}
+        dem_path = self._f_dem.get()
+        if dem_path and os.path.exists(dem_path):
+            dem_df = pd.read_csv(dem_path)
+            req = {"sku_id", "region", "week", "quantity"}
+            if req.issubset(set(dem_df.columns)):
+                for _, row in dem_df.iterrows():
+                    key = (str(row["sku_id"]), str(row["region"]), str(row["week"]))
+                    demand_dict[key] = demand_dict.get(key, 0) + int(row["quantity"])
+        if not demand_dict:
+            mid = weeks[len(weeks) // 2]
+            for sku_id in sc_tree.products:
+                for reg in set(sku_df.get("region", pd.Series(["JP"])).tolist()):
+                    demand_dict[(sku_id, reg, mid)] = 5
+        assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
+
+        # ── Capacity ────────────────────────────────────────────────
+        cap_path = self._f_cap.get()
+        if cap_path and os.path.exists(cap_path):
+            try:
+                cap_df = pd.read_csv(cap_path)
+                req_cap = {"sku_id", "week", "max_supply"}
+                if req_cap.issubset(set(cap_df.columns)):
+                    week_idx_map = {wk_: i for i, wk_ in enumerate(weeks)}
+                    has_node_name = "node_name" in cap_df.columns
+                    if has_node_name:
+                        _node_lookup = {}
+                        for _pn in sc_tree.products:
+                            for _nd in sc_tree.iter_all_nodes(_pn):
+                                _node_lookup[(_pn, _nd.node_name)] = _nd
+                        for _, row in cap_df.iterrows():
+                            _nd = _node_lookup.get(
+                                (str(row["sku_id"]), str(row["node_name"])))
+                            if _nd is None:
+                                continue
+                            w_idx = week_idx_map.get(str(row["week"]))
+                            if w_idx is not None:
+                                _nd.set_capacity(w_idx, cap_hard=float(row["max_supply"]))
+                    else:
+                        cap_agg = (cap_df.groupby(["sku_id", "week"])["max_supply"]
+                                   .sum().reset_index())
+                        for prod_nm in sc_tree.products:
+                            try:
+                                mom = sc_tree.get_in_root(prod_nm)
+                                sku_cap = cap_agg[cap_agg["sku_id"] == prod_nm]
+                                for _, row in sku_cap.iterrows():
+                                    w_idx = week_idx_map.get(str(row["week"]))
+                                    if w_idx is not None:
+                                        mom.set_capacity(w_idx, cap_hard=float(row["max_supply"]))
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+        # ── Lane Assignment ─────────────────────────────────────────
+        _lane_path = self._f_lane.get() if hasattr(self, "_f_lane") else ""
+        _lane_table = (LaneTable.from_csv(_lane_path)
+                       if _lane_path and os.path.exists(_lane_path)
+                       else LaneTable.empty())
+
+        # ── Push config path ────────────────────────────────────────
+        _push_path = self._f_push.get() if hasattr(self, "_f_push") else ""
+
+        # ── Opening inventory (from HarvestBatchPlugin if active) ───
+        _harvest_plugin = getattr(self, "_plugin_instances", {}).get("harvest_batch")
+        _opening_inv = (
+            _harvest_plugin.opening_inv
+            if _harvest_plugin is not None
+            and self._plugin_vars.get(
+                "harvest_batch", __import__("tkinter").BooleanVar(value=False)).get()
+            else {}
+        )
+
+        return {
+            "sc_tree":     sc_tree,
+            "weeks":       weeks,
+            "n_weeks":     n_weeks,
+            "bus":         _bus,
+            "cfg":         _cfg,
+            "lane_table":  _lane_table,
+            "push_path":   _push_path,
+            "opening_inv": _opening_inv,
+        }
+
     def _run_planning_engine(self):
         """Build SCTree from input files (or demo data) and run the lot-based planning pipeline."""
         self._progress.start(10)
@@ -3730,167 +4492,38 @@ class WOMApp(tk.Tk):
 
     def _planning_thread(self):
         try:
-            import re
-            import datetime
-            from wom.model.sc_tree       import build_demo_sc_tree
-            from wom.model.lot_generator import assign_demand_lots_from_dict
-            from wom.engine.backward_planner  import BackwardPlanner
-            from wom.engine.plan_copy         import copy_demand_to_supply
-            from wom.engine.forward_planner   import ForwardPlanner
-            from wom.engine.lane_assignment   import LaneTable
-            from wom.engine.hook_bus         import (HookBus,
+            from wom.engine.backward_planner import BackwardPlanner
+            from wom.engine.plan_copy        import copy_demand_to_supply
+            from wom.engine.forward_planner  import ForwardPlanner
+            from wom.engine.hook_bus import (
                 HOOK_PRE_PLAN, HOOK_POST_BACKWARD,
                 HOOK_POST_COPY, HOOK_POST_FORWARD, HOOK_POST_PLAN)
 
-            # ── Build week labels ──────────────────────────────────
-            n_weeks = int(self._e_weeks.get() or 26)
-            start   = self._e_start.get() or "2024-W01"
-            m = re.match(r"(\d{4})-W(\d+)", start)
-            yr, wk = (int(m.group(1)), int(m.group(2))) if m else (2024, 1)
-            weeks, d = [], datetime.date.fromisocalendar(yr, wk, 1)
-            for _ in range(n_weeks):
-                yr2, wk2, _ = d.isocalendar()
-                weeks.append(f"{yr2}-W{wk2:02d}")
-                d += datetime.timedelta(weeks=1)
+            # ── Build planning context (sc_tree, weeks, bus, etc.) ─
+            ctx        = self._build_planning_context()
+            sc_tree    = ctx["sc_tree"]
+            weeks      = ctx["weeks"]
+            _bus       = ctx["bus"]
+            _cfg       = ctx["cfg"]
+            _lane_table = ctx["lane_table"]
+            _push_path = ctx["push_path"]
+            _opening_inv = ctx["opening_inv"]
 
-            # ── SKU master ─────────────────────────────────────────
-            sku_path = self._f_sku.get()
-            if sku_path and os.path.exists(sku_path):
-                sku_df = pd.read_csv(sku_path)
-            else:
-                sku_df = pd.DataFrame([
-                    {"sku_id": "SKU-A", "sku_name": "Product A",
-                     "region": "JP", "lead_time_wks": 2},
-                    {"sku_id": "SKU-A", "sku_name": "Product A",
-                     "region": "US", "lead_time_wks": 2},
-                ])
-            if "lead_time_wks" not in sku_df.columns:
-                sku_df["lead_time_wks"] = 2
-
-            # ── SC Tree: multi-tier master or demo fallback ────────────
-            sc_tree_path = (self._f_sc_tree.get()
-                            if hasattr(self, "_f_sc_tree") else "")
-            # Cache model_dir for cost chart price lookup
-            if sc_tree_path:
-                self._model_dir = os.path.dirname(sc_tree_path)
-                self._node_cost_master = None  # invalidate on each engine run
+            # Restore SC hint for planning thread run
+            sc_tree_path = self._f_sc_tree.get() if hasattr(self, "_f_sc_tree") else ""
             if sc_tree_path and os.path.exists(sc_tree_path):
-                try:
-                    from wom.engine.sc_tree_builder import build_sc_tree_from_master
-                    sc_tree_df = pd.read_csv(sc_tree_path)
-                    sc_tree = build_sc_tree_from_master(sc_tree_df, weeks)
-                    print(f"[SCTreeBuilder] Loaded multi-tier tree from {sc_tree_path}")
-                    print(f"  Products: {sc_tree.products}")
-                    def _reset_sc_hint():
-                        if hasattr(self, "_sc_tree_hint_var"):
-                            self._sc_tree_hint_var.set("✅ SC Tree Master 使用中")
-                            self._sc_tree_hint_lbl.config(fg="#A5D6A7")
-                    self.after(0, _reset_sc_hint)
-                except Exception as _stb_exc:
-                    import traceback
-                    print(f"[SCTreeBuilder] Failed: {_stb_exc}")
-                    traceback.print_exc()
-                    sc_tree = build_demo_sc_tree(sku_df, weeks,
-                                                 lt_wks_ot=1, lt_wks_in=2)
+                def _reset_sc_hint():
+                    if hasattr(self, "_sc_tree_hint_var"):
+                        self._sc_tree_hint_var.set("✅ SC Tree Master 使用中")
+                        self._sc_tree_hint_lbl.config(fg="#A5D6A7")
+                self.after(0, _reset_sc_hint)
             else:
-                sc_tree = build_demo_sc_tree(sku_df, weeks,
-                                             lt_wks_ot=1, lt_wks_in=2)
-                # Show warning that demo tree is being used
                 def _warn_demo_tree():
                     self._status("⚠ SC Tree Master 未指定 — Demo 2-tier tree で実行")
                     if hasattr(self, "_sc_tree_hint_var"):
                         self._sc_tree_hint_var.set("⚠ Demo 2-tier tree 使用中（SC Tree Master 未指定）")
                         self._sc_tree_hint_lbl.config(fg="#FFA726")
                 self.after(0, _warn_demo_tree)
-
-            # ── Build HookBus and register active plugins ──────────────
-            _bus = HookBus()
-            _cfg = {"n_weeks": n_weeks, "start_week": start,
-                    "cap_path":         self._f_cap.get()     if hasattr(self, '_f_cap')     else "",
-                    "holiday_cal_path": self._f_holiday.get() if hasattr(self, '_f_holiday') else ""}
-            for _plugin in getattr(self, '_active_plugins', []):
-                _plugin.register(_bus)
-
-            # ── Demand ─────────────────────────────────────────────
-            demand_dict = {}
-            dem_path = self._f_dem.get()
-            if dem_path and os.path.exists(dem_path):
-                dem_df = pd.read_csv(dem_path)
-                req    = {"sku_id", "region", "week", "quantity"}
-                if req.issubset(set(dem_df.columns)):
-                    for _, row in dem_df.iterrows():
-                        key = (str(row["sku_id"]),
-                               str(row["region"]),
-                               str(row["week"]))
-                        demand_dict[key] = (demand_dict.get(key, 0)
-                                            + int(row["quantity"]))
-
-            if not demand_dict:
-                # Demo demand: 5 lots mid-horizon for each region
-                mid = weeks[len(weeks) // 2]
-                for sku_id in sc_tree.products:
-                    for reg in set(sku_df.get("region", pd.Series(["JP"])).tolist()):
-                        demand_dict[(sku_id, reg, mid)] = 5
-
-            assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
-
-            # ── Apply capacity from CSV → nodes (cap_hard) ─────────
-            # If node_name column present: apply to any named node (harvest pulse etc.)
-            # Otherwise: sum by sku_id+week → apply to primary MOM (legacy behaviour)
-            cap_path = self._f_cap.get()
-            if cap_path and os.path.exists(cap_path):
-                try:
-                    cap_df = pd.read_csv(cap_path)
-                    req_cap = {"sku_id", "week", "max_supply"}
-                    if req_cap.issubset(set(cap_df.columns)):
-                        week_idx_map = {wk: i for i, wk in enumerate(weeks)}
-                        has_node_name = "node_name" in cap_df.columns
-                        if has_node_name:
-                            # Build (prod_nm, node_name) → PlanNode index
-                            _node_lookup = {}
-                            for _pn in sc_tree.products:
-                                for _nd in sc_tree.iter_all_nodes(_pn):
-                                    _node_lookup[(_pn, _nd.node_name)] = _nd
-                            for _, row in cap_df.iterrows():
-                                _nd = _node_lookup.get(
-                                    (str(row["sku_id"]), str(row["node_name"])))
-                                if _nd is None:
-                                    continue
-                                w_idx = week_idx_map.get(str(row["week"]))
-                                if w_idx is not None:
-                                    _nd.set_capacity(
-                                        w_idx,
-                                        cap_hard=float(row["max_supply"]))
-                        else:
-                            # Legacy: sum across regions → primary MOM only
-                            cap_agg = (cap_df
-                                       .groupby(["sku_id", "week"])["max_supply"]
-                                       .sum().reset_index())
-                            for prod_nm in sc_tree.products:
-                                try:
-                                    mom = sc_tree.get_in_root(prod_nm)
-                                    sku_cap = cap_agg[
-                                        cap_agg["sku_id"] == prod_nm
-                                    ]
-                                    for _, row in sku_cap.iterrows():
-                                        w_idx = week_idx_map.get(str(row["week"]))
-                                        if w_idx is not None:
-                                            mom.set_capacity(
-                                                w_idx,
-                                                cap_hard=float(row["max_supply"]))
-                                except Exception:
-                                    pass
-                except Exception:
-                    pass   # capacity load failure is non-fatal
-
-            # ── Load Lane Assignment (optional) ───────────────────
-            _lane_path = self._f_lane.get() if hasattr(self, "_f_lane") else ""
-            _lane_table = (LaneTable.from_csv(_lane_path)
-                           if _lane_path and os.path.exists(_lane_path)
-                           else LaneTable.empty())
-            if not _lane_table.is_empty():
-                print(f"[LaneAssignment] Loaded: {_lane_table}")
-
             # ── Run planning pipeline ─────────────────────────────
             _bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree,
                       weeks=weeks, config=_cfg)
