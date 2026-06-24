@@ -121,12 +121,33 @@ class ForwardPlanner:
         self._clear_derived_p(in_roots, ot_root, n_weeks)
 
         # Phase 1: InBound POST-ORDER (all MOM roots)
+        #
+        # InBound PUSH/PULL decouple design (v1r0m2):
+        #   Upstream of is_decoupling node  → PUSH (propagation-driven)
+        #   At is_decoupling node           → Demand-S copy: override P with
+        #                                     psi4demand[w][P] (demand-anchored)
+        #   Downstream of is_decoupling     → InBound PULL: P = demand[P]
+        #
+        # This prevents buffer accumulation at the decoupling node (Buffer.I→0)
+        # while keeping the upstream leaf_in in PUSH mode.
         for mom_root in in_roots.values():
+            in_pull_mode = False   # False = PUSH; True = demand-anchored PULL
             for node in mom_root.walk_postorder():
+                # Demand-S copy at decouple node, or InBound PULL downstream
+                if (node.is_decoupling or in_pull_mode) and node.node_type != NODE_TYPE_LEAF_IN:
+                    for w in range(n_weeks):
+                        node.psi4supply[w][P] = list(node.psi4demand[w][P])
+
                 opening = list(self.opening_inv.get(node.node_id, []))
                 self._process_node(node, n_weeks, result, opening_lots=opening)
                 result.in_processed += 1
-                if node.parent is not None:
+
+                # Activate InBound PULL after the decouple node
+                if node.is_decoupling:
+                    in_pull_mode = True
+
+                # Propagate only from PUSH nodes (not decouple, not InBound PULL)
+                if not node.is_decoupling and not in_pull_mode and node.parent is not None:
                     self._propagate_to_parent(node, n_weeks)
 
         # Phase 2: Bridge ALL MOM roots -> supply_point
