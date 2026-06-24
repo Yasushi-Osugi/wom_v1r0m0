@@ -3573,12 +3573,19 @@ class DebugPanel(tk.Frame):
             return
         dbg = self._debugger
         node_name = self._node_var.get()
+        product   = self._product_var.get()
         step_idx  = dbg.current_step
 
         # Get PSI arrays from snapshot
         demand_psi = dbg.get_psi_arrays(step_idx, node_name, "demand")
         supply_psi = dbg.get_psi_arrays(step_idx, node_name, "supply")
         weeks = dbg.weeks
+
+        # Get cap_hard values for Capacity Line
+        node_obj  = dbg.get_node(product, node_name)
+        n_weeks   = len(weeks) if weeks else 0
+        cap_values = ([node_obj.cap_hard(w) for w in range(n_weeks)]
+                      if node_obj and n_weeks else None)
 
         self._fig.clf()
         self._fig.patch.set_facecolor(BG_DARK)
@@ -3588,12 +3595,14 @@ class DebugPanel(tk.Frame):
             demand_psi, weeks, node_name,
             title=f"DEMAND LAYER  (psi4demand)  │  {node_name}",
             layer_color="#64B5F6",
+            cap_values=cap_values,
         )
         self._draw_psi_subplot(
             self._fig.add_subplot(2, 1, 2),
             supply_psi, weeks, node_name,
             title=f"SUPPLY LAYER  (psi4supply)  │  {node_name}",
             layer_color="#A5D6A7",
+            cap_values=cap_values,
         )
 
         self._fig.tight_layout(pad=1.5)
@@ -3610,10 +3619,12 @@ class DebugPanel(tk.Frame):
             text = "(initial state — before any operator)"
         self._set_delta_text(text)
 
-    def _draw_psi_subplot(self, ax, psi_data, weeks, node_name, title, layer_color):
+    def _draw_psi_subplot(self, ax, psi_data, weeks, node_name, title, layer_color,
+                          cap_values=None):
         """
-        Draw a single PSI chart (P/S/CO bars + I line) on the given axes.
+        Draw a single PSI chart (P/S/CO bars + I line + Capacity Line) on ax.
         psi_data: [[S, CO, I, P] x n_weeks] or None
+        cap_values: [cap_hard(w) for w in range(n_weeks)] or None
         """
         ax.set_facecolor(BG_MID)
         ax.set_title(title, color=layer_color, fontsize=8, pad=4)
@@ -3652,6 +3663,25 @@ class DebugPanel(tk.Frame):
         if any(v > 0 for v in co_vals):
             ax.bar([xi + bw for xi in x], co_vals, width=bw,
                    label="CO: Carry-Over",     color="#F44336", alpha=0.85)
+
+        # -- Capacity Line (step function) ----------------------------------
+        # Draw cap_hard as an orange dashed step line on the main (left) axis.
+        # Only draw where cap > 0 to avoid cluttering unconstrained nodes.
+        if cap_values and any(v > 0 for v in cap_values):
+            cap_n = min(len(cap_values), n)
+            # Build step-line segments: draw horizontal segments for each week
+            cap_x, cap_y = [], []
+            for wi in range(cap_n):
+                cv = cap_values[wi]
+                if cv > 0:
+                    cap_x += [wi - 0.5, wi + 0.5]
+                    cap_y += [cv, cv]
+                else:
+                    # gap: push a NaN break so segments don't connect across 0
+                    cap_x += [wi]
+                    cap_y += [float("nan")]
+            ax.plot(cap_x, cap_y, color="#FF9800", linestyle="--",
+                    linewidth=1.2, label="Cap. Hard", zorder=5)
 
         ax2 = ax.twinx()
         ax2.fill_between(x, i_vals, alpha=0.15, color="#FF9800")
@@ -3698,7 +3728,7 @@ class WOMApp(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("WOM – Weekly Operation Model  v1r0m2")
+        self.title("WOM – Weekly Operation Model  v1r0m3")
         self.configure(bg=BG_DARK)
         self.geometry("1280x820")
         self.minsize(900, 600)
@@ -3709,7 +3739,8 @@ class WOMApp(tk.Tk):
         # Detect sample data directory relative to this file
         here = os.path.dirname(os.path.abspath(__file__))
         root = os.path.dirname(os.path.dirname(here))
-        self._sample_dir = os.path.join(root, "data", "sample")
+        # Default to iphone-2027-2029 subfolder (has sc_tree_master.csv)
+        self._sample_dir = os.path.join(root, "data", "sample", "iphone-2027-2029")
 
         self._build_ui()
         self._try_load_sample_paths()
@@ -3725,7 +3756,7 @@ class WOMApp(tk.Tk):
         tk.Label(title_bar, text="WOM  –  Weekly Operation Model",
                  bg="#0D1B2A", fg=FG_WHITE,
                  font=("Segoe UI", 14, "bold")).pack(side="left", padx=16)
-        tk.Label(title_bar, text="v1r0m2",
+        tk.Label(title_bar, text="v1r0m3",
                  bg="#0D1B2A", fg=FG_ACC,
                  font=("Segoe UI", 10)).pack(side="right", padx=16)
 

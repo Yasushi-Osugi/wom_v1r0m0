@@ -309,23 +309,18 @@ class BackwardPlanner:
     ) -> None:
         """
         For each lot in node.S[w]:
-          1. Copy lot to node.P[w]                  (ideal: receive = ship)
+          1. Copy lot to node.P[w]        (P = S, full demand signal)
           2. For each child:
-             child.S[w - child.lt_wks] += lot       (child ships lt_wks earlier)
+             child.S[w - LT_offset] += lot   (child ships LT weeks earlier,
+                                               skipping closure weeks)
 
-        v1r0m2: Capacity envelope (JIT weekly synchronization)
-        -------------------------------------------------------
-        When node.cap_hard(w) > 0, only the first cap_hard(w) lots are
-        propagated to children (suppliers).  This models the MOM node as a
-        capacity pacemaker: suppliers receive exactly the capped supply order,
-        not the raw unconstrained market demand.
-
-        Effect: a step-function cap_hard at Foxconn_CN (3→2→1→0 shifts)
-        propagates backward through the entire InBound tree, so TSMC_TW,
-        Buffer_Wafer_TW, and SiliconWafer_TW all synchronize to the same
-        stepped production rhythm (JIT "drum-buffer-rope" behaviour).
-
-        Nodes with cap_hard(w) == 0.0 (unlimited) are unaffected.
+        v1r0m3: capacity clipping removed from this method.
+        ---------------------------------------------------
+        BackwardPlanner is a pure demand-propagation pass.
+        cap_hard enforcement is handled by _apply_mom_cap_backward (MOM nodes)
+        and will be extended to other node types in future versions.
+        Upstream nodes receive the full unconstrained demand signal so that
+        ForwardPlanner can use it for supply allocation decisions.
         """
         for w in range(n_weeks):
             all_lots = list(node.psi4demand[w][S])
@@ -334,26 +329,9 @@ class BackwardPlanner:
             for lot_id in all_lots:
                 node.psi4demand[w][P].append(lot_id)
 
-            # -- Capacity envelope: clip propagation at cap_hard(w) ---------
-            cap_w = node.cap_hard(w)
-            propagate_lots = list(all_lots[:int(cap_w)]) if cap_w > 0 else list(all_lots)
-
-            # -- Decoupling node fill-up: InBound demand up to cap_hard -----
-            # Buffer nodes (is_decoupling) fill upstream demand to cap_hard.
-            # This ensures leaf_in (SiliconWafer_TW) sees a flat 800/wk
-            # demand signal even when downstream (Foxconn_CN) steps down.
-            # When received demand == 0 (EOL), nothing propagates → natural stop.
-            if (node.is_decoupling and cap_w > 0
-                    and len(all_lots) > 0
-                    and len(propagate_lots) < int(cap_w)):
-                fill_target = int(cap_w)
-                for _fi in range(len(propagate_lots), fill_target):
-                    propagate_lots.append(f"FILL:{node.node_name}:{w}:{_fi:05d}")
-
-            # -- Propagate (capped / filled) lots to each child (supplier) --
-            for lot_id in propagate_lots:
+            # -- Propagate all lots to each child (supplier) ----------------
+            for lot_id in all_lots:
                 for child in node.children:
-                    # v1r0m2: skip closure weeks; ss_wks adds safety-stock offset
                     child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
                     if child_w < 0:
                         result.record_past_due(child.node_id, lot_id, w)

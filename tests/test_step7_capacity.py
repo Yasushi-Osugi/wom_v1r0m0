@@ -85,11 +85,10 @@ def test_cap_hard_sealing():
     """
     CapHard=2, demand=4 at MOM week W06 (backward-propagated from leaf W10).
 
-    v1r0m2 design: cap_hard clipping is applied in BackwardPlanner._in_propagate,
-    so only 2 lots propagate to leaf_in.  ForwardPlanner rebuilds MOM.P from
-    the propagation chain -> MOM.P = 2, no excess -> cap_hard_sealed = 0.
+    v1r0m3 design: BackwardPlanner propagates full demand (no clipping in _in_propagate).
+    ForwardPlanner enforces cap_hard at MOM -> 2 lots sealed (demand 4 - cap 2 = 2).
 
-    Verified constraint: bridge_lots == cap_hard (2); excess is dropped in backward pass.
+    Verified constraint: bridge_lots == cap_hard (2); ForwardPlanner seals excess.
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
         cap_hard=2.0, cap_soft=0.0, demand_qty=4
@@ -102,10 +101,10 @@ def test_cap_hard_sealing():
     print(f"cap_hard_events  : {result.cap_hard_events}")
     print(f"cap_soft_violations: {result.cap_soft_violations}")
 
-    # v1r0m2: cap_hard constraint is enforced in BackwardPlanner (not ForwardPlanner).
-    # ForwardPlanner cap_hard_sealed == 0 because backward pass already clipped to cap.
-    assert result.cap_hard_sealed == 0, (
-        f"v1r0m2: cap_hard enforced in BackwardPlanner, ForwardPlanner sealed={result.cap_hard_sealed}"
+    # v1r0m3: BackwardPlanner propagates full demand; ForwardPlanner enforces cap_hard.
+    # demand=4, cap_hard=2 -> ForwardPlanner seals 2 excess lots.
+    assert result.cap_hard_sealed == 2, (
+        f"v1r0m3: ForwardPlanner seals excess at MOM, expected 2 got {result.cap_hard_sealed}"
     )
     # Only cap_hard (2) lots crossed the bridge
     assert result.bridge_lots == 2, (
@@ -160,8 +159,8 @@ def test_combined_cap_hard_soft():
     """
     CapHard=3, CapSoft=2, demand=5.
 
-    v1r0m2 design: BackwardPlanner clips propagation to cap_hard=3.
-    Only 3 lots reach leaf_in; ForwardPlanner sees MOM.P=3, no excess -> sealed=0.
+    v1r0m3 design: BackwardPlanner propagates full demand (5 lots, no clipping).
+    ForwardPlanner enforces cap_hard=3 at MOM -> 2 lots sealed (demand 5 - cap 3 = 2).
     CapSoft=2 is violated (3 > 2).
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
@@ -175,10 +174,9 @@ def test_combined_cap_hard_soft():
     print(f"cap_hard_events  : {result.cap_hard_events}")
     print(f"cap_soft_violations: {result.cap_soft_violations}")
 
-    # v1r0m2: cap_hard constraint applied in BackwardPlanner; ForwardPlanner sealed=0.
-    # Only cap_hard (3) lots propagated to leaf_in and crossed the bridge.
-    assert result.cap_hard_sealed == 0, (
-        f"v1r0m2: cap_hard enforced in BackwardPlanner, ForwardPlanner sealed={result.cap_hard_sealed}"
+    # v1r0m3: ForwardPlanner enforces cap_hard; demand=5, cap=3 -> 2 sealed.
+    assert result.cap_hard_sealed == 2, (
+        f"v1r0m3: ForwardPlanner seals excess, expected 2 got {result.cap_hard_sealed}"
     )
     assert result.bridge_lots == 3, (
         f"Expected bridge_lots=3 (cap_hard=3), got {result.bridge_lots}"
@@ -310,10 +308,9 @@ def test_e2e_cap_hard_causes_leaf_shortfall():
     assert total_dad_s <= 2, (
         f"DAD.S should be <=2 (constrained by MOM cap_hard=2), got {total_dad_s}"
     )
-    # v1r0m2: cap_hard constraint applied in BackwardPlanner._in_propagate.
-    # ForwardPlanner cap_hard_sealed == 0 (backward pass already clipped to 2).
-    assert result.cap_hard_sealed == 0, (
-        f"v1r0m2: cap_hard enforced in BackwardPlanner, got {result.cap_hard_sealed}"
+    # v1r0m3: ForwardPlanner enforces cap_hard; demand=4, cap=2 -> 2 sealed.
+    assert result.cap_hard_sealed == 2, (
+        f"v1r0m3: ForwardPlanner seals excess at MOM, expected 2 got {result.cap_hard_sealed}"
     )
     # decouple essence: leaf is PULL-anchored; DAD shows supply constraint
     assert total_leaf_s > total_dad_s, (

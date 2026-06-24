@@ -264,20 +264,13 @@ Windowsでフォルダをコピーした場合、`__pycache__/*.pyc` も元の�
 
 ## v1r0m2 実装済み機能（新しいClaude君へ）
 
-### JIT週次同期：cap_hard envelope in `_in_propagate`（commit 7a22648）
+### JIT週次同期：cap_hard envelope in `_in_propagate`（commit 7a22648）【v1r0m3で廃止】
 
-`wom/engine/backward_planner.py` の `_in_propagate` に cap_hard envelope を追加した。
-Foxconn_CN の cap_hard（週次能力上限）を上流への伝播クリップとして使用し、
-TSMC_TW・Buffer_Wafer_TW がFoxconn_CN と同一の階段波形（800→534→267→0）に
-JIT同期する設計を実現。
+~~v1r0m2 で `_in_propagate` に cap_hard envelope を追加し、上流伝播をクリップしていた。~~
 
-```python
-cap_w = node.cap_hard(w)
-propagate_lots = all_lots[:int(cap_w)] if cap_w > 0 else all_lots
-```
-
-**設計意図：** Foxconn_CN = DBRのDrum（ペースメーカー）。cap_hard が
-OutBound需要をクリップし、その信号が InBound 全体に伝播する。
+**v1r0m3 で廃止**。BackwardPlanner は純粋な需要逆伝播（LT offset のみ）とする方針に変更。
+cap_hard enforcement は `_apply_mom_cap_backward`（MOM 専任）と ForwardPlanner に移譲した。
+これにより上流ノードは cap 前の全量需要を受け取り、ForwardPlanner が supply allocation を判断できる。
 
 ---
 
@@ -395,6 +388,44 @@ def _apply_mom_cap_backward(self, node, n_weeks, result):
 ### ForwardPlanner: PUSH MOM への Demand-S copy 除外
 
 `wom/engine/forward_planner.py` の Phase 1 InBound 処理で、`plan_mode="push"` の MOM ノードには Demand-S copy（`psi4supply[w][P] = psi4demand[w][P]`）を適用しない条件を追加。Buffer_Wafer_TW（`plan_mode="pull"`, `is_decoupling=True`）には引き続き Demand-S copy が適用される。
+
+---
+
+### BackwardPlanner 純粋化：`_in_propagate` からクリッピング削除（v1r0m3後期）
+
+**背景**: v1r0m2 の cap_hard envelope（`_in_propagate` 内のクリッピング）は、上流ノードが cap 前の全量需要を受け取れないという問題を持っていた。MOM の形状（CO あり）と TSMC_TW の形状（クリップ済み）が「少し異なる」という Osugiさんの観察がトリガー。
+
+**変更内容**:
+- `_in_propagate` の cap_hard clipping と is_decoupling fill-up ロジックを削除
+- 純粋な LT offset 伝播のみ残す
+- cap_hard enforcement は `_apply_mom_cap_backward`（MOM 専任）が担当
+- 上流ノードは cap 前の全量需要を受け取り、ForwardPlanner が supply allocation を判断
+
+**テスト更新**:
+- `test_step7_capacity.py` の `cap_hard_sealed` 期待値を `0` → `2` に変更
+  （v1r0m2: BackwardPlanner がクリップ → sealed=0 → v1r0m3: ForwardPlanner が enforce → sealed=demand-cap）
+
+### DebugPanel PSI グラフに Capacity Line 追加（v1r0m3後期）
+
+`app.py` の `_draw_psi_subplot` に `cap_values` 引数を追加。
+`_refresh_charts` で `dbg.get_node(product, node_name)` から cap_hard を週次リストとして取得し、
+グラフ左軸（lots）に橙色破線のステップ関数として描画する。
+
+```python
+# In _refresh_charts:
+node_obj  = dbg.get_node(product, node_name)
+cap_values = [node_obj.cap_hard(w) for w in range(n_weeks)] if node_obj else None
+
+# In _draw_psi_subplot: step-line where cap > 0
+if cap_values and any(v > 0 for v in cap_values):
+    # cap_x/cap_y: horizontal segments, NaN breaks for cap=0 weeks
+    ax.plot(cap_x, cap_y, color="#FF9800", linestyle="--", linewidth=1.2, label="Cap. Hard")
+```
+
+### app.py: v1r0m3 タイトル更新 + デフォルトサンプルパス修正
+
+- タイトルバーを `v1r0m2` → `v1r0m3` に変更（3箇所）
+- `_sample_dir` を `data/sample` → `data/sample/iphone-2027-2029` に変更（直下に `sc_tree_master.csv` がないため）
 
 ---
 
