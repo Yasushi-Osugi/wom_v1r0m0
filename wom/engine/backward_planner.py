@@ -51,6 +51,31 @@ When HolidayCalendarPlugin runs on_pre_plan it writes
 BackwardPlanner reads this via __init__(config=...) and uses _offset_week()
 to skip closed weeks when stepping back by lt_wks, adding extra offset for
 each closed week found in the range.
+
+─────────────────────────────────────────────────────────────────────────────
+v1r0m3: MOM Constrained Demand Allocation (Phase 3b)
+─────────────────────────────────────────────────────────────────────────────
+
+After Phase 3 (InBound PRE-ORDER), an additional backward pass is applied
+to MOM nodes when config["mom_constrained"] is True (default).
+
+    _apply_mom_cap_backward(mom_node, n_weeks, result)
+
+For each MOM node (node_type == "mom") with cap_hard > 0:
+  - psi4demand[w][P] is clipped to cap_hard(w)
+  - overflow lots are moved to psi4demand[w][CO]  (unfulfilled this week)
+  - overflow lots are added to psi4demand[w-1][S] (earlier production request)
+
+This implements the "Constrained Demand Allocation" hypothesis:
+    BackwardPlanner generates a cap_hard-respecting psi4demand[P],
+    so ForwardPlanner only needs to copy/confirm rather than generate CO.
+
+Design notes:
+  - The backward pass (w = n_weeks-1 → 0) ensures cascading carry-back:
+    each week's overflow accumulates into the prior week.
+  - Child node propagation is NOT re-triggered after carry-back (v1r0m3 scope).
+    Full re-propagation is deferred to v1r0m4+.
+  - Set config["mom_constrained"] = False to restore v1r0m2 behavior.
 """
 
 from __future__ import annotations
@@ -127,6 +152,10 @@ class BackwardPlanner:
         # BackwardPlanner uses this to skip closed weeks during LT offset calc.
         cfg = config or {}
         self._explicit_closures: Dict[str, set] = cfg.get("explicit_closures", {})
+        # v1r0m3: MOM constrained demand allocation
+        # True  -> apply cap_hard clipping + CO carry-back at MOM nodes
+        # False -> v1r0m2 behavior (MOM psi4demand[P] = unconstrained S)
+        self._mom_constrained: bool = cfg.get("mom_constrained", True)
 
     # ======================================================================
     # Public API
@@ -185,6 +214,13 @@ class BackwardPlanner:
         for mom_node in in_roots.values():
             for node in mom_node.walk_preorder():
                 self._in_propagate(node, n_weeks, result)
+
+        # -- Phase 3b: MOM constrained demand allocation (v1r0m3) ----------
+        # Apply cap_hard clipping to MOM psi4demand[P].
+        # Overflow -> psi4demand[w][CO]  +  psi4demand[w-1][S]  (carry-back)
+        if self._mom_constrained:
+            for mom_node in in_roots.values():
+                self._apply_mom_cap_backward(mom_node, n_weeks, result)
 
         # -- Build node summary -------------------------------------------
         for node in self.sc_tree.iter_all_nodes(prod_nm):
@@ -324,6 +360,73 @@ class BackwardPlanner:
                     elif child_w < n_weeks:
                         child.psi4demand[child_w][S].append(lot_id)
                         result.in_propagations += 1
+
+    # ======================================================================
+    # Phase 3b: MOM constrained demand allocation (v1r0m3)
+    # ======================================================================
+
+    def _apply_mom_cap_backward(
+        self,
+        node:    PlanNode,
+        n_weeks: int,
+        result:  BackwardPlanResult,
+    ) -> None:
+        """
+        v1r0m3: Constrained Demand Allocation for MOM nodes.
+
+        Apply cap_hard clipping to psi4demand[w][P] at MOM nodes.
+        Overflow lots (demand > cap_hard) are:
+          - recorded in psi4demand[w][CO]      (unfulfilled in-week demand)
+          - pushed back to psi4demand[w-1][S]  (earlier production request)
+
+        Processing is backward (w = n_weeks-1 → 0) so that cascading
+        carry-back is accumulated correctly:
+            w=155 overflow → pushed to w=154 S
+            w=154 overflow (original + carry) → pushed to w=153 S
+            ...
+
+        Design notes
+        ------------
+        - Only applied to nodes with node_type == "mom".
+        - Child node propagation is NOT re-triggered after carry-back.
+          (Full re-propagation is deferred to v1r0m4+.)
+        - Week 0 overflow → recorded as past_due (no earlier week exists).
+        """
+        if node.node_type != "mom":
+            return  # only apply to MOM nodes
+
+        for w in range(n_weeks - 1, -1, -1):
+            cap_w = node.cap_hard(w)
+            if cap_w <= 0.0:
+                continue  # unconstrained week (cap not set)
+
+            s_lots  = list(node.psi4demand[w][S])
+            cap_int = int(cap_w)
+
+            if len(s_lots) <= cap_int:
+                continue  # no overflow this week
+
+            # -- Clip P at cap_hard ----------------------------------------
+            within_cap = s_lots[:cap_int]
+            overflow   = s_lots[cap_int:]
+
+            # Overwrite P: was set to full S by _in_propagate; now capped
+            node.psi4demand[w][P].clear()
+            node.psi4demand[w][P].extend(within_cap)
+
+            # -- Record overflow as CO (unfulfilled demand this week) -------
+            for lot_id in overflow:
+                node.psi4demand[w][CO].append(lot_id)
+
+            # -- Push overflow to previous week S (earlier production) ------
+            if w > 0:
+                for lot_id in overflow:
+                    node.psi4demand[w - 1][S].append(lot_id)
+                result.in_propagations += len(overflow)
+            else:
+                # Week 0: no earlier week — record as past_due
+                for lot_id in overflow:
+                    result.record_past_due(node.node_id, lot_id, w)
 
     # ======================================================================
     # Multi-MOM lane routing helper

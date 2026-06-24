@@ -133,8 +133,13 @@ class ForwardPlanner:
         for mom_root in in_roots.values():
             in_pull_mode = False   # False = PUSH; True = demand-anchored PULL
             for node in mom_root.walk_postorder():
-                # Demand-S copy at decouple node, or InBound PULL downstream
-                if (node.is_decoupling or in_pull_mode) and node.node_type != NODE_TYPE_LEAF_IN:
+                # Demand-S copy at decouple node, or InBound PULL downstream.
+                # plan_mode=="push" MOM nodes are excluded: their P is set by
+                # upstream PUSH propagation (_propagate_to_parent) and must NOT be
+                # overwritten with demand[P], otherwise PUSH buffer inventory is lost.
+                if ((node.is_decoupling or in_pull_mode)
+                        and node.node_type != NODE_TYPE_LEAF_IN
+                        and node.plan_mode != "push"):
                     for w in range(n_weeks):
                         node.psi4supply[w][P] = list(node.psi4demand[w][P])
 

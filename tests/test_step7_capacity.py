@@ -68,7 +68,10 @@ def build_tree_with_demand(cap_hard=0.0, cap_soft=0.0, demand_qty=4):
     assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
 
     # Backward + copy
-    BackwardPlanner(sc_tree).run(sku_id)
+    # v1r0m3: use mom_constrained=False to preserve v1r0m2 test behaviour.
+    # Existing tests in this file verify v1r0m2 semantics (cap_hard envelope only).
+    # v1r0m3 MOM constrained allocation is tested in test_step7b_mom_constrained.py.
+    BackwardPlanner(sc_tree, config={"mom_constrained": False}).run(sku_id)
     copy_demand_to_supply(sc_tree, sku_id)
 
     return sc_tree, weeks, sku_id, mom_node

@@ -13,8 +13,10 @@ PSI Bucket index convention (confirmed):
     psi4supply[week_idx][bucket] = list[lot_ID: str]
     capacity[week_idx][0: CapHard, 1: CapSoft] = float
 
-CO is generated ONLY in Forward Planning when I+P < S demand.
-Backward Planning (demand allocation, ideal/unconstrained) never touches CO.
+CO generation rules:
+  v1r0m2: CO generated ONLY in Forward Planning when I+P < S demand.
+  v1r0m3: BackwardPlanner also generates CO at MOM nodes when demand > cap_hard.
+          psi4demand[w][CO] = overflow lots carried back to psi4demand[w-1][S].
 
 Tier numbering:
     tier = 0  ->  closest to supply_point

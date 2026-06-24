@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **WOM (Weekly Operation Model)** は週次PSI（Production/Sales/Inventory）を基本単位とするE2Eサプライチェーン計画・シミュレーションツール。Python \+ tkinter GUI。
 
 - 起動: `python -m main`（GUIモード）/ `python -m main --cli`（ヘッドレス）  
-- 現バージョン: v1r0m2（branch: `wom-v1r0m2`）  
+- 現バージョン: v1r0m3（branch: `wom-v1r0m3`）  
 - 適用事例: Japanese Rice SC（`data/sample/rice-japan-2027-2028/`）、iPhone Global SC（`data/sample/iphone-2027-2029/`）
 
 ---
@@ -213,12 +213,12 @@ Planning Engine完了後に自動実行（`_run_ppc_from_planning`）。
 
 ---
 
-## v1r0m2の開発方針
+## v1r0m3の開発方針
 
-- v1r0m1（branch: `wom-v1r0m1`）をベースラインとして保存済み  
-- v1r0m2では **Lead Time offset** と **DAD 回転在庫** の実装を進める  
+- v1r0m2（branch: `wom-v1r0m2`）をベースラインとして保存済み  
+- v1r0m3では **MOM Constrained Demand Allocation**（BackwardPlannerでのMOM cap_hardクリップ + CO前倒し）を実装  
 - `data/sample/iphone-2027-2029/` を参照・拡充する  
-- コード変更はすべて `wom-v1r0m2` ブランチで行い、GitHubへpushする  
+- コード変更はすべて `wom-v1r0m3` ブランチで行い、GitHubへpushする  
 - GitHub: `https://github.com/Yasushi-Osugi/wom_v1r0m0.git`
 
 ---
@@ -249,6 +249,14 @@ demand_multiplier 行のノード名 `Sales_US_iPhone16` / `Sales_EU_iPhone16` �
 
 ### ファイルのnullバイト汚染（修正済み）
 v1r0m1の `backward_planner.py` と `holiday_calendar.csv` にnullバイトが混入していた（Windowsでのコピー操作が原因の可能性）。Linuxの `bash cp` で上書きして修復。
+
+### ForwardPlanner: PUSH MOM の在庫が0になるバグ（v1r0m3で修正済み）
+`wom/engine/forward_planner.py` の Phase 1（InBound POST-ORDER）で、`is_decoupling=True` の全ノードに `psi4supply[w][P] = psi4demand[w][P]`（Demand-S copy）を適用していた。しかしPUSH設定されたMOM（`plan_mode="push"`）は `is_decoupling=True` になるため、leaf_in → tier-1 の `_propagate_to_parent` で積み上げた P が Demand-S copy に上書きされ、バッファ在庫が 0 になっていた。
+**修正**: `node.plan_mode != "push"` 条件を追加し、PUSH MOM には Demand-S copy を適用しない。Buffer_Wafer_TW（`plan_mode="pull"`）は引き続き Demand-S copy が適用される。
+
+### pytest .pyc キャッシュ問題（Linux環境）
+Windowsでフォルダをコピーした場合、`__pycache__/*.pyc` も元のパスを `co_filename` として持つ。Linux FUSE マウント経由では .pyc の削除が permission error になるため、Python が古い .pyc を優先して .py の変更が反映されない。
+**対処**: `os.utime(file, (now+10, now+10))` で .py ファイルのタイムスタンプを .pyc より新しくするか、`PYTHONDONTWRITEBYTECODE=1` + Python による .py 直接書き込み（`python3 << 'EOF'` ヒアドック）で迂回する。pytest 実行時は `PYTHONDONTWRITEBYTECODE=1 python -m pytest ... -p no:cacheprovider` を使うこと。
 
 
 
@@ -341,6 +349,52 @@ Foxconn_CN の生産シフトが TSMC_TW 経由で Buffer_Wafer_TW の在庫減�
 2. `push_lead_time_weeks > 0` → Mode 4（LT-shifted、最優先）
 3. `pre_build_qty_per_week > 0` AND `pre_build_end_week` → Mode 3（時間軸分割）
 4. それ以外 → Mode 2（古典的補充）
+
+---
+
+## v1r0m3 実装済み機能（新しいClaude君へ）
+
+### MOM Constrained Demand Allocation（`_apply_mom_cap_backward`）
+
+`wom/engine/backward_planner.py` に Phase 3b として `_apply_mom_cap_backward()` を追加。
+`mom_constrained=True`（デフォルト）のとき、BackwardPlanner が MOM ノードの `psi4demand[w][P]` を cap_hard でクリップし、オーバーフロー分を CO として前週の S に押し戻す。
+
+**設計意図（Plan Transforming Hypothesis）**: BackwardPlanner = Constrained Demand Allocation。
+MOM ノードで cap_hard クリップ + CO前倒しを行うことで、`psi4demand[w][P]` = cap_hard 以内の実行可能計画が生成される。ForwardPlanner は（理想的には）この計画をコピーするだけで CO を発生させない。
+
+```python
+def _apply_mom_cap_backward(self, node, n_weeks, result):
+    if node.node_type != "mom":
+        return
+    for w in range(n_weeks - 1, -1, -1):
+        cap_w = node.cap_hard(w)
+        if cap_w <= 0.0:
+            continue
+        s_lots = list(node.psi4demand[w][S])
+        cap_int = int(cap_w)
+        if len(s_lots) <= cap_int:
+            continue
+        within_cap = s_lots[:cap_int]
+        overflow   = s_lots[cap_int:]
+        node.psi4demand[w][P].clear()
+        node.psi4demand[w][P].extend(within_cap)
+        for lot_id in overflow:
+            node.psi4demand[w][CO].append(lot_id)
+        if w > 0:
+            for lot_id in overflow:
+                node.psi4demand[w - 1][S].append(lot_id)
+        else:
+            for lot_id in overflow:
+                result.record_past_due(node.node_id, lot_id, w)
+```
+
+**`mom_constrained` フラグ**:
+- `True`（デフォルト）: v1r0m3 動作。MOM cap_hard クリップ実行。
+- `False`: v1r0m2 互換。既存テスト（`test_step7_capacity.py`, `test_step8_push_pull.py`）は `config={"mom_constrained": False}` で実行し v1r0m2 セマンティクスを保持。
+
+### ForwardPlanner: PUSH MOM への Demand-S copy 除外
+
+`wom/engine/forward_planner.py` の Phase 1 InBound 処理で、`plan_mode="push"` の MOM ノードには Demand-S copy（`psi4supply[w][P] = psi4demand[w][P]`）を適用しない条件を追加。Buffer_Wafer_TW（`plan_mode="pull"`, `is_decoupling=True`）には引き続き Demand-S copy が適用される。
 
 ---
 

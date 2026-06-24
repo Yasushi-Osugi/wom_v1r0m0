@@ -31,7 +31,8 @@ def build_base(regions=("JP",), demand_qty_per_region=4,
     demand_dict = {(sku_id, r, demand_week): demand_qty_per_region
                    for r in regions}
     assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
-    BackwardPlanner(sc_tree).run(sku_id)
+    # v1r0m3: use mom_constrained=False to preserve v1r0m2 push/pull test behaviour.
+    BackwardPlanner(sc_tree, config={"mom_constrained": False}).run(sku_id)
     copy_demand_to_supply(sc_tree, sku_id)
     return sc_tree, weeks, sku_id
 
