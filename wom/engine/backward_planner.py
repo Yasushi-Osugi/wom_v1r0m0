@@ -62,20 +62,14 @@ to MOM nodes when config["mom_constrained"] is True (default).
     _apply_mom_cap_backward(mom_node, n_weeks, result)
 
 For each MOM node (node_type == "mom") with cap_hard > 0:
-  - psi4demand[w][P] is clipped to cap_hard(w)
-  - overflow lots are moved to psi4demand[w][CO]  (unfulfilled this week)
-  - overflow lots are added to psi4demand[w-1][S] (earlier production request)
+  - psi4demand[w][P] is clipped to cap_hard(w) lots
+  - psi4demand[w][S] is also updated to within_cap (so Phase 3 propagates
+    only capped lots to child nodes)
+  - Overflow lots → psi4demand[w][CO]  +  psi4demand[w-1][S]  (carry-back)
 
-This implements the "Constrained Demand Allocation" hypothesis:
-    BackwardPlanner generates a cap_hard-respecting psi4demand[P],
-    so ForwardPlanner only needs to copy/confirm rather than generate CO.
-
-Design notes:
-  - The backward pass (w = n_weeks-1 → 0) ensures cascading carry-back:
-    each week's overflow accumulates into the prior week.
-  - Child node propagation is NOT re-triggered after carry-back (v1r0m3 scope).
-    Full re-propagation is deferred to v1r0m4+.
-  - Set config["mom_constrained"] = False to restore v1r0m2 behavior.
+Processing order: Phase 3b runs BEFORE Phase 3 (_in_propagate) so that
+the cap-clipped S is what _in_propagate propagates to child nodes.
+This makes child.S[w-LT] match MOM.P[w] in shape (same staircase).
 """
 
 from __future__ import annotations
@@ -140,6 +134,13 @@ class BackwardPlanner:
 
         # or for all products:
         results = planner.run_all()
+
+    v1r0m3: mom_constrained mode
+    ----------------------------
+    When config["mom_constrained"] is True (default), _apply_mom_cap_backward
+    runs before _in_propagate so that cap-clipped S is propagated to children.
+    Pass config={"mom_constrained": False} to restore v1r0m2 behaviour
+    (used by test_step7_capacity.py to test ForwardPlanner cap enforcement).
     """
 
     def __init__(self, sc_tree: SCTree,
@@ -152,9 +153,7 @@ class BackwardPlanner:
         # BackwardPlanner uses this to skip closed weeks during LT offset calc.
         cfg = config or {}
         self._explicit_closures: Dict[str, set] = cfg.get("explicit_closures", {})
-        # v1r0m3: MOM constrained demand allocation
-        # True  -> apply cap_hard clipping + CO carry-back at MOM nodes
-        # False -> v1r0m2 behavior (MOM psi4demand[P] = unconstrained S)
+        # v1r0m3: MOM constrained demand allocation (default: True)
         self._mom_constrained: bool = cfg.get("mom_constrained", True)
 
     # ======================================================================
@@ -210,17 +209,19 @@ class BackwardPlanner:
                     target_mom.add_lot_demand(w, S, lot_id)
                     result.bridge_lots += 1
 
+        # -- Phase 3b: MOM constrained demand allocation (v1r0m3) ----------
+        # Must run BEFORE Phase 3 (_in_propagate) so that the cap-clipped S
+        # is what gets propagated to child nodes (TSMC_TW etc.).
+        # After this pass:  MOM.S[w] = MOM.P[w] = within_cap (capped lots only)
+        # _in_propagate will then propagate this capped S to child.S[w-LT].
+        if self._mom_constrained:
+            for mom_node in in_roots.values():
+                self._apply_mom_cap_backward(mom_node, n_weeks, result)
+
         # -- Phase 3: InBound PRE-ORDER (all MOM roots) -------------------
         for mom_node in in_roots.values():
             for node in mom_node.walk_preorder():
                 self._in_propagate(node, n_weeks, result)
-
-        # -- Phase 3b: MOM constrained demand allocation (v1r0m3) ----------
-        # Apply cap_hard clipping to MOM psi4demand[P].
-        # Overflow -> psi4demand[w][CO]  +  psi4demand[w-1][S]  (carry-back)
-        if self._mom_constrained:
-            for mom_node in in_roots.values():
-                self._apply_mom_cap_backward(mom_node, n_weeks, result)
 
         # -- Build node summary -------------------------------------------
         for node in self.sc_tree.iter_all_nodes(prod_nm):
@@ -321,13 +322,21 @@ class BackwardPlanner:
         and will be extended to other node types in future versions.
         Upstream nodes receive the full unconstrained demand signal so that
         ForwardPlanner can use it for supply allocation decisions.
+
+        v1r0m3: P update skipped for MOM nodes in mom_constrained mode.
+        P was already set by _apply_mom_cap_backward (Phase 3b) which runs
+        before this method. Appending again would double-count within_cap lots.
         """
         for w in range(n_weeks):
             all_lots = list(node.psi4demand[w][S])
 
             # -- P = S  (record full demand signal) -------------------------
-            for lot_id in all_lots:
-                node.psi4demand[w][P].append(lot_id)
+            # Skip for MOM nodes in mom_constrained mode: P was already set
+            # by _apply_mom_cap_backward (Phase 3b runs before Phase 3).
+            # Appending again would double-count within_cap lots in P.
+            if not (self._mom_constrained and node.node_type == "mom"):
+                for lot_id in all_lots:
+                    node.psi4demand[w][P].append(lot_id)
 
             # -- Propagate all lots to each child (supplier) ----------------
             for lot_id in all_lots:
@@ -356,6 +365,11 @@ class BackwardPlanner:
         Overflow lots (demand > cap_hard) are:
           - recorded in psi4demand[w][CO]      (unfulfilled in-week demand)
           - pushed back to psi4demand[w-1][S]  (earlier production request)
+
+        Additionally, psi4demand[w][S] is updated to within_cap so that
+        _in_propagate (Phase 3, which runs after this method) propagates
+        only the capped lots to child nodes.  This makes child.S[w-LT]
+        match MOM.P[w] in shape (same staircase waveform).
 
         Processing is backward (w = n_weeks-1 → 0) so that cascading
         carry-back is accumulated correctly:
@@ -395,6 +409,13 @@ class BackwardPlanner:
             # -- Record overflow as CO (unfulfilled demand this week) -------
             for lot_id in overflow:
                 node.psi4demand[w][CO].append(lot_id)
+
+            # -- Also update S to within_cap --------------------------------
+            # _in_propagate (Phase 3) uses psi4demand[w][S] to propagate to
+            # child nodes.  By updating S here, child.S[w-LT] will carry only
+            # the cap-clipped lots, making child.S match MOM.P in shape.
+            node.psi4demand[w][S].clear()
+            node.psi4demand[w][S].extend(within_cap)
 
             # -- Push overflow to previous week S (earlier production) ------
             if w > 0:
