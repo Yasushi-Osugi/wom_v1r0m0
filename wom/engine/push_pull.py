@@ -207,9 +207,18 @@ class PushProductionPlanner:
         # 2. Set plan_mode flags
         decoupling_node.is_decoupling = True
         decoupling_node.plan_mode     = PUSH_MODE
+
+        # Nodes BELOW decoupling (leaf_in side) -> PUSH_SUB (feed buffer)
         for node in decoupling_node.walk_preorder():
             if node is not decoupling_node:
                 node.plan_mode = PUSH_SUB_MODE
+
+        # Nodes ABOVE decoupling (toward MOM root) -> PUSH_SUB (PUSH forward pass)
+        # Buffer_Wafer_TW.S drives TSMC_TW.P -> Foxconn_CN.P as pass-through.
+        _up = decoupling_node.parent
+        while _up is not None:
+            _up.plan_mode = PUSH_SUB_MODE
+            _up = _up.parent
 
         # 3. Compute push quantities
         push_qtys = self._compute_push_quantities(
@@ -239,6 +248,7 @@ class PushProductionPlanner:
             if total_qty <= 0:
                 continue
 
+            # Leaf-in P = PUSH production schedule (feeds the buffer)
             base, remainder = divmod(total_qty, n_leaves)
 
             for leaf_idx, leaf_node in enumerate(leaf_in_nodes):

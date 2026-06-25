@@ -3600,6 +3600,9 @@ class DebugPanel(tk.Frame):
         self._fig.clf()
         self._fig.patch.set_facecolor(BG_DARK)
 
+        shortfall = (dbg.get_shortfall(step_idx, node_name)
+                     if hasattr(dbg, 'get_shortfall') else None)
+
         self._draw_psi_subplot(
             self._fig.add_subplot(2, 1, 1),
             demand_psi, weeks, node_name,
@@ -3613,6 +3616,7 @@ class DebugPanel(tk.Frame):
             title=f"SUPPLY LAYER  (psi4supply)  │  {node_name}",
             layer_color="#A5D6A7",
             cap_values=cap_values,
+            shortfall=shortfall,
         )
 
         self._fig.tight_layout(pad=1.5)
@@ -3630,11 +3634,12 @@ class DebugPanel(tk.Frame):
         self._set_delta_text(text)
 
     def _draw_psi_subplot(self, ax, psi_data, weeks, node_name, title, layer_color,
-                          cap_values=None):
+                          cap_values=None, shortfall=None):
         """
         Draw a single PSI chart (P/S/CO bars + I line + Capacity Line) on ax.
         psi_data: [[S, CO, I, P] x n_weeks] or None
         cap_values: [cap_hard(w) for w in range(n_weeks)] or None
+        shortfall: [shortage_count per week] for PUSH decoupling nodes, or None
         """
         ax.set_facecolor(BG_MID)
         ax.set_title(title, color=layer_color, fontsize=8, pad=4)
@@ -3673,6 +3678,16 @@ class DebugPanel(tk.Frame):
         if any(v > 0 for v in co_vals):
             ax.bar([xi + bw for xi in x], co_vals, width=bw,
                    label="CO: Carry-Over",     color="#F44336", alpha=0.85)
+
+        # -- PUSH shortfall (Action-TODO signal) ----------------------------
+        # Shown as red hatched bars when PUSH decoupling node has shortage.
+        # shortage[w] = unmet demand in week w; S stays as demand_staircase.
+        if shortfall and any(v > 0 for v in shortfall):
+            sf_n = min(len(shortfall), n)
+            sf_vals = list(shortfall[:sf_n]) + [0] * (n - sf_n)
+            ax.bar([xi + bw for xi in x], sf_vals, width=bw,
+                   label="Shortage (Action-TODO)", color="#FF1744",
+                   alpha=0.90, hatch="//", edgecolor="#FF1744")
 
         # -- Capacity Line (step function) ----------------------------------
         # Draw cap_hard as an orange dashed step line on the main (left) axis.

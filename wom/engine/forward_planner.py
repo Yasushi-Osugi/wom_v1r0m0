@@ -119,6 +119,9 @@ class ForwardPlanner:
         in_roots = self.sc_tree.get_in_roots(prod_nm)  # Dict[node_id, PlanNode]
 
         self._clear_derived_p(in_roots, ot_root, n_weeks)
+        # {node_id: {w: [lot, ...]}} -- actual lots shipped by PUSH decoupling node.
+        # Kept separate from psi4supply[w][S] which holds demand_staircase for display.
+        self._push_actual_s: Dict[str, Dict[int, List[str]]] = {}
 
         # Phase 1: InBound POST-ORDER (all MOM roots)
         #
@@ -147,12 +150,23 @@ class ForwardPlanner:
                 self._process_node(node, n_weeks, result, opening_lots=opening)
                 result.in_processed += 1
 
-                # Activate InBound PULL after the decouple node
-                if node.is_decoupling:
+                if node.is_decoupling and node.plan_mode == "push":
+                    # PUSH decoupling node: propagate ACTUAL lots (not display S) to parent.
+                    # psi4supply[w][S] = demand_staircase (maintained for display/CO visibility).
+                    # actual_s = min(available, demand) -- physically shipped to TSMC_TW etc.
+                    if node.parent is not None:
+                        actual_by_w = self._push_actual_s.get(node.node_id, {})
+                        for w in range(n_weeks):
+                            actual_s = actual_by_w.get(w, [])
+                            if actual_s:
+                                target_w = w + node.lt_wks
+                                if 0 <= target_w < n_weeks:
+                                    node.parent.psi4supply[target_w][P].extend(actual_s)
+                elif node.is_decoupling:
+                    # Non-PUSH decoupling: upstream nodes become demand-anchored PULL
                     in_pull_mode = True
-
-                # Propagate only from PUSH nodes (not decouple, not InBound PULL)
-                if not node.is_decoupling and not in_pull_mode and node.parent is not None:
+                elif not in_pull_mode and node.parent is not None:
+                    # Normal PUSH_SUB propagation (e.g. SiliconWafer_TW -> Buffer)
                     self._propagate_to_parent(node, n_weeks)
 
         # Phase 2: Bridge ALL MOM roots -> supply_point
@@ -330,7 +344,8 @@ class ForwardPlanner:
             -> always Case 1, I=0, no CO generated
         """
         prev_inv_lots: List[str] = list(opening_lots)
-        is_push_sub = (node.plan_mode == "push_sub")
+        is_push_sub  = (node.plan_mode == "push_sub")
+        is_push_mode = (node.plan_mode == "push")    # PUSH decoupling (Buffer_Wafer_TW等)
 
         for w in range(n_weeks):
             wk_label = node.week_labels[w] if node.week_labels else str(w)
@@ -357,6 +372,41 @@ class ForwardPlanner:
             available = prev_inv_lots + p_lots
 
             # Demand side
+            if is_push_mode:
+                # PUSH decoupling node (e.g. Buffer_Wafer_TW):
+                #   S = demand_staircase (display signal -- NOT reduced on shortage)
+                #   Each week is INDEPENDENT: no CO cascade.
+                #   Shortage bar = per-week Action-TODO signal for the operator.
+                #   (CO cascade caused exponential snowball and is not meaningful
+                #    for PUSH nodes that have their own production schedule.)
+                s_plan    = list(node.psi4supply[w][S])   # demand_staircase
+                node.psi4supply[w][CO] = []               # no CO carry-forward
+                avail_cnt = len(available)
+                total_cnt = len(s_plan)
+                actual_s  = available[:total_cnt]         # lots physically shipped
+
+                if avail_cnt >= total_cnt:
+                    node.psi4supply[w][I] = available[total_cnt:]  # surplus -> buffer
+                else:
+                    node.psi4supply[w][I] = []
+                    shortfall_cnt = total_cnt - avail_cnt
+                    if shortfall_cnt:
+                        result.record_shortfall(node.node_id, wk_label, shortfall_cnt)
+
+                # Store actual_s for parent propagation (separate from display S)
+                nid = node.node_id
+                if nid not in self._push_actual_s:
+                    self._push_actual_s[nid] = {}
+                self._push_actual_s[nid][w] = actual_s
+
+                # Record shortage count on node for Debugger visualization
+                if not hasattr(node, '_push_shortfall'):
+                    node._push_shortfall = {}
+                node._push_shortfall[w] = max(0, total_cnt - avail_cnt)
+
+                prev_inv_lots = node.psi4supply[w][I]
+                continue
+
             if is_push_sub:
                 # PUSH sub-node: ship ALL available supply upward.
                 # No demand gate; inventory stays at zero.
@@ -456,7 +506,6 @@ class ForwardPlanner:
                 leaf = self._lot_leaf_index.get(lot)
                 if leaf is None:
                     continue
-                # Walk up from leaf_out until we find the node whose parent IS parent
                 node = leaf
                 while node is not None and node.parent is not parent:
                     node = node.parent
@@ -474,18 +523,11 @@ class ForwardPlanner:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _build_lot_leaf_index(ot_root: PlanNode) -> Dict[str, PlanNode]:
-        """
-        Build {lot_id: leaf_out_node} from psi4demand[w][S] of all leaf_out nodes.
-
-        psi4demand is the stable demand truth (never modified by forward planning),
-        so all original demand lot_ids are reliably found here.
-        CO lots are always deferred copies of original demand lot_ids,
-        so they are covered by the same index.
-        """
-        index: Dict[str, PlanNode] = {}
+    def _build_lot_leaf_index(ot_root):
+        """Build {lot_id: leaf_out_node} from psi4demand[w][S] of all leaf_out nodes."""
+        index = {}
         for node in ot_root.walk_preorder():
-            if not node.children:  # leaf_out has no children
+            if not node.children:
                 for w_psi in node.psi4demand:
                     for lot_id in w_psi[S]:
                         index[lot_id] = node

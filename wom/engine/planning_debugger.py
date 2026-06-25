@@ -291,6 +291,7 @@ class PlanningDebugger:
                     continue
                 seen.add(nn)
                 n = len(node.psi4demand)
+                sf_raw = getattr(node, '_push_shortfall', None)
                 snap[nn] = {
                     "demand": [
                         [
@@ -310,5 +311,22 @@ class PlanningDebugger:
                         ]
                         for w in range(n)
                     ],
+                    "shortfall": [
+                        sf_raw.get(w, 0) if sf_raw else 0
+                        for w in range(n)
+                    ],
                 }
         return snap
+
+    def get_shortfall(self, step_idx: int, node_name: str):
+        """
+        Return per-week shortage count for a PUSH decoupling node at step_idx.
+        Returns list[int] or None if unavailable / no shortage.
+        """
+        snap = self.get_snapshot(step_idx)
+        if snap is None:
+            return None
+        node_snap = snap.get(node_name)
+        if node_snap is None:
+            return None
+        return node_snap.get("shortfall")
