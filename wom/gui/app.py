@@ -81,15 +81,24 @@ _445_MONTH_ABBR = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 def _445_ticks(week_labels):
     """
-    Return (tick_indices, tick_labels) for 4-4-5 monthly X-axis display.
+    Return (tick_indices, tick_labels) for 4-4-5 quarterly X-axis display.
 
-    Shows end-of-month ticks only (13 per year / ~39 ticks for 156-week model):
-      W04->Jan, W08->Feb, W13->Mar, W17->Apr, W21->May, W26->Jun,
-      W30->Jul, W34->Aug, W39->Sep, W43->Oct, W47->Nov, W52->Dec
+    Shows 4 ticks per year (~20 ticks for a 5-year model) to avoid overlap:
+      Jan  → ''YY   (year label only, e.g. "'26")
+      Mar  → "Mar"
+      Jun  → "Jun"
+      Sep  → "Sep"
+      Other months → skipped entirely
 
-    Labels: "Mon'YY" (e.g., "Jan'27").
     Returns ([], []) if week_labels are not in YYYY-Www format.
     """
+    # Months to display and their labels
+    _SHOW = {
+        1:  lambda y: f"'{str(y)[2:]}",   # Jan  → year abbrev  e.g. '26
+        3:  lambda y: "Mar",
+        6:  lambda y: "Jun",
+        9:  lambda y: "Sep",
+    }
     indices = []
     labels  = []
     for i, lbl in enumerate(week_labels):
@@ -101,8 +110,9 @@ def _445_ticks(week_labels):
         if wk in _445_MONTH_END_WEEKS:
             year  = int(year_str)
             month = _445_WEEK_TO_MONTH[wk]
-            indices.append(i)
-            labels.append(f"{_445_MONTH_ABBR[month]}'{str(year)[2:]}")
+            if month in _SHOW:
+                indices.append(i)
+                labels.append(_SHOW[month](year))
     return indices, labels
 
 
