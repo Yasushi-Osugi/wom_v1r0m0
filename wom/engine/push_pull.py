@@ -434,8 +434,9 @@ class PushProductionPlanner:
     # ------------------------------------------------------------------
 
     def _find_node(self, prod_nm: str, node_id: str) -> Optional[PlanNode]:
+        """Find node by node_id (full) or node_name (short name in CSV)."""
         for node in self.sc_tree.iter_all_nodes(prod_nm):
-            if node.node_id == node_id:
+            if node.node_id == node_id or node.node_name == node_id:
                 return node
         return None
 
