@@ -28,6 +28,7 @@ import pandas as pd
 # Matplotlib embedded in Tkinter
 import matplotlib
 matplotlib.use("TkAgg")
+matplotlib.rcParams["font.family"] = ["Yu Gothic", "DejaVu Sans"]
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
