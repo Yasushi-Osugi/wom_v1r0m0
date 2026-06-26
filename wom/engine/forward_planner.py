@@ -351,8 +351,11 @@ class ForwardPlanner:
             wk_label = node.week_labels[w] if node.week_labels else str(w)
 
             # Step 0a: CapHard sealing
+            # PUSH decoupling nodes (e.g. Buffer_Wafer_TW) skip sealing:
+            # their P bucket holds incoming inventory (already produced upstream),
+            # not production at this node. Surplus P flows to I via PUSH_MODE logic.
             ch = node.cap_hard(w)
-            if ch > 0 and len(node.psi4supply[w][P]) > int(ch):
+            if not is_push_mode and ch > 0 and len(node.psi4supply[w][P]) > int(ch):
                 excess = node.psi4supply[w][P][int(ch):]
                 node.psi4supply[w][P] = node.psi4supply[w][P][:int(ch)]
                 if w + 1 < n_weeks:
@@ -456,7 +459,12 @@ class ForwardPlanner:
     # ------------------------------------------------------------------
 
     def _propagate_to_parent(self, node, n_weeks):
-        """InBound: child S[w] -> parent P[w + node.lt_wks]."""
+        """InBound: child S[w] -> parent P[w + node.transit_lt_wks].
+
+        Uses transit_lt_wks (physical transport time) NOT lt_wks (demand planning LT).
+        For PUSH_SUB nodes (e.g. SiliconWafer_TW in Taiwan), transit is ~1 week
+        while lt_wks=26 is used only by BackwardPlanner for pre-build demand scheduling.
+        """
         parent = node.parent
         if parent is None:
             return
@@ -464,7 +472,8 @@ class ForwardPlanner:
             confirmed_s = node.psi4supply[w][S]
             if not confirmed_s:
                 continue
-            target_w = w + node.lt_wks
+            tlt = node.transit_lt_wks if node.transit_lt_wks > 0 else node.lt_wks
+            target_w = w + tlt
             if 0 <= target_w < n_weeks:
                 parent.psi4supply[target_w][P].extend(confirmed_s)
 

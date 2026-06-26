@@ -3375,6 +3375,7 @@ class DebugPanel(tk.Frame):
                                     pre_build_qty_per_week=int(_pr.get("pre_build_qty_per_week") or 0),
                                     pre_build_end_week=_pr.get("pre_build_end_week","").strip(),
                                     push_lead_time_weeks=int(_pr.get("push_lead_time_weeks") or 0),
+                                    push_eol_week=_pr.get("push_eol_week","").strip(),
                                 )
                     if _push_cfgs:
                         PushProductionPlanner(sc_tree).setup_all(_push_cfgs)

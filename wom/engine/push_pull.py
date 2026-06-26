@@ -107,6 +107,10 @@ class PushConfig:
                                pre-build -> steady -> staircase gap absorption
                                -> natural EOL stop -> buffer depletes to 0.
                              Priority over Mode 3 when both are set.
+    push_eol_week          : Mode 1 EOL stop — week label after which push[w]=0.
+                             e.g. "2027-W06" means production stops at that week.
+                             Computed from: ceil(total_demand / push_qty_per_week).
+                             Ignored when push_qty_per_week == 0.
     """
     node_id:                str
     push_qty_per_week:      int  = 0
@@ -117,6 +121,7 @@ class PushConfig:
     pre_build_qty_per_week: int  = 0
     pre_build_end_week:     str  = ""
     push_lead_time_weeks:   int  = 0
+    push_eol_week:          str  = ""
 
     def is_fixed_mode(self) -> bool:
         return self.push_qty_per_week > 0
@@ -285,7 +290,18 @@ class PushProductionPlanner:
         demand_ref_node:  Optional[PlanNode] = None,
     ) -> List[int]:
         if config.is_fixed_mode():
-            return [config.push_qty_per_week] * n_weeks
+            qty  = config.push_qty_per_week
+            # Mode 1 + EOL stop: production = 0 from push_eol_week onward
+            eol_idx = -1
+            if config.push_eol_week:
+                week_labels = self.sc_tree.week_labels
+                for i, lbl in enumerate(week_labels):
+                    if lbl >= config.push_eol_week:
+                        eol_idx = i
+                        break
+            if eol_idx < 0:
+                return [qty] * n_weeks
+            return [qty if w < eol_idx else 0 for w in range(n_weeks)]
         if config.is_lt_shifted_mode():
             ref = demand_ref_node if demand_ref_node is not None else decoupling_node
             return self._lt_shifted_schedule(ref, config.push_lead_time_weeks, n_weeks)

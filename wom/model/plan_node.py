@@ -94,10 +94,12 @@ class PlanNode:
     tier:      int          # 0 = closest to supply_point, increases to leaf
 
     # -- Planning parameters ───────────────────────────────────────────────
-    lt_wks:   int = 1       # lead time to parent [weeks]
-                            #   Backward: child.S[w] -> parent.P[w + lt_wks]
-                            #   Forward:  parent.P[w] -> child.S[w + lt_wks]
-    cpu_size: int = 1       # Common Planning Unit (minimum lot size)
+    lt_wks:         int = 1  # lead time to parent [weeks] -- used by BackwardPlanner
+                             #   Backward: child.S[w] -> parent.P[w + lt_wks]
+    transit_lt_wks: int = 0  # physical transit time [weeks] -- used by ForwardPlanner
+                             #   Forward (PUSH_SUB): child.S[w] -> parent.P[w + transit_lt_wks]
+                             #   Defaults to lt_wks if not specified in CSV
+    cpu_size: int = 1        # Common Planning Unit (minimum lot size)
     ss_days:  int = 0       # safety stock [days]; 0 = no extra buffer
                             # backward planner adds ceil(ss_days/7) to lt_wks offset
                             # so upstream demand is placed earlier -> creates buffer at this node

@@ -174,6 +174,10 @@ def _build_product_tree(
         node_type = str(row["node_type"]).strip()
         side      = str(row["side"]).strip()
         lt_wks        = int(row.get("lt_wks", 1) or 1)
+        # transit_lt_wks: physical supply transit time (ForwardPlanner)
+        # Falls back to lt_wks if not specified (empty/0) in CSV
+        _tlt          = row.get("transit_lt_wks", None)
+        transit_lt_wks = int(float(_tlt)) if (_tlt is not None and str(_tlt).strip() not in ("", "0", "nan")) else lt_wks
         cpu_size      = int(row.get("cpu_size", 1) or 1)
         ss_days       = int(row.get("ss_days", 0) or 0)
         region        = str(row.get("region", "") or "").strip()
@@ -188,10 +192,11 @@ def _build_product_tree(
             side          = side,
             node_type     = node_type,
             tier          = 0,       # calculated in Step 3
-            lt_wks        = lt_wks,
-            cpu_size      = cpu_size,
-            ss_days       = ss_days,
-            is_decoupling = is_decoupling,
+            lt_wks         = lt_wks,
+            transit_lt_wks = transit_lt_wks,
+            cpu_size       = cpu_size,
+            ss_days        = ss_days,
+            is_decoupling  = is_decoupling,
         )
         nodes[node_name] = pnode
 
