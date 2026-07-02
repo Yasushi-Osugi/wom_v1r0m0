@@ -3766,8 +3766,8 @@ class WOMApp(tk.Tk):
         # Detect sample data directory relative to this file
         here = os.path.dirname(os.path.abspath(__file__))
         root = os.path.dirname(os.path.dirname(here))
-        # Default to iphone-2027-2029 subfolder (has sc_tree_master.csv)
-        self._sample_dir = os.path.join(root, "data", "sample", "iphone-2027-2029")
+        # Default to smartx-2027-2029 subfolder (has sc_tree_master.csv)
+        self._sample_dir = os.path.join(root, "data", "sample", "smartx-2027-2029")
 
         self._build_ui()
         self._try_load_sample_paths()

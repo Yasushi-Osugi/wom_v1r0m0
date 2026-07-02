@@ -1,0 +1,13 @@
+edge_id,product_id,cost_type,basis,rate,fixed_amount,currency
+AssemblyCN->SP_SmartXPro,SmartXPro,logistics_cost,per_lot,0.0,10000,USD
+AssemblyCN_g1->SP_SmartX,SmartX,logistics_cost,per_lot,0.0,9000,USD
+AssemblyCN_g3->SP_SmartXNext,SmartXNext,logistics_cost,per_lot,0.0,12000,USD
+SP_SmartXPro->Retail_AMER,SmartXPro,logistics_cost,per_lot,0.0,170000,USD
+SP_SmartXPro->Retail_EMEA,SmartXPro,logistics_cost,per_lot,0.0,197000,USD
+SP_SmartXPro->Retail_APAC,SmartXPro,logistics_cost,per_lot,0.0,143000,USD
+SP_SmartX->Retail_AMER_g1,SmartX,logistics_cost,per_lot,0.0,161000,USD
+SP_SmartX->Retail_EMEA_g1,SmartX,logistics_cost,per_lot,0.0,182000,USD
+SP_SmartX->Retail_APAC_g1,SmartX,logistics_cost,per_lot,0.0,133000,USD
+SP_SmartXNext->Retail_AMER_g3,SmartXNext,logistics_cost,per_lot,0.0,179000,USD
+SP_SmartXNext->Retail_EMEA_g3,SmartXNext,logistics_cost,per_lot,0.0,208000,USD
+SP_SmartXNext->Retail_APAC_g3,SmartXNext,logistics_cost,per_lot,0.0,153000,USD

@@ -1,0 +1,12 @@
+supplier_node,product_id,week,purchase_price,currency
+WaferFab_TW,SmartXPro,2027-W01,50000,USD
+FoundryTW,SmartXPro,2027-W01,380000,USD
+SensorIN,SmartXPro,2027-W01,160000,USD
+AssemblyCN,SmartXPro,2027-W01,4500000,USD
+AssemblyIN,SmartXPro,2027-W01,4700000,USD
+WaferFab_TW_g1,SmartX,2027-W01,40000,USD
+FoundryTW_g1,SmartX,2027-W01,280000,USD
+AssemblyCN_g1,SmartX,2027-W01,3200000,USD
+WaferFab_TW_g3,SmartXNext,2027-W01,55000,USD
+FoundryTW_g3,SmartXNext,2027-W01,420000,USD
+AssemblyCN_g3,SmartXNext,2027-W01,4900000,USD

@@ -1,0 +1,11 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+SP-SmartX,Supply Point,supply_point,34.6937,135.5023,,,SmartX Supply Point Bridge
+AssemblyCN,AssemblyCN Zhengzhou,mother_plant,34.7466,113.6253,,,Final Assembly
+FoundryTW,FoundryTW Hsinchu,sku_supplier,24.7881,120.9970,SmartXPro,TW,NextGen SoC Wafer Fab
+FoundryTW-g1,FoundryTW Fab,sku_supplier,23.0013,120.2140,SmartX,TW,Gen1 SoC Wafer Fab
+SiWafer-TW,Silicon Wafer TW,sku_supplier,25.0330,121.5654,,,Silicon Wafer Supplier
+DC-AMER,DC Americas,region_dc,33.9425,-118.4081,,AMER,Los Angeles Distribution
+DC-EMEA,DC EMEA,region_dc,52.3676,4.9041,,EMEA,Amsterdam Distribution
+DC-APAC,DC APAC,region_dc,1.3521,103.8198,,APAC,Singapore Distribution
+GBL-Proc,Global Procurement,procurement,24.7881,120.9970,,,Global Procurement
+GBL-Mkt,Global Marketing,marketing,37.3318,-122.0312,,,Global HQ
