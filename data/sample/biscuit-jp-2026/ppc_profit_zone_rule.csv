@@ -1,3 +1,7 @@
-product_id,gp_margin_green,gp_margin_yellow,note
-OREO_JP,0.2,0.1,"OREO: Green>=20%, Yellow 10-20%, Red<10%"
-LUVAN_JP,0.25,0.15,"LUVAN: Green>=25%, Yellow 15-25%, Red<15%"
+profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
+OUTBOUND_CHANNEL_PROFIT,OREO_JP,channel_margin,market_price,0.15,0
+MOM_PLANT_PROFIT,OREO_JP,mom_margin,transfer_price,0.10,0
+SUPPLIER_COST_BASE,OREO_JP,supplier_cost,transfer_price,1.00,0
+OUTBOUND_CHANNEL_PROFIT,LUVAN_JP,channel_margin,market_price,0.27,0
+MOM_PLANT_PROFIT,LUVAN_JP,mom_margin,transfer_price,0.12,0
+SUPPLIER_COST_BASE,LUVAN_JP,supplier_cost,transfer_price,1.00,0

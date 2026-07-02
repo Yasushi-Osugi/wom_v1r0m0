@@ -1,3 +1,7 @@
-product_id,gp_margin_green,gp_margin_yellow,note
-BYD_ATTO3,0.25,0.15,"BYD: Green>=25%, Yellow 15-25%, Red<15%（価格競争下）"
-TESLA_M3,0.3,0.2,"Tesla: Green>=30%, Yellow 20-30%, Red<20%（割引前）"
+profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
+OUTBOUND_CHANNEL_PROFIT,BYD_ATTO3,channel_margin,market_price,0.25,0
+MOM_PLANT_PROFIT,BYD_ATTO3,mom_margin,transfer_price,0.08,0
+SUPPLIER_COST_BASE,BYD_ATTO3,supplier_cost,transfer_price,1.00,0
+OUTBOUND_CHANNEL_PROFIT,TESLA_M3,channel_margin,market_price,0.30,0
+MOM_PLANT_PROFIT,TESLA_M3,mom_margin,transfer_price,0.08,0
+SUPPLIER_COST_BASE,TESLA_M3,supplier_cost,transfer_price,1.00,0
