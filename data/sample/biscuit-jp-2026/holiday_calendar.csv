@@ -1,5 +1,3 @@
-node_name,week,event_type,demand_multiplier,note
-Factory_OREO_CN,2026-W05,closure,1.0,Chinese New Year factory closure
-Factory_OREO_CN,2026-W06,closure,1.0,Chinese New Year factory closure
-Factory_OREO_CN,2027-W02,closure,1.0,Chinese New Year factory closure
-Factory_OREO_CN,2027-W03,closure,1.0,Chinese New Year factory closure
+holiday_id,holiday_name,start_week,end_week,node_name,effect,value
+CNY2026_OREO,Chinese New Year 2026,2026-W05,2026-W06,Factory_OREO_CN,supply_closure,0.0
+CNY2027_OREO,Chinese New Year 2027,2027-W02,2027-W03,Factory_OREO_CN,supply_closure,0.0

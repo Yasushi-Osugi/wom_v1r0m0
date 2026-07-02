@@ -1,19 +1,5 @@
-node_name,week,event_type,demand_multiplier,note
-Sales_TH_BKK,2026-W14,closure,0.5,Songkran ディーラー営業縮小
-Sales_TH_PRO,2026-W14,closure,0.5,Songkran 地方ディーラー縮小
-Sales_TH_BKK_t,2026-W14,closure,0.5,Songkran Teslaショールーム縮小
-Sales_TH_BKK,2026-W15,closure,0.5,Songkran ディーラー営業縮小
-Sales_TH_PRO,2026-W15,closure,0.5,Songkran 地方ディーラー縮小
-Sales_TH_BKK_t,2026-W15,closure,0.5,Songkran Teslaショールーム縮小
-Sales_TH_BKK,2027-W14,closure,0.5,Songkran ディーラー営業縮小
-Sales_TH_PRO,2027-W14,closure,0.5,Songkran 地方ディーラー縮小
-Sales_TH_BKK_t,2027-W14,closure,0.5,Songkran Teslaショールーム縮小
-Sales_TH_BKK,2027-W15,closure,0.5,Songkran ディーラー営業縮小
-Sales_TH_PRO,2027-W15,closure,0.5,Songkran 地方ディーラー縮小
-Sales_TH_BKK_t,2027-W15,closure,0.5,Songkran Teslaショールーム縮小
-Factory_BYD_TH,2026-W32,closure,1.0,ラヨーン工場 定期整備停止
-Factory_BYD_TH,2027-W32,closure,1.0,ラヨーン工場 定期整備停止
-Factory_TESLA_CN,2026-W40,closure,1.0,上海工場 国慶節休暇
-Factory_TESLA_CN,2026-W41,closure,1.0,上海工場 国慶節休暇
-Factory_TESLA_CN,2027-W40,closure,1.0,上海工場 国慶節休暇
-Factory_TESLA_CN,2027-W41,closure,1.0,上海工場 国慶節休暇
+holiday_id,holiday_name,start_week,end_week,node_name,effect,value
+RAYONG_MAINT_2026,Rayong Factory Maintenance 2026,2026-W32,2026-W32,Factory_BYD_TH,supply_closure,0.0
+RAYONG_MAINT_2027,Rayong Factory Maintenance 2027,2027-W32,2027-W32,Factory_BYD_TH,supply_closure,0.0
+GOLDEN_WEEK_2026,Shanghai Golden Week 2026,2026-W40,2026-W41,Factory_TESLA_CN,supply_closure,0.0
+GOLDEN_WEEK_2027,Shanghai Golden Week 2027,2027-W40,2027-W41,Factory_TESLA_CN,supply_closure,0.0
