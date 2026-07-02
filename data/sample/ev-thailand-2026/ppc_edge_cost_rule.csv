@@ -1,0 +1,5 @@
+edge_id,product_id,cost_type,basis,rate,fixed_amount,currency
+Factory_BYD_TH->SP_BYD_TH,BYD_ATTO3,logistics_cost,per_lot,0.0,10000,THB
+SP_BYD_TH->DC_BYD_TH,BYD_ATTO3,logistics_cost,per_lot,0.0,20000,THB
+Factory_TESLA_CN->SP_TESLA_TH,TESLA_M3,logistics_cost,per_lot,0.0,33250,THB
+SP_TESLA_TH->DC_TESLA_TH,TESLA_M3,logistics_cost,per_lot,0.0,76000,THB

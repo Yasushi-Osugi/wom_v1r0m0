@@ -1,0 +1,3 @@
+product_id,gp_margin_green,gp_margin_yellow,note
+OREO_JP,0.2,0.1,"OREO: Green>=20%, Yellow 10-20%, Red<10%"
+LUVAN_JP,0.25,0.15,"LUVAN: Green>=25%, Yellow 15-25%, Red<15%"

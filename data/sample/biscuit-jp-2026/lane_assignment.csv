@@ -1,0 +1,7 @@
+sku_id,leaf_node_name,mom_node_id,priority
+OREO_JP,Retail_JP_CVS,IN:mom:Factory_OREO_CN:OREO_JP,1
+OREO_JP,Retail_JP_SM,IN:mom:Factory_OREO_CN:OREO_JP,1
+OREO_JP,Retail_JP_EC,IN:mom:Factory_OREO_CN:OREO_JP,1
+LUVAN_JP,Retail_JP_CVS,IN:mom:Factory_LUVAN_JP:LUVAN_JP,1
+LUVAN_JP,Retail_JP_SM,IN:mom:Factory_LUVAN_JP:LUVAN_JP,1
+LUVAN_JP,Retail_JP_EC,IN:mom:Factory_LUVAN_JP:LUVAN_JP,1

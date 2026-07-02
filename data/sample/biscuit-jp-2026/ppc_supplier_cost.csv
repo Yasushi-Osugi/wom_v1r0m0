@@ -1,0 +1,5 @@
+supplier_node,product_id,week,purchase_price,currency
+Ingredients_CN,OREO_JP,2026-W01,8000,JPY
+Factory_OREO_CN,OREO_JP,2026-W01,17000,JPY
+Ingredients_JP,LUVAN_JP,2026-W01,11000,JPY
+Factory_LUVAN_JP,LUVAN_JP,2026-W01,20000,JPY

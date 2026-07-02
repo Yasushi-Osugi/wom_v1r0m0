@@ -1,0 +1,7 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+BYD_ATTO3,BYD ATTO3 (Thailand),BKK,EA,780000,1,3,10,0,0,True,1099000,8,60
+BYD_ATTO3,BYD ATTO3 (Thailand),PRO,EA,780000,1,4,10,0,0,True,1099000,8,60
+BYD_ATTO3,BYD ATTO3 (Thailand),ONL,EA,780000,1,2,10,0,0,True,1049000,8,60
+TESLA_M3,Tesla Model 3 (Import),BKK,EA,950000,2,5,5,0,0,True,1659000,8,90
+TESLA_M3,Tesla Model 3 (Import),PRO,EA,950000,2,6,5,0,0,True,1659000,8,90
+TESLA_M3,Tesla Model 3 (Import),ONL,EA,950000,2,4,5,0,0,True,1609000,8,90

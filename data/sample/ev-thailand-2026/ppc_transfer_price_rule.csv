@@ -1,0 +1,3 @@
+edge_id,product_id,transfer_price,currency,note
+Factory_BYD_TH->SP_BYD_TH,BYD_ATTO3,800000,THB,国内移転価格 THB/台
+Factory_TESLA_CN->SP_TESLA_TH,TESLA_M3,1000000,THB,CN→TH 輸入移転価格（CIF）THB/台

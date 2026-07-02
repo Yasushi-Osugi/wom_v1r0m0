@@ -1,0 +1,7 @@
+node_id,product_id,target_gp_rate,note
+Sales_TH_BKK,BYD_ATTO3,0.25,バンコク: 目標GP率25%（補助金込み）
+Sales_TH_PRO,BYD_ATTO3,0.25,地方: 目標GP率25%
+Sales_TH_ONL,BYD_ATTO3,0.22,オンライン: 目標GP率22%（薄利）
+Sales_TH_BKK_t,TESLA_M3,0.32,バンコク: 目標GP率32%（割引前）
+Sales_TH_PRO_t,TESLA_M3,0.32,地方: 目標GP率32%
+Sales_TH_ONL_t,TESLA_M3,0.31,オンライン: 目標GP率31%

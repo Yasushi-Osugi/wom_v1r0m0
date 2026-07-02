@@ -1,0 +1,15 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+SP_BYD_TH,SP_BYD_TH（BYD Thailand HQ）,procurement,13.7563,100.5018,,TH,BYD Thailand 供給調整本部
+Factory_BYD_TH,BYDラヨーン工場（Amata City）,mother_plant,12.7,101.4,BYD_ATTO3,TH,BYD Rayong Factory — 年産15万台
+Battery_CN,BYDバッテリー工場（深圳）,sku_supplier,22.5431,114.0579,BYD_ATTO3,CN,BYD LFP ブレードバッテリー 自社内製
+DC_BYD_TH,BYD ディーラー DC（バンコク近郊）,region_dc,13.8,100.6,,TH,国内ディーラー物流センター
+Sales_TH_BKK,バンコク ディーラー（BYD）,marketing,13.7563,100.5018,,BKK,レバーオートモーティブ バンコク
+Sales_TH_PRO,地方 ディーラー（BYD）,marketing,16.4322,102.835,,PRO,東北・北部タイ 地方ディーラー
+Sales_TH_ONL,オンライン直販（BYD）,marketing,13.7563,100.51,,ONL,BYD Thailand 直販・法人フリート
+SP_TESLA_TH,SP_TESLA_TH（Tesla Thailand HQ）,procurement,13.72,100.49,,TH,Tesla Thailand 輸入調達本部
+Factory_TESLA_CN,上海ギガファクトリー（テスラ）,mother_plant,31.21,121.58,TESLA_M3,CN,Tesla Shanghai Gigafactory — タイ向け割当枠
+Components_CN_T,テスラ部品調達（中国）,sku_supplier,31.3,121.4,TESLA_M3,CN,CATL電池・外部電子部品
+DC_TESLA_TH,テスラ輸入保税 DC（レムチャバン港）,region_dc,13.09,100.88,,TH,輸入バッファ倉庫 LT4週
+Sales_TH_BKK_t,バンコク旗艦店（テスラ）,marketing,13.78,100.54,,BKK,Tesla Bangkok Showroom — 直販
+Sales_TH_PRO_t,地方 代理店（テスラ）,marketing,18.787,98.993,,PRO,チェンマイ他 地方拠点
+Sales_TH_ONL_t,オンライン直販（テスラ）,marketing,13.71,100.5,,ONL,Tesla.com Thailand

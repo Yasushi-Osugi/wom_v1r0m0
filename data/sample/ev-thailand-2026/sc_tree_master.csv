@@ -1,0 +1,15 @@
+node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,ss_days,buffering_stock_flag,description
+SP_BYD_TH,,BYD_ATTO3,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (BYD)
+DC_BYD_TH,SP_BYD_TH,BYD_ATTO3,dad,outbound,1,1,TH,7,0,BYDタイ 国内ディーラー配送センター
+Sales_TH_BKK,DC_BYD_TH,BYD_ATTO3,leaf_out,outbound,1,1,BKK,0,0,バンコク ディーラー（レバーオートモーティブ）
+Sales_TH_PRO,DC_BYD_TH,BYD_ATTO3,leaf_out,outbound,2,1,PRO,0,0,地方 ディーラー
+Sales_TH_ONL,DC_BYD_TH,BYD_ATTO3,leaf_out,outbound,1,1,ONL,0,0,オンライン直販・フリート
+Factory_BYD_TH,,BYD_ATTO3,mom,inbound,2,1,TH,7,0,ラヨーン工場 Amata City（年産15万台）
+Battery_CN,Factory_BYD_TH,BYD_ATTO3,leaf_in,inbound,4,1,CN,0,0,BYDブレードバッテリー（LFP）中国内製
+SP_TESLA_TH,,TESLA_M3,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (Tesla)
+DC_TESLA_TH,SP_TESLA_TH,TESLA_M3,dad,outbound,4,1,TH,14,1,テスラ輸入バッファ DC（上海→タイ輸入在庫）
+Sales_TH_BKK_t,DC_TESLA_TH,TESLA_M3,leaf_out,outbound,1,1,BKK,0,0,バンコク旗艦店 直販
+Sales_TH_PRO_t,DC_TESLA_TH,TESLA_M3,leaf_out,outbound,2,1,PRO,0,0,地方 代理店
+Sales_TH_ONL_t,DC_TESLA_TH,TESLA_M3,leaf_out,outbound,1,1,ONL,0,0,オンライン直販 Tesla.com
+Factory_TESLA_CN,,TESLA_M3,mom,inbound,3,1,CN,7,0,上海ギガファクトリー（タイ向け割当）
+Components_CN_T,Factory_TESLA_CN,TESLA_M3,leaf_in,inbound,2,1,CN,0,0,バッテリーセル・電子部品（外部調達）

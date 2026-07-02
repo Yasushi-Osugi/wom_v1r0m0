@@ -1,0 +1,3 @@
+product_id,gp_margin_green,gp_margin_yellow,note
+BYD_ATTO3,0.25,0.15,"BYD: Green>=25%, Yellow 15-25%, Red<15%（価格競争下）"
+TESLA_M3,0.3,0.2,"Tesla: Green>=30%, Yellow 20-30%, Red<20%（割引前）"

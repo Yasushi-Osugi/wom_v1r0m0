@@ -1,0 +1,9 @@
+scenario,src_region,dst_region,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
+Base,CN,JP,0.15,145.0,USD,JPY,14,標準：中国→日本 ビスケット関税15% 1lot≈$14運賃
+Base,JP,JP,0.0,1.0,JPY,JPY,3,国内：山崎 国内物流
+YenWeak,CN,JP,0.15,160.0,USD,JPY,14,円安シナリオ ドル円160円 輸入コスト増
+YenWeak,JP,JP,0.0,1.0,JPY,JPY,3,国内：円安影響なし
+TariffUp,CN,JP,0.25,145.0,USD,JPY,14,関税引上げ 15%→25%（中国ビスケットに追加関税）
+TariffUp,JP,JP,0.0,1.0,JPY,JPY,3,国内：関税変化なし
+FreightUp,CN,JP,0.15,145.0,USD,JPY,28,海上運賃高騰（スエズ危機等）運賃2倍
+FreightUp,JP,JP,0.0,1.0,JPY,JPY,3,国内：陸送は影響軽微

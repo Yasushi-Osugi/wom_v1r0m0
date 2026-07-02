@@ -1,0 +1,7 @@
+sku_id,leaf_node_name,mom_node_id,priority
+BYD_ATTO3,Sales_TH_BKK,IN:mom:Factory_BYD_TH:BYD_ATTO3,1
+BYD_ATTO3,Sales_TH_PRO,IN:mom:Factory_BYD_TH:BYD_ATTO3,1
+BYD_ATTO3,Sales_TH_ONL,IN:mom:Factory_BYD_TH:BYD_ATTO3,1
+TESLA_M3,Sales_TH_BKK_t,IN:mom:Factory_TESLA_CN:TESLA_M3,1
+TESLA_M3,Sales_TH_PRO_t,IN:mom:Factory_TESLA_CN:TESLA_M3,1
+TESLA_M3,Sales_TH_ONL_t,IN:mom:Factory_TESLA_CN:TESLA_M3,1

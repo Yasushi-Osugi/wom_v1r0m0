@@ -1,0 +1,7 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+OREO_JP,OREO Japan,CVS,CS,17000,3,7,50,0,52,True,30000,30,45
+OREO_JP,OREO Japan,SM,CS,17000,3,7,50,0,52,True,30000,30,45
+OREO_JP,OREO Japan,EC,CS,17000,3,7,50,0,52,True,30000,30,45
+LUVAN_JP,LUVAN Japan,CVS,CS,20000,1,2,50,0,26,True,30000,30,30
+LUVAN_JP,LUVAN Japan,SM,CS,20000,1,2,50,0,26,True,30000,30,30
+LUVAN_JP,LUVAN Japan,EC,CS,20000,1,2,50,0,26,True,30000,30,30
