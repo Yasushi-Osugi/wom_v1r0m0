@@ -18,6 +18,7 @@ from .ppc_engine import (PPCSimulationEngine,
                           build_iphone_vs_paths,
                           build_iphone_global_vs_paths,
                           build_rice_vs_paths,
+                          build_biscuit_vs_paths,
                           detect_scenario)
 from .ppc_export import export_results
 
@@ -108,6 +109,19 @@ def run_ppc_from_psi(
         mom_node      = "JA_Seihaku"
         supplier_node = "Farm_JP"
         dad_node      = "DC_Rice"
+
+    elif scenario == "biscuit":
+        sc_paths      = build_biscuit_vs_paths()
+        mom_node      = {"OREO_JP": "Factory_OREO_CN",  "LUVAN_JP": "Factory_LUVAN_JP"}
+        supplier_node = {"OREO_JP": "Ingredients_CN",   "LUVAN_JP": "Ingredients_JP"}
+        dad_node      = {"OREO_JP": "DC_JP_BONDED",     "LUVAN_JP": "DC_LUVAN_JP"}
+        dad_nodes_chain = {
+            "OREO_JP":  ["DC_JP_BONDED", "DC_JP_MAIN"],
+            "LUVAN_JP": ["DC_LUVAN_JP"],
+        }
+        if verbose:
+            print("[PPC Runner] Scenario: BISCUIT_JP  "
+                  "(Factory_OREO_CN/LUVAN_JP -> DC_JP_BONDED/DC_JP_MAIN/DC_LUVAN_JP -> Retail_JP_*)")
 
     elif scenario == "iphone_global":
         sc_paths      = build_iphone_global_vs_paths()
@@ -226,5 +240,4 @@ def run_ppc_from_psi(
     # ── Step 6: Export ────────────────────────────────────────────────────
     export_results(result, output_dir)
 
-    result.kpi_summary["_psi_mode"] = psi_mode
-    return result.kpi_summary
+    result.kpi_su

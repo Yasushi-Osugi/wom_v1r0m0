@@ -276,6 +276,37 @@ _IPHONE_GLOBAL_CHANNELS = {
     "Retail_AMER_i15", "Retail_EMEA_i15", "Retail_APAC_i15",
     "Retail_AMER_i17", "Retail_EMEA_i17", "Retail_APAC_i17",
 }
+# Products / channels that identify the Biscuit JP scenario
+_BISCUIT_PRODUCTS  = {"OREO_JP", "LUVAN_JP"}
+_BISCUIT_CHANNELS  = {"Retail_JP_CVS", "Retail_JP_SM", "Retail_JP_EC"}
+
+
+def build_biscuit_vs_paths() -> Dict[str, List[Tuple[str, str, str]]]:
+    """
+    Biscuit JP Vertical Slice paths.
+
+    OREO_JP:  Ingredients_CN → Factory_OREO_CN → DC_JP_BONDED → DC_JP_MAIN → Retail_JP_*
+    LUVAN_JP: Ingredients_JP → Factory_LUVAN_JP → DC_LUVAN_JP → Retail_JP_*
+
+    SP_OREO_JP / SP_LUVAN_JP are WOM planning nodes (supply_point),
+    not part of the PPC cost chain; tariff edge is MOM→first_DAD directly.
+    """
+    paths: Dict[str, List[Tuple[str, str, str]]] = {}
+    for ch in ("Retail_JP_CVS", "Retail_JP_SM", "Retail_JP_EC"):
+        paths[f"OREO_JP::{ch}"] = [
+            ("Ingredients_CN",  "",                                  "CN"),
+            ("Factory_OREO_CN", "Ingredients_CN->Factory_OREO_CN",  "CN"),
+            ("DC_JP_BONDED",    "Factory_OREO_CN->DC_JP_BONDED",    "JP"),
+            ("DC_JP_MAIN",      "DC_JP_BONDED->DC_JP_MAIN",         "JP"),
+            (ch,                f"DC_JP_MAIN->{ch}",                 "JP"),
+        ]
+        paths[f"LUVAN_JP::{ch}"] = [
+            ("Ingredients_JP",   "",                                    "JP"),
+            ("Factory_LUVAN_JP", "Ingredients_JP->Factory_LUVAN_JP",   "JP"),
+            ("DC_LUVAN_JP",      "Factory_LUVAN_JP->DC_LUVAN_JP",      "JP"),
+            (ch,                 f"DC_LUVAN_JP->{ch}",                  "JP"),
+        ]
+    return paths
 
 
 def detect_scenario(sales_records) -> str:
@@ -286,6 +317,7 @@ def detect_scenario(sales_records) -> str:
     -------
     "rice"          - if any product is a known rice variety
     "iphone_global" - if channels match iPhone Global SC node names
+    "biscuit"       - if products include OREO_JP / LUVAN_JP
     "iphone"        - legacy iphone (default)
     """
     if sales_records is None or len(sales_records) == 0:
@@ -296,4 +328,6 @@ def detect_scenario(sales_records) -> str:
     channels = set(sales_records["channel_node"].unique())
     if channels & _IPHONE_GLOBAL_CHANNELS:
         return "iphone_global"
+    if (products & _BISCUIT_PRODUCTS) or (channels & _BISCUIT_CHANNELS):
+        return "biscuit"
     return "iphone"

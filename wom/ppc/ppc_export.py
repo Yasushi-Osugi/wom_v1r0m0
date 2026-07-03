@@ -12,8 +12,8 @@ Output files:
 
 Write strategy: atomic write via temp file + fsync.
   1. Write to <file>.tmp
-  2. flush + fsync  (forces OS buffer → disk)
-  3. os.replace(.tmp → final)  (atomic on POSIX and Windows)
+  2. flush + fsync  (forces OS buffer -> disk)
+  3. os.replace(.tmp -> final)  (atomic on POSIX and Windows)
 This prevents partial files if the GUI thread is interrupted mid-write.
 """
 
@@ -111,26 +111,27 @@ def _events_to_df(events: List[PPCEvent]) -> pd.DataFrame:
             "event_id", "week", "lot_id", "node_id", "edge_id", "product_id",
             "qty", "ppc_event_type", "amount_local", "currency", "fx_rate",
             "amount_base", "amount_per_unit_base", "source_rule", "direction",
-            "profit_zone",
+            "profit_zone", "cost_phase",
         ])
     return pd.DataFrame([
         {
-            "event_id":            ev.event_id,
-            "week":                ev.week,
-            "lot_id":              ev.lot_id,
-            "node_id":             ev.node_id,
-            "edge_id":             ev.edge_id,
-            "product_id":          ev.product_id,
-            "qty":                 ev.qty,
-            "ppc_event_type":      ev.ppc_event_type,
-            "amount_local":        ev.amount_local,
-            "currency":            ev.currency,
-            "fx_rate":             ev.fx_rate,
-            "amount_base":         ev.amount_base,
+            "event_id":             ev.event_id,
+            "week":                 ev.week,
+            "lot_id":               ev.lot_id,
+            "node_id":              ev.node_id,
+            "edge_id":              ev.edge_id,
+            "product_id":           ev.product_id,
+            "qty":                  ev.qty,
+            "ppc_event_type":       ev.ppc_event_type,
+            "amount_local":         ev.amount_local,
+            "currency":             ev.currency,
+            "fx_rate":              ev.fx_rate,
+            "amount_base":          ev.amount_base,
             "amount_per_unit_base": ev.amount_per_unit_base,
-            "source_rule":         ev.source_rule,
-            "direction":           ev.direction,
-            "profit_zone":         ev.profit_zone,
+            "source_rule":          ev.source_rule,
+            "direction":            ev.direction,
+            "profit_zone":          ev.profit_zone,
+            "cost_phase":           ev.cost_phase,
         }
         for ev in events
     ])

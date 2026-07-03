@@ -27,6 +27,17 @@ PPC Event types:
     Backward:
         backward_allowable     - allowable cost computed backward from market price
 
+cost_phase values (Phase 3: FOB/CIF/DAD breakdown):
+    EXW    : ex-works supplier cost (raw material purchase)
+    FOB    : factory-to-origin-port logistics (Supplier->MOM edge)
+    MOM    : manufacturing conversion cost at MOM node
+    CIF    : ocean freight + insurance + bonded-warehouse handling at first DAD
+    TARIFF : import duty (inbound or outbound)
+    DAD    : domestic distribution (inter-DAD edges + subsequent DAD node costs)
+    SGA    : selling/general/admin cost at any node
+    REVENUE: market revenue event
+    ""     : informational / reconciliation events (landed_cost_total, backward_allowable, etc.)
+
 Trust Event types (reconciliation):
     NEGATIVE_MARGIN                - forward cost > backward allowable at leaf_out
     TARIFF_SHOCK                   - tariff cost > 20% of transfer price
@@ -62,12 +73,13 @@ class PPCEvent:
     ppc_event_type:      str         # see module docstring
     amount_local:        float       # amount in local (transaction) currency
     currency:            str         # local currency code
-    fx_rate:             float       # local → base_currency conversion rate
+    fx_rate:             float       # local -> base_currency conversion rate
     amount_base:         float       # amount in base currency
     amount_per_unit_base: float      # amount_base / qty
     source_rule:         str         # which master rule triggered this event
     direction:           str         # "forward" | "backward" | "revenue"
     profit_zone:         str         # OUTBOUND_CHANNEL_PROFIT / MOM_PLANT_PROFIT / etc.
+    cost_phase:          str = ""    # EXW / FOB / MOM / CIF / TARIFF / DAD / SGA / REVENUE / ""
 
 
 # ---------------------------------------------------------------------------
@@ -107,11 +119,11 @@ class LotCostAccumulator:
     # Forward costs (in base currency)
     supplier_cost_base:     float = 0.0
     conversion_cost_base:   float = 0.0
-    logistics_in_base:      float = 0.0   # inbound logistics (Supplier→MOM edge)
-    tariff_in_base:         float = 0.0   # import duty CN→JP
-    insurance_in_base:      float = 0.0   # insurance on CN→JP edge
-    logistics_out_base:     float = 0.0   # outbound logistics (DAD→Channel edge)
-    tariff_out_base:        float = 0.0   # import duty JP→US (if applicable)
+    logistics_in_base:      float = 0.0   # inbound logistics (Supplier->MOM edge)
+    tariff_in_base:         float = 0.0   # import duty CN->JP
+    insurance_in_base:      float = 0.0   # insurance on CN->JP edge
+    logistics_out_base:     float = 0.0   # outbound logistics (DAD->Channel edge)
+    tariff_out_base:        float = 0.0   # import duty JP->US (if applicable)
     warehouse_base:         float = 0.0   # DAD warehouse cost
     dad_sga_base:           float = 0.0   # DAD SGA
     channel_sga_base:       float = 0.0   # Channel SGA

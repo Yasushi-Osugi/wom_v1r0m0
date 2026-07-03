@@ -38,7 +38,8 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from wom.ppc.ppc_rules import PPCRuleSet
-from wom.ppc.ppc_engine import PPCSimulationEngine, build_iphone_vs_paths
+from wom.ppc.ppc_engine import (PPCSimulationEngine, build_iphone_vs_paths,
+                                  build_biscuit_vs_paths, detect_scenario)
 from wom.ppc.ppc_export import export_results
 
 
@@ -90,6 +91,47 @@ def generate_sample_sales(
                 "qty":          1,
             })
 
+    return pd.DataFrame(rows)
+
+
+def _generate_model_sales(
+    products: list,
+    channels: list,
+    start_week: str = "2026-W01",
+    n_weeks: int = 156,
+    lots_per_week: int = 10,
+) -> pd.DataFrame:
+    """
+    Generate sample lots using actual products and channels from loaded rules.
+    Each product appears in each channel, lots_per_week per combination.
+    """
+    import datetime
+    import itertools
+
+    start_year, start_wk = start_week.split("-W")
+    start_year, start_wk = int(start_year), int(start_wk)
+    jan4 = datetime.date(start_year, 1, 4)
+    week1_mon = jan4 - datetime.timedelta(days=jan4.weekday())
+    start_mon = week1_mon + datetime.timedelta(weeks=start_wk - 1)
+
+    rows = []
+    ch_tag = {ch: f"C{ci:02d}" for ci, ch in enumerate(channels)}
+    pr_tag = {pr: f"{pr[:6]}" for pr in products}
+    for w in range(n_weeks):
+        d = start_mon + datetime.timedelta(weeks=w)
+        iso_year, iso_week, _ = d.isocalendar()
+        week_label = f"{iso_year}-W{iso_week:02d}"
+        yr_wk = f"{iso_year}W{iso_week:02d}"
+
+        for prod, ch in itertools.product(products, channels):
+            for i in range(1, lots_per_week + 1):
+                rows.append({
+                    "lot_id":       f"L-{pr_tag[prod]}-{ch_tag[ch]}-{yr_wk}-{i:03d}",
+                    "week":         week_label,
+                    "channel_node": ch,
+                    "product_id":   prod,
+                    "qty":          1,
+                })
     return pd.DataFrame(rows)
 
 
@@ -170,21 +212,60 @@ def main(argv: List[str] = None) -> int:
             print(f"[ERROR] sales CSV missing columns: {missing}")
             return 1
     else:
-        print(
-            f"[PPC] Generating sample sales: "
-            f"{args.weeks} weeks x "
-            f"JP:{args.jp_lots}lots/wk + US:{args.us_lots}lots/wk "
-            f"from {args.start_week}"
-        )
-        sales = generate_sample_sales(
-            start_week=args.start_week,
-            n_weeks=args.weeks,
-            jp_lots_per_week=args.jp_lots,
-            us_lots_per_week=args.us_lots,
-        )
+        # Auto-detect products and channels from loaded rules
+        known_products = [p for p in rules.supplier_cost["product_id"].unique()
+                          if isinstance(p, str) and p]
+        known_channels = [c for c in rules.market_price["market_node"].unique()
+                          if isinstance(c, str) and c]
+
+        # Generate sample lots using model-specific products/channels when available
+        if known_products and known_channels:
+            print(
+                f"[PPC] Generating sample sales: "
+                f"{args.weeks} weeks x {len(known_channels)} channels "
+                f"x {args.jp_lots}lots/wk from {args.start_week}"
+            )
+            sales = _generate_model_sales(
+                products=known_products,
+                channels=known_channels,
+                start_week=args.start_week,
+                n_weeks=args.weeks,
+                lots_per_week=args.jp_lots,
+            )
+        else:
+            print(
+                f"[PPC] Generating sample sales: "
+                f"{args.weeks} weeks x "
+                f"JP:{args.jp_lots}lots/wk + US:{args.us_lots}lots/wk "
+                f"from {args.start_week}"
+            )
+            sales = generate_sample_sales(
+                start_week=args.start_week,
+                n_weeks=args.weeks,
+                jp_lots_per_week=args.jp_lots,
+                us_lots_per_week=args.us_lots,
+            )
     print(f"[PPC] {len(sales)} lot-records to process")
 
-    sc_paths = build_iphone_vs_paths()
+    # Select scenario-specific engine config
+    scenario = detect_scenario(sales)
+    if scenario == "biscuit":
+        sc_paths      = build_biscuit_vs_paths()
+        mom_node      = {"OREO_JP": "Factory_OREO_CN",  "LUVAN_JP": "Factory_LUVAN_JP"}
+        supplier_node = {"OREO_JP": "Ingredients_CN",   "LUVAN_JP": "Ingredients_JP"}
+        dad_node      = {"OREO_JP": "DC_JP_BONDED",     "LUVAN_JP": "DC_LUVAN_JP"}
+        dad_nodes_chain = {
+            "OREO_JP":  ["DC_JP_BONDED", "DC_JP_MAIN"],
+            "LUVAN_JP": ["DC_LUVAN_JP"],
+        }
+        print(f"[PPC] Scenario: BISCUIT_JP")
+    else:
+        sc_paths        = build_iphone_vs_paths()
+        mom_node        = "MOM_China"
+        supplier_node   = "Supplier_CN"
+        dad_node        = "DAD_Japan"
+        dad_nodes_chain = None
+        print(f"[PPC] Scenario: {scenario.upper()}")
 
     t0 = time.time()
     eng = PPCSimulationEngine(
@@ -192,6 +273,10 @@ def main(argv: List[str] = None) -> int:
         sc_paths=sc_paths,
         rules=rules,
         base_currency=args.base_currency,
+        mom_node=mom_node,
+        supplier_node=supplier_node,
+        dad_node=dad_node,
+        dad_nodes_chain=dad_nodes_chain,
         verbose=args.verbose,
     )
     result = eng.run()

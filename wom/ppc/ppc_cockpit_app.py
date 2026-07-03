@@ -403,17 +403,19 @@ def _draw_fwd_bwd(ax, rec: pd.DataFrame, periods: list, cur: str) -> None:
 
 def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
     """
-    Phase 2: Cost Waterfall — Revenue → per-cost deductions → Gross Profit.
-    Computes per-lot averages by aggregating ppc_event_ledger on ppc_event_type.
+    Phase 3: Cost Waterfall — FOB/CIF/DAD Incoterm 区別付き。
+    cost_phase 列（EXW / MOM / FOB / CIF / TARIFF / DAD / SGA）で費用を分類。
+    後方互換: cost_phase 列が存在しない場合は Phase 2 フォールバック（全 logistics を "Logistics" に集約）。
 
     Descending waterfall:
-      Revenue    → anchored at 0 (positive, full-height bar)
-      Supplier   → floating deduction
-      Conversion → floating deduction (MOM + DAD conversion costs combined)
-      Logistics  → floating deduction
-      Tariff     → floating deduction
-      SGA        → floating deduction
-      Marketing  → floating deduction (skipped when zero)
+      Revenue     → anchored at 0 (positive, full-height bar)
+      Supplier    → EXW 原材料調達費
+      Mfg Conv    → MOM 製造転換費（Factory conversion のみ）
+      CIF Freight → 国際輸送＋輸入港費用（保税倉庫コストを含む）※輸入品のみ
+      Tariff      → 関税（輸入品のみ）
+      DAD Ops     → 国内流通費（保税後陸送＋DC費用）
+      SGA         → 販管費
+      Marketing   → マーケティング費（ゼロ時スキップ）
       Gross Profit → anchored at 0 (green if positive, red if negative)
     """
     ax.set_facecolor(C_PANEL_BG)
@@ -423,27 +425,54 @@ def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
         ax.set_title("Cost Waterfall (avg / lot)", fontsize=10, fontweight="bold", color=C_HEADER)
         return
 
+    has_phase = "cost_phase" in ev_filtered.columns
+
     def _avg(*types):
         return ev_filtered[ev_filtered["ppc_event_type"].isin(types)]["amount_base"].sum() / n_lots
 
-    revenue    = _avg("market_revenue")
-    supplier   = _avg("supplier_cost")
-    conversion = _avg("conversion_cost")
-    logistics  = _avg("logistics_cost", "insurance_cost")
-    tariff     = _avg("tariff_cost")
-    sga        = _avg("sga_cost")
-    marketing  = _avg("marketing_cost")
+    def _avg_phase(phase):
+        if not has_phase:
+            return 0.0
+        return ev_filtered[ev_filtered["cost_phase"] == phase]["amount_base"].sum() / n_lots
+
+    revenue  = _avg("market_revenue")
+    supplier = _avg("supplier_cost")
+    tariff   = _avg("tariff_cost")
+    sga      = _avg("sga_cost")
+    marketing = _avg("marketing_cost")
+
+    if has_phase:
+        # Phase 3: FOB/CIF/DAD 分類
+        mfg_conv  = _avg_phase("MOM")    # 製造転換費（Factory conversion）
+        cif_cost  = _avg_phase("CIF")    # CIF 国際輸送＋保税倉庫費
+        dad_ops   = _avg_phase("DAD")    # 国内 DAD 流通費
+        # Build steps with FOB/CIF/DAD breakdown
+        deductions = [
+            ("Supplier",     supplier,  C_COST,     False),
+            ("Mfg\nConv",   mfg_conv,  "#EF5350",  False),
+            ("CIF\nFreight", cif_cost,  "#0288D1",  False),  # ocean blue
+            ("Tariff",       tariff,    C_TARIFF,   False),
+            ("DAD\nOps",     dad_ops,   "#78909C",  False),  # slate gray
+            ("SGA",          sga,       "#AB47BC",  False),
+            ("Marketing",    marketing, "#EC407A",  False),
+        ]
+        title = "Cost Waterfall — FOB / CIF / DAD (avg / lot)"
+    else:
+        # Phase 2 フォールバック（cost_phase 列なし）
+        mfg_conv  = _avg("conversion_cost")
+        logistics = _avg("logistics_cost", "insurance_cost")
+        deductions = [
+            ("Supplier",   supplier,   C_COST,    False),
+            ("Conversion", mfg_conv,   "#EF5350", False),
+            ("Logistics",  logistics,  "#FF7043", False),
+            ("Tariff",     tariff,     C_TARIFF,  False),
+            ("SGA",        sga,        "#AB47BC", False),
+            ("Marketing",  marketing,  "#EC407A", False),
+        ]
+        title = "Cost Waterfall — avg / lot"
 
     # Build steps: (label, amount, bar_color, is_total)
     # Zero-value deductions are skipped to keep the chart clean
-    deductions = [
-        ("Supplier",   supplier,   C_COST,    False),
-        ("Conversion", conversion, "#EF5350",  False),
-        ("Logistics",  logistics,  "#FF7043",  False),
-        ("Tariff",     tariff,     C_TARIFF,   False),
-        ("SGA",        sga,        "#AB47BC",  False),
-        ("Marketing",  marketing,  "#EC407A",  False),
-    ]
     steps = [("Revenue", revenue, C_REVENUE, True)]
     steps += [(lbl, val, col, tot) for lbl, val, col, tot in deductions if val > 0.1]
     gross_profit = revenue - sum(v for _, v, _, t in steps if not t)
@@ -495,7 +524,7 @@ def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel(f"{cur} / lot", fontsize=8)
-    ax.set_title("Cost Waterfall — avg / lot", fontsize=10, fontweight="bold", color=C_HEADER)
+    ax.set_title(title, fontsize=10, fontweight="bold", color=C_HEADER)
     ax.axhline(0, color="gray", linewidth=0.8)
     ax.grid(axis="y", alpha=0.3)
     ax.set_ylim(-revenue * 0.05, revenue * 1.08)

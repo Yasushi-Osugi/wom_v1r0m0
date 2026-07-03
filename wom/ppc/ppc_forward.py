@@ -3,7 +3,7 @@ wom/ppc/ppc_forward.py
 =======================
 Step 1: Supplier Offering Cost Forward Propagation.
 
-Walks the supply chain path from Supplier → MOM, accumulating costs
+Walks the supply chain path from Supplier -> MOM, accumulating costs
 per lot. Generates PPCEvents for each cost item.
 
 Design:
@@ -42,14 +42,14 @@ def run_forward_propagation(
     supplier_node: Union[str, Dict[str, str]] = "Supplier_CN",
 ) -> List[PPCEvent]:
     """
-    Step 1: Forward cost accumulation from Supplier → MOM.
+    Step 1: Forward cost accumulation from Supplier -> MOM.
 
     Parameters
     ----------
     accumulators  : mutable list; updates supplier_cost_base, conversion_cost_base, etc.
     rules         : PPCRuleSet
     fx            : FXConverter
-    sc_paths      : channel_node → [(node_id, edge_id, country), ...]
+    sc_paths      : channel_node -> [(node_id, edge_id, country), ...]
                     in supply-chain order (Supplier first, market channel last)
     mom_node      : MOM node_id string OR dict[product_id -> node_id]
     supplier_node : leaf_in (Supplier) node_id string OR dict[product_id -> node_id]
@@ -93,9 +93,10 @@ def run_forward_propagation(
             source_rule="ppc_supplier_cost.csv",
             direction="forward",
             profit_zone=profit_zone,
+            cost_phase="EXW",
         ))
 
-        # ── Step 1b: Inbound edge (Supplier → MOM) logistics ──────────
+        # ── Step 1b: Inbound edge (Supplier -> MOM) logistics ──────────
         inbound_edge = f"{s_node}->{m_node}"
         for _, row in rules.get_edge_costs(inbound_edge, product).iterrows():
             if row["cost_type"] == "logistics_cost":
@@ -122,6 +123,7 @@ def run_forward_propagation(
                     source_rule="ppc_edge_cost_rule.csv",
                     direction="forward",
                     profit_zone=rules.get_profit_zone(m_node, product),
+                    cost_phase="FOB",
                 ))
 
         # ── Step 1c: MOM conversion cost ──────────────────────────────
@@ -150,6 +152,7 @@ def run_forward_propagation(
                 source_rule="ppc_node_cost_rule.csv",
                 direction="forward",
                 profit_zone=mom_profit_zone,
+                cost_phase="MOM",
             ))
 
     return events

@@ -10,12 +10,22 @@ Landed cost formula:
     landed_cost = transfer_price + logistics + insurance + tariff
 
 Edge processing order (multi-tier DAD chain):
-    1. MOM → chain[0]      (cross-border: tariff + CIF freight)
+    1. MOM -> chain[0]      (cross-border: tariff + CIF freight)
     2. chain[0] node costs (e.g. DC_JP_BONDED: customs handling)
-    3. chain[0] → chain[1] inter-DAD edge (domestic transport)
+    3. chain[0] -> chain[1] inter-DAD edge (domestic transport)
     4. chain[1] node costs (e.g. DC_JP_MAIN: SGA + DC ops)
     ...
-    N. chain[-1] → Channel  (outbound: tariff if cross-border)
+    N. chain[-1] -> Channel  (outbound: tariff if cross-border)
+
+cost_phase tagging (Phase 3):
+    TARIFF  : import duty (inbound or outbound)
+    CIF     : MOM->first_DAD edge logistics/insurance
+              + first_DAD node costs when tariff_in_base > 0
+                (ocean freight captured as bonded-warehouse node cost)
+    DAD     : inter-DAD edge costs + subsequent DAD node costs
+              + first_DAD node costs when no tariff (domestic product)
+    SGA     : sga_cost at any DAD node
+    ""       : landed_cost_total (informational summary event)
 
 mom_node and dad_node accept either str or dict[product_id -> node_id].
 dad_nodes_chain: list[str] or dict[product_id -> list[str]] (MOM-side first).
@@ -67,12 +77,12 @@ def run_tariff_and_landed_cost(
     """
     Step 3: Tariff, logistics, DAD node costs for the full DAD chain.
 
-    Walks chain[0] … chain[-1] in order (MOM-side first, channel-side last).
+    Walks chain[0] ... chain[-1] in order (MOM-side first, channel-side last).
     For each lot:
-      a) MOM → chain[0] inbound edge (tariff + CIF logistics)
+      a) MOM -> chain[0] inbound edge (tariff + CIF logistics)
       b) chain[0] node costs
-      c) For i=1…N-1: chain[i-1]→chain[i] edge + chain[i] node costs
-      d) chain[-1] → channel outbound edge (+ outbound tariff if any)
+      c) For i=1...N-1: chain[i-1]->chain[i] edge + chain[i] node costs
+      d) chain[-1] -> channel outbound edge (+ outbound tariff if any)
     """
     events: List[PPCEvent] = []
     _ctr = itertools.count(1)
@@ -89,10 +99,10 @@ def run_tariff_and_landed_cost(
         first_dad = chain[0]
         last_dad  = chain[-1]
 
-        # ── a) MOM → first_DAD cross-border edge ──────────────────────
+        # ── a) MOM -> first_DAD cross-border edge ──────────────────────
         inbound_edge = f"{m_node}->{first_dad}"
 
-        # a-1) Tariff (MOM→first_DAD)
+        # a-1) Tariff (MOM->first_DAD)
         tariff_row = rules.get_tariff(inbound_edge, product)
         if tariff_row is not None:
             tariff_rate  = float(tariff_row["tariff_rate"])
@@ -126,9 +136,10 @@ def run_tariff_and_landed_cost(
                 amount_per_unit_base=tariff_base,
                 source_rule="ppc_tariff_rule.csv", direction="forward",
                 profit_zone=rules.get_profit_zone(first_dad, product),
+                cost_phase="TARIFF",
             ))
 
-        # a-2) Inbound logistics + insurance (MOM→first_DAD)
+        # a-2) Inbound logistics + insurance (MOM->first_DAD)
         for _, row in rules.get_edge_costs(inbound_edge, product).iterrows():
             ct = str(row["cost_type"])
             if ct not in ("logistics_cost", "insurance_cost"):
@@ -151,6 +162,7 @@ def run_tariff_and_landed_cost(
                 fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
                 source_rule="ppc_edge_cost_rule.csv", direction="forward",
                 profit_zone=rules.get_profit_zone(first_dad, product),
+                cost_phase="CIF",
             ))
 
         # a-3) Landed cost informational event (at first_dad)
@@ -167,11 +179,22 @@ def run_tariff_and_landed_cost(
             amount_base=landed_base, amount_per_unit_base=landed_base,
             source_rule="computed", direction="forward",
             profit_zone=rules.get_profit_zone(first_dad, product),
+            cost_phase="",
         ))
 
         # ── b/c) Walk ALL DAD nodes: node costs + inter-DAD edges ─────
+        # is_import: True when this lot has a cross-border tariff, meaning the
+        # first DAD node is a bonded-warehouse / customs point rather than a
+        # domestic DC.  In that case first-DAD node costs (ocean freight already
+        # captured as DC_JP_BONDED node cost + bonded handling) are tagged "CIF";
+        # subsequent DAD costs are tagged "DAD".
+        is_import = acc.tariff_in_base > 0
+
         for i, d in enumerate(chain):
             d_zone = rules.get_profit_zone(d, product)
+            # First DAD of an import product -> CIF zone (bonded warehouse / customs)
+            # Any other DAD (or first DAD of a domestic product) -> DAD zone
+            first_dad_import = (i == 0 and is_import)
 
             # DAD[i] node costs (logistics, conversion, SGA, warehouse, etc.)
             for _, row in rules.get_node_costs(d, product).iterrows():
@@ -182,9 +205,11 @@ def run_tariff_and_landed_cost(
 
                 if ct == "sga_cost":
                     acc.dad_sga_base += n_base
+                    cp = "SGA"
                 else:
-                    # logistics_cost, conversion_cost, warehouse_cost → operational DAD costs
+                    # logistics_cost, conversion_cost, warehouse_cost
                     acc.warehouse_base += n_base
+                    cp = "CIF" if first_dad_import else "DAD"
 
                 events.append(PPCEvent(
                     event_id=f"DAD-{next(_ctr):06d}",
@@ -194,9 +219,10 @@ def run_tariff_and_landed_cost(
                     fx_rate=n_fx_rate, amount_base=n_base, amount_per_unit_base=n_base,
                     source_rule="ppc_node_cost_rule.csv", direction="forward",
                     profit_zone=d_zone,
+                    cost_phase=cp,
                 ))
 
-            # Inter-DAD edge: chain[i] → chain[i+1]
+            # Inter-DAD edge: chain[i] -> chain[i+1]
             if i + 1 < len(chain):
                 next_dad = chain[i + 1]
                 inter_edge = f"{d}->{next_dad}"
@@ -219,9 +245,10 @@ def run_tariff_and_landed_cost(
                         fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
                         source_rule="ppc_edge_cost_rule.csv", direction="forward",
                         profit_zone=next_zone,
+                        cost_phase="DAD",
                     ))
 
-        # ── d) last_DAD → Channel outbound edge ───────────────────────
+        # ── d) last_DAD -> Channel outbound edge ───────────────────────
         outbound_edge = f"{last_dad}->{channel}"
         out_profit_zone = rules.get_profit_zone(channel, product)
 
@@ -239,6 +266,7 @@ def run_tariff_and_landed_cost(
                 fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
                 source_rule="ppc_edge_cost_rule.csv", direction="forward",
                 profit_zone=out_profit_zone,
+                cost_phase="DAD",
             ))
 
         out_tariff_row = rules.get_tariff(outbound_edge, product)
@@ -257,6 +285,7 @@ def run_tariff_and_landed_cost(
                 fx_rate=t_fx_rate, amount_base=t_base, amount_per_unit_base=t_base,
                 source_rule="ppc_tariff_rule.csv", direction="forward",
                 profit_zone=out_profit_zone,
+                cost_phase="TARIFF",
             ))
 
     return events
