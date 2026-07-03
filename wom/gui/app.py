@@ -1126,6 +1126,12 @@ class PPCTabPanel(tk.Frame):
                         pass
             self._cockpit.pack(fill="both", expand=True)
             self._status_var.set(f"Loaded  {self._output_dir}/")
+            # Re-apply filters so charts reflect restored SKU/channel selection
+            if _saved and hasattr(self._cockpit, '_redraw'):
+                try:
+                    self._cockpit.after(50, self._cockpit._redraw)
+                except Exception:
+                    pass
         except Exception as exc:
             self._status_var.set(f"Load error: {exc}")
             self._show_placeholder()
