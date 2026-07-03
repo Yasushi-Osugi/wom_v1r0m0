@@ -8,3 +8,5 @@ DC_JP_MAIN,OREO_JP,conversion_cost,per_lot,0,500,JPY,DC 仕分け・保管費用
 Factory_LUVAN_JP,LUVAN_JP,conversion_cost,per_lot,0,9000,JPY,国内製造労務費+間接費 JPY/lot
 Factory_LUVAN_JP,LUVAN_JP,logistics_cost,per_lot,0,200,JPY,工場→山崎DC 短距離輸送 JPY/lot
 DC_LUVAN_JP,LUVAN_JP,logistics_cost,per_lot,0,300,JPY,パン便相乗り 限界輸送費 JPY/lot
+DC_JP_MAIN,OREO_JP,sga_cost,per_lot,0,1500,JPY,グローバルブランドSGA按分（Mondelez Japan）
+DC_LUVAN_JP,LUVAN_JP,sga_cost,per_lot,0,4000,JPY,ルヴァンカップ協賛等ブランド維持費（国内マーケティング費）
