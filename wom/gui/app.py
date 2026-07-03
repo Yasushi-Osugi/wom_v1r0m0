@@ -1100,8 +1100,13 @@ class PPCTabPanel(tk.Frame):
             self._show_placeholder()
             return
 
-        # Destroy old cockpit on refresh
+        # Save current filter state before destroying old cockpit
+        _saved = {}
         if self._cockpit is not None:
+            for _attr in ("_sku_var", "_channel_var", "_start_var", "_end_var", "_agg_var"):
+                _v = getattr(self._cockpit, _attr, None)
+                if _v is not None:
+                    _saved[_attr] = _v.get()
             self._cockpit.destroy()
             self._cockpit = None
 
@@ -1111,6 +1116,14 @@ class PPCTabPanel(tk.Frame):
             self._cockpit = PPCCockpitApp(
                 self._content, output_dir=self._output_dir
             )
+            # Restore filter selections after rebuild
+            for _attr, _val in _saved.items():
+                _v = getattr(self._cockpit, _attr, None)
+                if _v is not None:
+                    try:
+                        _v.set(_val)
+                    except Exception:
+                        pass
             self._cockpit.pack(fill="both", expand=True)
             self._status_var.set(f"Loaded  {self._output_dir}/")
         except Exception as exc:
