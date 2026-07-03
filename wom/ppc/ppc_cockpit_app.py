@@ -401,6 +401,106 @@ def _draw_fwd_bwd(ax, rec: pd.DataFrame, periods: list, cur: str) -> None:
     ax.grid(axis="y", alpha=0.3)
 
 
+def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
+    """
+    Phase 2: Cost Waterfall — Revenue → per-cost deductions → Gross Profit.
+    Computes per-lot averages by aggregating ppc_event_ledger on ppc_event_type.
+
+    Descending waterfall:
+      Revenue    → anchored at 0 (positive, full-height bar)
+      Supplier   → floating deduction
+      Conversion → floating deduction (MOM + DAD conversion costs combined)
+      Logistics  → floating deduction
+      Tariff     → floating deduction
+      SGA        → floating deduction
+      Marketing  → floating deduction (skipped when zero)
+      Gross Profit → anchored at 0 (green if positive, red if negative)
+    """
+    ax.set_facecolor(C_PANEL_BG)
+    n_lots = ev_filtered[ev_filtered["ppc_event_type"] == "market_revenue"]["lot_id"].nunique()
+    if n_lots == 0:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("Cost Waterfall (avg / lot)", fontsize=10, fontweight="bold", color=C_HEADER)
+        return
+
+    def _avg(*types):
+        return ev_filtered[ev_filtered["ppc_event_type"].isin(types)]["amount_base"].sum() / n_lots
+
+    revenue    = _avg("market_revenue")
+    supplier   = _avg("supplier_cost")
+    conversion = _avg("conversion_cost")
+    logistics  = _avg("logistics_cost", "insurance_cost")
+    tariff     = _avg("tariff_cost")
+    sga        = _avg("sga_cost")
+    marketing  = _avg("marketing_cost")
+
+    # Build steps: (label, amount, bar_color, is_total)
+    # Zero-value deductions are skipped to keep the chart clean
+    deductions = [
+        ("Supplier",   supplier,   C_COST,    False),
+        ("Conversion", conversion, "#EF5350",  False),
+        ("Logistics",  logistics,  "#FF7043",  False),
+        ("Tariff",     tariff,     C_TARIFF,   False),
+        ("SGA",        sga,        "#AB47BC",  False),
+        ("Marketing",  marketing,  "#EC407A",  False),
+    ]
+    steps = [("Revenue", revenue, C_REVENUE, True)]
+    steps += [(lbl, val, col, tot) for lbl, val, col, tot in deductions if val > 0.1]
+    gross_profit = revenue - sum(v for _, v, _, t in steps if not t)
+    gp_color = C_PROFIT if gross_profit >= 0 else C_COST
+    steps.append(("Gross\nProfit", abs(gross_profit), gp_color, True))
+
+    labels   = [s[0] for s in steps]
+    amounts  = [s[1] for s in steps]
+    colors   = [s[2] for s in steps]
+    is_total = [s[3] for s in steps]
+
+    # Waterfall bottoms:
+    #   total bars (Revenue / Gross Profit) → bottom = 0
+    #   cost bars → float from (running - cost) to running; running decreases
+    running = revenue
+    bottoms: list = []
+    for amt, tot in zip(amounts, is_total):
+        if tot:
+            bottoms.append(0.0)
+        else:
+            bottoms.append(running - amt)
+            running -= amt
+
+    x = np.arange(len(labels))
+
+    ax.bar(x, amounts, bottom=bottoms, color=colors, alpha=0.85, width=0.65,
+           edgecolor="white", linewidth=0.5)
+
+    # Connector dashes between adjacent cost bars (at the running level)
+    for i in range(len(steps)):
+        if not is_total[i] and i < len(steps) - 1:
+            ax.plot([x[i] + 0.325, x[i + 1] - 0.325],
+                    [bottoms[i], bottoms[i]],
+                    color="#90A4AE", linewidth=0.8, linestyle="--")
+
+    # Value labels inside bars
+    for xi, (amt, bot) in enumerate(zip(amounts, bottoms)):
+        ax.text(xi, bot + amt / 2, _fmt(amt),
+                ha="center", va="center",
+                fontsize=8, fontweight="bold", color="white")
+
+    # GM% badge
+    gm_pct = gross_profit / revenue * 100 if revenue > 0 else 0.0
+    ax.text(0.99, 0.97, f"GM: {gm_pct:.1f}%",
+            transform=ax.transAxes, ha="right", va="top",
+            fontsize=10, fontweight="bold", color=gp_color,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=gp_color, alpha=0.85))
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel(f"{cur} / lot", fontsize=8)
+    ax.set_title("Cost Waterfall — avg / lot", fontsize=10, fontweight="bold", color=C_HEADER)
+    ax.axhline(0, color="gray", linewidth=0.8)
+    ax.grid(axis="y", alpha=0.3)
+    ax.set_ylim(-revenue * 0.05, revenue * 1.08)
+
+
 # ── Main App Class ────────────────────────────────────────────────────────────
 
 class PPCCockpitApp(tk.Frame):
@@ -520,7 +620,7 @@ class PPCCockpitApp(tk.Frame):
         chart_frame = tk.Frame(self, bg="white")
         chart_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self._fig = plt.Figure(figsize=(14, 8), facecolor="white")
+        self._fig = plt.Figure(figsize=(15, 10), facecolor="white")
         self._canvas = FigureCanvasTkAgg(self._fig, master=chart_frame)
         self._canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -580,18 +680,24 @@ class PPCCockpitApp(tk.Frame):
         )
 
         self._fig.clear()
-        gs = gridspec.GridSpec(2, 3, figure=self._fig, hspace=0.45, wspace=0.40)
-        ax1 = self._fig.add_subplot(gs[0, 0])
-        ax2 = self._fig.add_subplot(gs[0, 1])
-        ax3 = self._fig.add_subplot(gs[0, 2])
-        ax4 = self._fig.add_subplot(gs[1, 0])
-        ax5 = self._fig.add_subplot(gs[1, 1])
-        ax6 = self._fig.add_subplot(gs[1, 2])
+        gs = gridspec.GridSpec(
+            3, 3, figure=self._fig,
+            height_ratios=[0.37, 0.21, 0.42],
+            hspace=0.55, wspace=0.40,
+        )
+        ax1  = self._fig.add_subplot(gs[0, 0])
+        ax2  = self._fig.add_subplot(gs[0, 1])
+        ax3  = self._fig.add_subplot(gs[0, 2])
+        ax_wf = self._fig.add_subplot(gs[1, :])   # waterfall — full width
+        ax4  = self._fig.add_subplot(gs[2, 0])
+        ax5  = self._fig.add_subplot(gs[2, 1])
+        ax6  = self._fig.add_subplot(gs[2, 2])
 
         cur = self._cur
         _draw_kpi_text(ax1, self._kpi, rec_raw, cur)
         _draw_profit_zone(ax2, ev_raw, cur)
         _draw_weekly_revenue(ax3, nw, periods, cur)
+        _draw_waterfall(ax_wf, ev_raw, cur)          # ← Phase 2
         _draw_weekly_cost(ax4, nw, periods, cur)
         _draw_margin_dist(ax5, rec_raw, selected_channels)
         _draw_fwd_bwd(ax6, rec, periods, cur)
