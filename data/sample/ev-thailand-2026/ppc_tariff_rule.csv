@@ -1,3 +1,3 @@
 edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
-Factory_BYD_TH->DC_BYD_TH,TH,TH,BYD_ATTO3,8703800000,0.0,transfer_price
-Factory_TESLA_CN->DC_TESLA_TH,CN,TH,TESLA_M3,8703800000,0.08,transfer_price
+Factory_BYD_TH->DC_BYD_TH,TH,TH,BYD_ATTO3,8703800000.0,0.0,transfer_price
+Factory_TESLA_CN->DC_TESLA_TH,CN,TH,TESLA_M3,8703800000.0,0.08,transfer_price

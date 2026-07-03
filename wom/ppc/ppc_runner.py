@@ -43,8 +43,8 @@ def run_ppc_from_psi(
         print(f"[PPC Runner] Loading rules from: {data_dir}")
     rules = PPCRuleSet.load(data_dir)
 
-    known_products = set(rules.supplier_cost["product_id"].unique())
-    known_channels = set(rules.market_price["market_node"].unique())
+    known_products = {p for p in rules.supplier_cost["product_id"].unique() if isinstance(p, str)}
+    known_channels = {c for c in rules.market_price["market_node"].unique() if isinstance(c, str)}
 
     if verbose:
         print(f"[PPC Runner] Known products: {sorted(known_products)}")
