@@ -115,13 +115,19 @@ def _tariff_base(
     transfer_price_local: float,
     rules: PPCRuleSet,
     fx: FXConverter,
+    tp_currency: str = "USD",
 ) -> float:
-    """Compute tariff on edge_id → base currency (0 if no rule)."""
+    """Compute tariff on edge_id → base currency (0 if no rule).
+
+    tp_currency must match the transfer-price currency used in ppc_tariff.py
+    (e.g. "JPY" for biscuit-jp-2026, "USD" for iphone).
+    Defaults to "USD" for backward-compatibility with existing unit tests.
+    """
     t = rules.get_tariff(edge_id, product)
     if t is None:
         return 0.0
     t_local = transfer_price_local * float(t["tariff_rate"])
-    _, t_base = fx.convert(t_local, "USD", week)
+    _, t_base = fx.convert(t_local, tp_currency, week)
     return t_base
 
 
@@ -166,6 +172,10 @@ def run_backward_propagation(
         channel = acc.channel_node
 
         m_node = _resolve_node(mom_node, product)
+
+        # Resolve transfer-price currency so inbound tariff matches forward Step 3
+        tp_rule = rules.get_transfer_price_rule(m_node, product)
+        tp_currency = str(tp_rule["currency"]) if tp_rule is not None else "USD"
 
         # Build ordered DAD chain (MOM-side first, channel-side last)
         chain = _resolve_node_list(dad_nodes_chain, product)
@@ -231,6 +241,7 @@ def run_backward_propagation(
                 allowable -= _tariff_base(
                     inbound_edge, product, week,
                     acc.transfer_price_local, rules, fx,
+                    tp_currency=tp_currency,
                 )
 
         # ── Store result ───────────────────────────────────────────────
