@@ -9,18 +9,22 @@ Uses FIXED transfer_price from Step 2 (never recomputed here).
 Landed cost formula:
     landed_cost = transfer_price + logistics + insurance + tariff
 
-Edge processing order in Vertical Slice:
-    1. MOM → DAD   (cross-border: tariff_rate from ppc_tariff_rule.csv)
-    2. DAD → Channel (outbound: tariff if cross-border)
-    3. DAD node costs: warehouse, SGA
+Edge processing order (multi-tier DAD chain):
+    1. MOM → chain[0]      (cross-border: tariff + CIF freight)
+    2. chain[0] node costs (e.g. DC_JP_BONDED: customs handling)
+    3. chain[0] → chain[1] inter-DAD edge (domestic transport)
+    4. chain[1] node costs (e.g. DC_JP_MAIN: SGA + DC ops)
+    ...
+    N. chain[-1] → Channel  (outbound: tariff if cross-border)
 
 mom_node and dad_node accept either str or dict[product_id -> node_id].
+dad_nodes_chain: list[str] or dict[product_id -> list[str]] (MOM-side first).
 """
 
 from __future__ import annotations
 
 import itertools
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from .ppc_models import LotCostAccumulator, PPCEvent
 from .ppc_fx import FXConverter
@@ -33,6 +37,24 @@ def _resolve_node(node: Union[str, Dict[str, str]], product_id: str) -> str:
     return node
 
 
+def _resolve_chain(
+    chain: Union[None, List[str], Dict[str, List[str]], str],
+    product_id: str,
+    fallback_dad: str,
+) -> List[str]:
+    """Resolve dad_nodes_chain to ordered list; fall back to single dad_node."""
+    if chain is None:
+        return [fallback_dad]
+    if isinstance(chain, list):
+        return chain if chain else [fallback_dad]
+    if isinstance(chain, dict):
+        val = chain.get(product_id, [])
+        if isinstance(val, list):
+            return val if val else [fallback_dad]
+        return [val] if val else [fallback_dad]
+    return [chain] if chain else [fallback_dad]
+
+
 def run_tariff_and_landed_cost(
     accumulators: List[LotCostAccumulator],
     rules: PPCRuleSet,
@@ -40,11 +62,17 @@ def run_tariff_and_landed_cost(
     sc_paths: Dict[str, List[Tuple[str, str, str]]],
     mom_node: Union[str, Dict[str, str]] = "MOM_China",
     dad_node: Union[str, Dict[str, str]] = "DAD_Japan",
+    dad_nodes_chain: Optional[Union[List[str], Dict[str, List[str]]]] = None,
 ) -> List[PPCEvent]:
     """
-    Step 3: Tariff, logistics (outbound), and landed cost events.
+    Step 3: Tariff, logistics, DAD node costs for the full DAD chain.
 
-    mom_node / dad_node accept str OR dict[product_id -> node_id].
+    Walks chain[0] … chain[-1] in order (MOM-side first, channel-side last).
+    For each lot:
+      a) MOM → chain[0] inbound edge (tariff + CIF logistics)
+      b) chain[0] node costs
+      c) For i=1…N-1: chain[i-1]→chain[i] edge + chain[i] node costs
+      d) chain[-1] → channel outbound edge (+ outbound tariff if any)
     """
     events: List[PPCEvent] = []
     _ctr = itertools.count(1)
@@ -55,22 +83,25 @@ def run_tariff_and_landed_cost(
         channel = acc.channel_node
 
         m_node = _resolve_node(mom_node, product)
-        d_node = _resolve_node(dad_node, product)
+        fallback = _resolve_node(dad_node, product)
+        chain = _resolve_chain(dad_nodes_chain, product, fallback)
 
-        # ── a) MOM → DAD cross-border edge ────────────────────────────
-        inbound_edge = f"{m_node}->{d_node}"
+        first_dad = chain[0]
+        last_dad  = chain[-1]
 
-        # a-1) Tariff (MOM→DAD)
+        # ── a) MOM → first_DAD cross-border edge ──────────────────────
+        inbound_edge = f"{m_node}->{first_dad}"
+
+        # a-1) Tariff (MOM→first_DAD)
         tariff_row = rules.get_tariff(inbound_edge, product)
         if tariff_row is not None:
-            tariff_rate = float(tariff_row["tariff_rate"])
+            tariff_rate  = float(tariff_row["tariff_rate"])
             tariff_basis = str(tariff_row["tariff_basis"])
 
-            # Determine the actual TP currency from transfer price rule (e.g. CNY for China)
             tp_rule = rules.get_transfer_price_rule(m_node, product)
             actual_tp_currency = str(tp_rule["currency"]) if tp_rule is not None else "JPY"
 
-            if tariff_basis == "transfer_price":
+            if tariff_basis in ("transfer_price", ""):
                 basis_local = acc.transfer_price_local
                 tp_currency = actual_tp_currency
             elif tariff_basis == "material_cost":
@@ -87,186 +118,144 @@ def run_tariff_and_landed_cost(
 
             events.append(PPCEvent(
                 event_id=f"TAR-{next(_ctr):06d}",
-                week=week,
-                lot_id=acc.lot_id,
-                node_id=d_node,
-                edge_id=inbound_edge,
-                product_id=product,
-                qty=1,
+                week=week, lot_id=acc.lot_id, node_id=first_dad,
+                edge_id=inbound_edge, product_id=product, qty=1,
                 ppc_event_type="tariff_cost",
-                amount_local=tariff_local,
-                currency=tp_currency,
-                fx_rate=t_fx_rate,
-                amount_base=tariff_base,
+                amount_local=tariff_local, currency=tp_currency,
+                fx_rate=t_fx_rate, amount_base=tariff_base,
                 amount_per_unit_base=tariff_base,
-                source_rule="ppc_tariff_rule.csv",
-                direction="forward",
-                profit_zone=rules.get_profit_zone(d_node, product),
+                source_rule="ppc_tariff_rule.csv", direction="forward",
+                profit_zone=rules.get_profit_zone(first_dad, product),
             ))
 
-        # a-2) Edge logistics + insurance (MOM→DAD)
+        # a-2) Inbound logistics + insurance (MOM→first_DAD)
         for _, row in rules.get_edge_costs(inbound_edge, product).iterrows():
             ct = str(row["cost_type"])
             if ct not in ("logistics_cost", "insurance_cost"):
                 continue
-
             e_currency = str(row["currency"])
             if ct == "insurance_cost":
-                if e_currency == "USD":
-                    base_val = acc.transfer_price_local
-                else:
-                    base_val = acc.transfer_price_base
+                base_val = acc.transfer_price_local if e_currency == "USD" else acc.transfer_price_base
                 e_local = float(row["rate"]) * base_val + float(row["fixed_amount"])
             else:
                 e_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
-
             if e_local == 0:
                 continue
-
             e_fx_rate, e_base = fx.convert(e_local, e_currency, week)
             acc.logistics_in_base += e_base
-
             events.append(PPCEvent(
                 event_id=f"TAR-{next(_ctr):06d}",
-                week=week,
-                lot_id=acc.lot_id,
-                node_id=d_node,
-                edge_id=inbound_edge,
-                product_id=product,
-                qty=1,
-                ppc_event_type=ct,
-                amount_local=e_local,
-                currency=e_currency,
-                fx_rate=e_fx_rate,
-                amount_base=e_base,
-                amount_per_unit_base=e_base,
-                source_rule="ppc_edge_cost_rule.csv",
-                direction="forward",
-                profit_zone=rules.get_profit_zone(d_node, product),
+                week=week, lot_id=acc.lot_id, node_id=first_dad,
+                edge_id=inbound_edge, product_id=product, qty=1,
+                ppc_event_type=ct, amount_local=e_local, currency=e_currency,
+                fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
+                source_rule="ppc_edge_cost_rule.csv", direction="forward",
+                profit_zone=rules.get_profit_zone(first_dad, product),
             ))
 
-        # a-3) Landed cost informational event
+        # a-3) Landed cost informational event (at first_dad)
         landed_base = (
-            acc.transfer_price_base
-            + acc.logistics_in_base
-            + acc.insurance_in_base
-            + acc.tariff_in_base
+            acc.transfer_price_base + acc.logistics_in_base
+            + acc.insurance_in_base + acc.tariff_in_base
         )
         events.append(PPCEvent(
             event_id=f"TAR-{next(_ctr):06d}",
-            week=week,
-            lot_id=acc.lot_id,
-            node_id=d_node,
-            edge_id=inbound_edge,
-            product_id=product,
-            qty=1,
+            week=week, lot_id=acc.lot_id, node_id=first_dad,
+            edge_id=inbound_edge, product_id=product, qty=1,
             ppc_event_type="landed_cost_total",
-            amount_local=landed_base,
-            currency=fx.base_currency,
-            fx_rate=1.0,
-            amount_base=landed_base,
-            amount_per_unit_base=landed_base,
-            source_rule="computed",
-            direction="forward",
-            profit_zone=rules.get_profit_zone(d_node, product),
+            amount_local=landed_base, currency=fx.base_currency, fx_rate=1.0,
+            amount_base=landed_base, amount_per_unit_base=landed_base,
+            source_rule="computed", direction="forward",
+            profit_zone=rules.get_profit_zone(first_dad, product),
         ))
 
-        # ── b) DAD node costs (warehouse, SGA) ────────────────────────
-        dad_profit_zone = rules.get_profit_zone(d_node, product)
-        for _, row in rules.get_node_costs(d_node, product).iterrows():
-            ct = str(row["cost_type"])
-            n_currency = str(row["currency"])
-            n_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
-            n_fx_rate, n_base = fx.convert(n_local, n_currency, week)
+        # ── b/c) Walk ALL DAD nodes: node costs + inter-DAD edges ─────
+        for i, d in enumerate(chain):
+            d_zone = rules.get_profit_zone(d, product)
 
-            if ct == "warehouse_cost":
-                acc.warehouse_base += n_base
-            elif ct == "sga_cost":
-                acc.dad_sga_base += n_base
+            # DAD[i] node costs (logistics, conversion, SGA, warehouse, etc.)
+            for _, row in rules.get_node_costs(d, product).iterrows():
+                ct = str(row["cost_type"])
+                n_currency = str(row["currency"])
+                n_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
+                n_fx_rate, n_base = fx.convert(n_local, n_currency, week)
 
-            events.append(PPCEvent(
-                event_id=f"DAD-{next(_ctr):06d}",
-                week=week,
-                lot_id=acc.lot_id,
-                node_id=d_node,
-                edge_id="",
-                product_id=product,
-                qty=1,
-                ppc_event_type=ct,
-                amount_local=n_local,
-                currency=n_currency,
-                fx_rate=n_fx_rate,
-                amount_base=n_base,
-                amount_per_unit_base=n_base,
-                source_rule="ppc_node_cost_rule.csv",
-                direction="forward",
-                profit_zone=dad_profit_zone,
-            ))
+                if ct == "sga_cost":
+                    acc.dad_sga_base += n_base
+                else:
+                    # logistics_cost, conversion_cost, warehouse_cost → operational DAD costs
+                    acc.warehouse_base += n_base
 
-        # ── c) DAD → Channel edge ──────────────────────────────────────
-        outbound_edge = f"{d_node}->{channel}"
+                events.append(PPCEvent(
+                    event_id=f"DAD-{next(_ctr):06d}",
+                    week=week, lot_id=acc.lot_id, node_id=d,
+                    edge_id="", product_id=product, qty=1,
+                    ppc_event_type=ct, amount_local=n_local, currency=n_currency,
+                    fx_rate=n_fx_rate, amount_base=n_base, amount_per_unit_base=n_base,
+                    source_rule="ppc_node_cost_rule.csv", direction="forward",
+                    profit_zone=d_zone,
+                ))
+
+            # Inter-DAD edge: chain[i] → chain[i+1]
+            if i + 1 < len(chain):
+                next_dad = chain[i + 1]
+                inter_edge = f"{d}->{next_dad}"
+                next_zone = rules.get_profit_zone(next_dad, product)
+                for _, row in rules.get_edge_costs(inter_edge, product).iterrows():
+                    ct = str(row["cost_type"])
+                    if ct not in ("logistics_cost", "insurance_cost"):
+                        continue
+                    e_currency = str(row["currency"])
+                    e_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
+                    if e_local == 0:
+                        continue
+                    e_fx_rate, e_base = fx.convert(e_local, e_currency, week)
+                    acc.logistics_in_base += e_base
+                    events.append(PPCEvent(
+                        event_id=f"DAD-{next(_ctr):06d}",
+                        week=week, lot_id=acc.lot_id, node_id=next_dad,
+                        edge_id=inter_edge, product_id=product, qty=1,
+                        ppc_event_type=ct, amount_local=e_local, currency=e_currency,
+                        fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
+                        source_rule="ppc_edge_cost_rule.csv", direction="forward",
+                        profit_zone=next_zone,
+                    ))
+
+        # ── d) last_DAD → Channel outbound edge ───────────────────────
+        outbound_edge = f"{last_dad}->{channel}"
         out_profit_zone = rules.get_profit_zone(channel, product)
 
-        # c-1) Outbound logistics
         for _, row in rules.get_edge_costs(outbound_edge, product).iterrows():
             ct = str(row["cost_type"])
             e_currency = str(row["currency"])
             e_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
             e_fx_rate, e_base = fx.convert(e_local, e_currency, week)
             acc.logistics_out_base += e_base
-
             events.append(PPCEvent(
                 event_id=f"OUT-{next(_ctr):06d}",
-                week=week,
-                lot_id=acc.lot_id,
-                node_id=channel,
-                edge_id=outbound_edge,
-                product_id=product,
-                qty=1,
-                ppc_event_type=ct,
-                amount_local=e_local,
-                currency=e_currency,
-                fx_rate=e_fx_rate,
-                amount_base=e_base,
-                amount_per_unit_base=e_base,
-                source_rule="ppc_edge_cost_rule.csv",
-                direction="forward",
+                week=week, lot_id=acc.lot_id, node_id=channel,
+                edge_id=outbound_edge, product_id=product, qty=1,
+                ppc_event_type=ct, amount_local=e_local, currency=e_currency,
+                fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
+                source_rule="ppc_edge_cost_rule.csv", direction="forward",
                 profit_zone=out_profit_zone,
             ))
 
-        # c-2) Outbound tariff (DAD→Channel cross-border)
         out_tariff_row = rules.get_tariff(outbound_edge, product)
         if out_tariff_row is not None:
             t_rate = float(out_tariff_row["tariff_rate"])
-            t_basis = str(out_tariff_row["tariff_basis"])
-
-            if t_basis == "transfer_price":
-                basis_local = acc.transfer_price_local
-                t_currency = "USD"
-            else:
-                basis_local = acc.transfer_price_local
-                t_currency = "USD"
-
+            basis_local = acc.transfer_price_local
+            t_currency = "USD"
             t_local = basis_local * t_rate
             t_fx_rate, t_base = fx.convert(t_local, t_currency, week)
             acc.tariff_out_base += t_base
-
             events.append(PPCEvent(
                 event_id=f"OUT-{next(_ctr):06d}",
-                week=week,
-                lot_id=acc.lot_id,
-                node_id=channel,
-                edge_id=outbound_edge,
-                product_id=product,
-                qty=1,
-                ppc_event_type="tariff_cost",
-                amount_local=t_local,
-                currency=t_currency,
-                fx_rate=t_fx_rate,
-                amount_base=t_base,
-                amount_per_unit_base=t_base,
-                source_rule="ppc_tariff_rule.csv",
-                direction="forward",
+                week=week, lot_id=acc.lot_id, node_id=channel,
+                edge_id=outbound_edge, product_id=product, qty=1,
+                ppc_event_type="tariff_cost", amount_local=t_local, currency=t_currency,
+                fx_rate=t_fx_rate, amount_base=t_base, amount_per_unit_base=t_base,
+                source_rule="ppc_tariff_rule.csv", direction="forward",
                 profit_zone=out_profit_zone,
             ))
 

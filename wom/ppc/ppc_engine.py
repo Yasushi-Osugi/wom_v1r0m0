@@ -105,6 +105,7 @@ class PPCSimulationEngine:
         tar_events = run_tariff_and_landed_cost(
             accumulators, self.rules, self._fx, self.sc_paths,
             mom_node=self.mom_node, dad_node=self.dad_node,
+            dad_nodes_chain=self.dad_nodes_chain,
         )
         all_events.extend(tar_events)
         if self.verbose:
@@ -113,6 +114,7 @@ class PPCSimulationEngine:
         # Step 4: Profit Zone Allocation + Market Revenue
         pz_events = run_profit_zone_allocation(
             accumulators, self.rules, self._fx,
+            mom_node=self.mom_node,
         )
         all_events.extend(pz_events)
         if self.verbose:

@@ -18,17 +18,24 @@ The ppc_profit_zone_summary is built later by ppc_kpi.py.
 from __future__ import annotations
 
 import itertools
-from typing import List
+from typing import Dict, List, Union
 
 from .ppc_models import LotCostAccumulator, PPCEvent
 from .ppc_fx import FXConverter
 from .ppc_rules import PPCRuleSet
 
 
+def _resolve_node(node: Union[str, Dict[str, str]], product_id: str) -> str:
+    if isinstance(node, dict):
+        return node.get(product_id, next(iter(node.values()), "MOM_China"))
+    return node if node else "MOM_China"
+
+
 def run_profit_zone_allocation(
     accumulators: List[LotCostAccumulator],
     rules: PPCRuleSet,
     fx: FXConverter,
+    mom_node: Union[str, Dict[str, str]] = "MOM_China",
 ) -> List[PPCEvent]:
     """
     Step 4: Market revenue + channel costs.
@@ -135,13 +142,14 @@ def run_profit_zone_allocation(
             + acc.logistics_in_base
         )
         mom_gross_profit_base = acc.transfer_price_base - mom_supply_cost_base
-        mom_zone = rules.get_profit_zone("MOM_China", product)
+        m_node = _resolve_node(mom_node, product)
+        mom_zone = rules.get_profit_zone(m_node, product)
 
         events.append(PPCEvent(
             event_id=f"MOM-{next(_ctr):06d}",
             week=week,
             lot_id=acc.lot_id,
-            node_id="MOM_China",
+            node_id=m_node,
             edge_id="",
             product_id=product,
             qty=1,
