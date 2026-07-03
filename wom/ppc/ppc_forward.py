@@ -126,15 +126,26 @@ def run_forward_propagation(
                     cost_phase="FOB",
                 ))
 
-        # ── Step 1c: MOM conversion cost ──────────────────────────────
+        # ── Step 1c: MOM node costs (conversion + logistics) ─────────
         mom_profit_zone = rules.get_profit_zone(m_node, product)
         for _, row in rules.get_node_costs(m_node, product).iterrows():
-            if row["cost_type"] != "conversion_cost":
+            cost_type = row["cost_type"]
+            if cost_type not in ("conversion_cost", "logistics_cost"):
                 continue
             c_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
             c_currency = str(row["currency"])
+            if c_local == 0:
+                continue
             c_fx_rate, c_base = fx.convert(c_local, c_currency, week)
-            acc.conversion_cost_base += c_base
+            if cost_type == "conversion_cost":
+                acc.conversion_cost_base += c_base
+                ev_type   = "conversion_cost"
+                ev_phase  = "MOM"
+            else:
+                # logistics_cost at MOM node = domestic transport to export port (FOB)
+                acc.logistics_in_base += c_base
+                ev_type   = "logistics_cost"
+                ev_phase  = "FOB"
             events.append(PPCEvent(
                 event_id=f"FWD-{next(_event_counter):06d}",
                 week=week,
@@ -143,7 +154,7 @@ def run_forward_propagation(
                 edge_id="",
                 product_id=product,
                 qty=1,
-                ppc_event_type="conversion_cost",
+                ppc_event_type=ev_type,
                 amount_local=c_local,
                 currency=c_currency,
                 fx_rate=c_fx_rate,
@@ -152,7 +163,7 @@ def run_forward_propagation(
                 source_rule="ppc_node_cost_rule.csv",
                 direction="forward",
                 profit_zone=mom_profit_zone,
-                cost_phase="MOM",
+                cost_phase=ev_phase,
             ))
 
     return events
