@@ -1,6 +1,3 @@
 edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
-Factory_OREO_CN->SP_OREO_JP,CN,CN,OREO_JP,1905310000,0.0,transfer_price
-SP_OREO_JP->DC_JP_BONDED,CN,JP,OREO_JP,1905310000,0.15,transfer_price
-DC_JP_BONDED->DC_JP_MAIN,JP,JP,OREO_JP,1905310000,0.0,transfer_price
-Factory_LUVAN_JP->SP_LUVAN_JP,JP,JP,LUVAN_JP,1905310000,0.0,transfer_price
-SP_LUVAN_JP->DC_LUVAN_JP,JP,JP,LUVAN_JP,1905310000,0.0,transfer_price
+Factory_OREO_CN->DC_JP_BONDED,CN,JP,OREO_JP,1905310000,0.15,transfer_price
+Factory_LUVAN_JP->DC_LUVAN_JP,JP,JP,LUVAN_JP,1905310000,0.0,transfer_price

@@ -125,14 +125,61 @@ def run_ppc_from_psi(
                   "(Foxconn_CN/i15/i17 → SP_iPhone16/15/17 → Retail_*)")
 
     else:
-        # Legacy iphone (JP_Channel / US_Channel)
-        sc_paths      = build_iphone_vs_paths()
-        mom_node      = "MOM_China"
-        supplier_node = "Supplier_CN"
-        dad_node      = "DAD_Japan"
-        if verbose:
-            print("[PPC Runner] Scenario: IPHONE (legacy)  "
-                  f"mom={mom_node}  supplier={supplier_node}  dad={dad_node}")
+        # Generic: auto-detect mom/supplier/dad from SCTree structure
+        # This allows any new model to work without code changes.
+        sc_paths = {}
+        _mom_map: dict = {}
+        _sup_map: dict = {}
+        _dad_map: dict = {}
+
+        if sc_tree is not None:
+            from wom.model.plan_node import (
+                NODE_TYPE_MOM, NODE_TYPE_LEAF_IN, NODE_TYPE_DAD
+            )
+            for _prod in sc_tree.products:
+                if _prod not in known_products:
+                    continue
+                for _nd in sc_tree.iter_all_nodes(_prod):
+                    _nt = getattr(_nd, "node_type", "")
+                    _nm = getattr(_nd, "node_name",
+                                  getattr(_nd, "node_id", ""))
+                    if _nt == NODE_TYPE_DAD and _prod not in _dad_map:
+                        _dad_map[_prod] = _nm
+                    elif _nt == NODE_TYPE_MOM and _prod not in _mom_map:
+                        _mom_map[_prod] = _nm
+                    elif _nt == NODE_TYPE_LEAF_IN and _prod not in _sup_map:
+                        _sup_map[_prod] = _nm
+
+        if _mom_map:
+            # Collapse to str when only one product
+            mom_node = (
+                _mom_map if len(_mom_map) != 1
+                else next(iter(_mom_map.values()))
+            )
+            supplier_node = (
+                _sup_map if len(_sup_map) != 1
+                else next(iter(_sup_map.values()))
+            )
+            dad_node = (
+                _dad_map if len(_dad_map) != 1
+                else next(iter(_dad_map.values()), "")
+            )
+            if verbose:
+                print(f"[PPC Runner] Scenario: GENERIC  "
+                      f"mom={mom_node}  "
+                      f"supplier={supplier_node}  "
+                      f"dad={dad_node}")
+        else:
+            # Final fallback: legacy iphone (JP_Channel / US_Channel)
+            sc_paths      = build_iphone_vs_paths()
+            mom_node      = "MOM_China"
+            supplier_node = "Supplier_CN"
+            dad_node      = "DAD_Japan"
+            if verbose:
+                print("[PPC Runner] Scenario: IPHONE (legacy)  "
+                      f"mom={mom_node}  "
+                      f"supplier={supplier_node}  "
+                      f"dad={dad_node}")
 
     if verbose and scenario != "iphone_global":
         print(f"[PPC Runner] Scenario: {scenario.upper()}  "
