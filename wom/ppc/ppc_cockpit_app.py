@@ -443,12 +443,14 @@ def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
 
     if has_phase:
         # Phase 3: FOB/CIF/DAD 分類
+        fob_cost  = _avg_phase("FOB")    # FOB 国内輸送（工場→輸出港）
         mfg_conv  = _avg_phase("MOM")    # 製造転換費（Factory conversion）
         cif_cost  = _avg_phase("CIF")    # CIF 国際輸送＋保税倉庫費
         dad_ops   = _avg_phase("DAD")    # 国内 DAD 流通費
         # Build steps with FOB/CIF/DAD breakdown
         deductions = [
             ("Supplier",     supplier,  C_COST,     False),
+            ("FOB\nFreight", fob_cost,  "#43A047",  False),  # green (domestic to port)
             ("Mfg\nConv",   mfg_conv,  "#EF5350",  False),
             ("CIF\nFreight", cif_cost,  "#0288D1",  False),  # ocean blue
             ("Tariff",       tariff,    C_TARIFF,   False),
