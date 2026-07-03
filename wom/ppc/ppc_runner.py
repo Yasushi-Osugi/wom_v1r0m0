@@ -240,4 +240,4 @@ def run_ppc_from_psi(
     # ── Step 6: Export ────────────────────────────────────────────────────
     export_results(result, output_dir)
 
-    result.kpi_su
+    return result.kpi_summary
