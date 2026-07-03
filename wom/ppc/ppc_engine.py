@@ -58,6 +58,7 @@ class PPCSimulationEngine:
         mom_node: Union[str, Dict[str, str]] = "MOM_China",
         supplier_node: Union[str, Dict[str, str]] = "Supplier_CN",
         dad_node: Union[str, Dict[str, str]] = "DAD_Japan",
+        dad_nodes_chain=None,
         verbose: bool = False,
     ):
         self.sales_records  = sales_records
@@ -67,6 +68,7 @@ class PPCSimulationEngine:
         self.mom_node       = mom_node
         self.supplier_node  = supplier_node
         self.dad_node       = dad_node
+        self.dad_nodes_chain = dad_nodes_chain
         self.verbose        = verbose
 
         self._fx = FXConverter(rules.fx_rate, base_currency)
@@ -120,6 +122,7 @@ class PPCSimulationEngine:
         bwd_events = run_backward_propagation(
             accumulators, self.rules, self._fx, self.sc_paths,
             mom_node=self.mom_node, dad_node=self.dad_node,
+            dad_nodes_chain=self.dad_nodes_chain,
         )
         all_events.extend(bwd_events)
         if self.verbose:

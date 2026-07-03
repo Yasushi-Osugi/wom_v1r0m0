@@ -81,7 +81,7 @@ def run_ppc_from_psi(
     if not psi_mode:
         if verbose:
             print(
-                "[PPC Runner] No PSI↔PPC-compatible records found.\n"
+                "[PPC Runner] No PSI<->PPC-compatible records found.\n"
                 "             Falling back to sample data."
             )
         from wom.ppc.__main__ import generate_sample_sales
@@ -99,6 +99,10 @@ def run_ppc_from_psi(
     # ── Step 5: Auto-detect scenario and build engine parameters ─────────
     scenario = detect_scenario(sales)
 
+    # dad_nodes_chain: ordered list of all DAD nodes per product (MOM-side first).
+    # None for rice / iphone_global (single-DAD chains).
+    dad_nodes_chain = None
+
     if scenario == "rice":
         sc_paths      = build_rice_vs_paths()
         mom_node      = "JA_Seihaku"
@@ -107,14 +111,12 @@ def run_ppc_from_psi(
 
     elif scenario == "iphone_global":
         sc_paths      = build_iphone_global_vs_paths()
-        # Per-product node mapping: Foxconn acts as both supplier (BOM cost)
-        # and MOM (conversion cost). SP_iPhoneXX is the DAD (distribution hub).
         mom_node = {
             "iPhone16": "Foxconn_CN",
             "iPhone15": "Foxconn_CN_i15",
             "iPhone17": "Foxconn_CN_i17",
         }
-        supplier_node = mom_node  # same node; BOM in supplier_cost, labor in node_cost
+        supplier_node = mom_node
         dad_node = {
             "iPhone16": "SP_iPhone16",
             "iPhone15": "SP_iPhone15",
@@ -122,15 +124,16 @@ def run_ppc_from_psi(
         }
         if verbose:
             print("[PPC Runner] Scenario: IPHONE_GLOBAL  "
-                  "(Foxconn_CN/i15/i17 → SP_iPhone16/15/17 → Retail_*)")
+                  "(Foxconn_CN/i15/i17 -> SP_iPhone16/15/17 -> Retail_*)")
 
     else:
-        # Generic: auto-detect mom/supplier/dad from SCTree structure
-        # This allows any new model to work without code changes.
+        # Generic: auto-detect mom/supplier/dad from SCTree structure.
+        # Collects ALL DAD nodes per product in OT preorder for multi-tier support.
         sc_paths = {}
         _mom_map: dict = {}
         _sup_map: dict = {}
-        _dad_map: dict = {}
+        _dad_map: dict = {}       # first DAD per product (for tariff)
+        _dad_list_map: dict = {}  # all DADs per product in OT preorder
 
         if sc_tree is not None:
             from wom.model.plan_node import (
@@ -139,16 +142,22 @@ def run_ppc_from_psi(
             for _prod in sc_tree.products:
                 if _prod not in known_products:
                     continue
+                _dad_list_map[_prod] = []
                 for _nd in sc_tree.iter_all_nodes(_prod):
                     _nt = getattr(_nd, "node_type", "")
                     _nm = getattr(_nd, "node_name",
                                   getattr(_nd, "node_id", ""))
-                    if _nt == NODE_TYPE_DAD and _prod not in _dad_map:
-                        _dad_map[_prod] = _nm
+                    if _nt == NODE_TYPE_DAD:
+                        _dad_list_map[_prod].append(_nm)  # ordered OT preorder
+                        if _prod not in _dad_map:
+                            _dad_map[_prod] = _nm  # first DAD (for tariff compat)
                     elif _nt == NODE_TYPE_MOM and _prod not in _mom_map:
                         _mom_map[_prod] = _nm
                     elif _nt == NODE_TYPE_LEAF_IN and _prod not in _sup_map:
                         _sup_map[_prod] = _nm
+
+        # Build dad_nodes_chain for multi-tier DAD backward propagation
+        dad_nodes_chain = _dad_list_map if _dad_list_map else None
 
         if _mom_map:
             # Collapse to str when only one product
@@ -168,13 +177,15 @@ def run_ppc_from_psi(
                 print(f"[PPC Runner] Scenario: GENERIC  "
                       f"mom={mom_node}  "
                       f"supplier={supplier_node}  "
-                      f"dad={dad_node}")
+                      f"dad={dad_node}  "
+                      f"dad_chain={dad_nodes_chain}")
         else:
             # Final fallback: legacy iphone (JP_Channel / US_Channel)
             sc_paths      = build_iphone_vs_paths()
             mom_node      = "MOM_China"
             supplier_node = "Supplier_CN"
             dad_node      = "DAD_Japan"
+            dad_nodes_chain = None
             if verbose:
                 print("[PPC Runner] Scenario: IPHONE (legacy)  "
                       f"mom={mom_node}  "
@@ -186,7 +197,7 @@ def run_ppc_from_psi(
               f"mom={mom_node}  supplier={supplier_node}  dad={dad_node}")
 
     if verbose:
-        print(f"[PPC Runner] Running engine on {len(sales)} lot-records …")
+        print(f"[PPC Runner] Running engine on {len(sales)} lot-records ...")
 
     eng = PPCSimulationEngine(
         sales_records=sales,
@@ -196,6 +207,7 @@ def run_ppc_from_psi(
         mom_node=mom_node,
         supplier_node=supplier_node,
         dad_node=dad_node,
+        dad_nodes_chain=dad_nodes_chain,
         verbose=False,
     )
     result = eng.run()
@@ -203,13 +215,13 @@ def run_ppc_from_psi(
     if verbose:
         kpi = result.kpi_summary
         print(
-            f"[PPC Runner] Done — lots={kpi['total_lots']:,}  "
+            f"[PPC Runner] Done -- lots={kpi['total_lots']:,}  "
             f"events={len(result.ppc_events):,}  "
             f"margin={kpi['gross_margin_pct']:.1%}  "
             f"trust_events={kpi['trust_event_count']}"
         )
         if not psi_mode:
-            print("[PPC Runner] ⚠ Results based on SAMPLE data (PSI→PPC mapping missing)")
+            print("[PPC Runner] WARNING: Results based on SAMPLE data (PSI->PPC mapping missing)")
 
     # ── Step 6: Export ────────────────────────────────────────────────────
     export_results(result, output_dir)
