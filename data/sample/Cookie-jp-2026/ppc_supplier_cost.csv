@@ -1,0 +1,3 @@
+supplier_node,product_id,week,purchase_price,currency
+Ingredients_CN,Cookie_Import,2026-W01,8000.0,JPY
+Ingredients_JP,Cookie_Local,2026-W01,11000.0,JPY

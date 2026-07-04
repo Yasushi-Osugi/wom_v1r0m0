@@ -1,0 +1,16 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+Cookie_Import,Ingredients_CN,9000,8000,原料（小麦粉・カカオ等）中国調達 JPY/lot
+Cookie_Import,Factory_GP_CN,18000,17000,北京工場 BOM+製造労務費 JPY/lot
+Cookie_Import,SP_Cookie_Import,18000,18000,Supply Point pass-through JPY/lot
+Cookie_Import,DC_Import_Buffer,23500,23200,"輸入保税倉庫 関税¥2,700+海上運賃¥2,000+取扱¥500 JPY/lot"
+Cookie_Import,DC_Import_Main,25000,24700,"国内DC 国内物流¥1,000+保管¥500 JPY/lot"
+Cookie_Import,Retail_JP_CVS,30000,25500,"コンビニ小売 ¥300/pack×100 = ¥30,000/lot"
+Cookie_Import,Retail_JP_SM,30000,25500,"スーパー小売 ¥300/pack×100 = ¥30,000/lot"
+Cookie_Import,Retail_JP_EC,30000,25500,"EC小売 ¥300/pack×100 = ¥30,000/lot"
+Cookie_Local,Ingredients_JP,12000,11000,原料（小麦粉・植物油脂）国内調達 JPY/lot
+Cookie_Local,Factory_DP_JP,21000,20000,国内工場 BOM+製造労務費（国内製造コスト高め） JPY/lot
+Cookie_Local,SP_Cookie_Local,21000,21000,Supply Point pass-through JPY/lot
+Cookie_Local,DC_Local_JP,21500,21300,Domestic_Player DC パン便相乗り限界物流費¥300 JPY/lot
+Cookie_Local,Retail_JP_CVS,30000,22000,"コンビニ小売 ¥300/pack×100 = ¥30,000/lot"
+Cookie_Local,Retail_JP_SM,30000,22000,"スーパー小売 ¥300/pack×100 = ¥30,000/lot"
+Cookie_Local,Retail_JP_EC,30000,22000,"EC小売 ¥300/pack×100 = ¥30,000/lot"

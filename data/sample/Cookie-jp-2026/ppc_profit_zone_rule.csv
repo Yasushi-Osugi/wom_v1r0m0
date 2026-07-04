@@ -1,0 +1,7 @@
+profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
+OUTBOUND_CHANNEL_PROFIT,Cookie_Import,channel_margin,market_price,0.15,0
+MOM_PLANT_PROFIT,Cookie_Import,mom_margin,transfer_price,0.10,0
+SUPPLIER_COST_BASE,Cookie_Import,supplier_cost,transfer_price,1.00,0
+OUTBOUND_CHANNEL_PROFIT,Cookie_Local,channel_margin,market_price,0.27,0
+MOM_PLANT_PROFIT,Cookie_Local,mom_margin,transfer_price,0.12,0
+SUPPLIER_COST_BASE,Cookie_Local,supplier_cost,transfer_price,1.00,0

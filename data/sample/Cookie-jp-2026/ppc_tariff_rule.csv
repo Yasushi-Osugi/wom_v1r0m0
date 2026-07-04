@@ -1,0 +1,3 @@
+edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
+Factory_GP_CN->DC_Import_Buffer,CN,JP,Cookie_Import,1905310000.0,0.15,transfer_price
+Factory_DP_JP->DC_Local_JP,JP,JP,Cookie_Local,1905310000.0,0.0,transfer_price

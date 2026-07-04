@@ -1,0 +1,16 @@
+node_id,product_id,profit_zone_role,country
+Ingredients_CN,Cookie_Import,SUPPLIER_COST_BASE,CN
+Factory_GP_CN,Cookie_Import,MOM_PLANT_PROFIT,CN
+SP_Cookie_Import,Cookie_Import,OPERATION_NODE_COST_BASE,JP
+DC_Import_Buffer,Cookie_Import,OPERATION_NODE_COST_BASE,JP
+DC_Import_Main,Cookie_Import,OPERATION_NODE_COST_BASE,JP
+Retail_JP_CVS,Cookie_Import,OUTBOUND_CHANNEL_PROFIT,JP
+Retail_JP_SM,Cookie_Import,OUTBOUND_CHANNEL_PROFIT,JP
+Retail_JP_EC,Cookie_Import,OUTBOUND_CHANNEL_PROFIT,JP
+Ingredients_JP,Cookie_Local,SUPPLIER_COST_BASE,JP
+Factory_DP_JP,Cookie_Local,MOM_PLANT_PROFIT,JP
+SP_Cookie_Local,Cookie_Local,OPERATION_NODE_COST_BASE,JP
+DC_Local_JP,Cookie_Local,OPERATION_NODE_COST_BASE,JP
+Retail_JP_CVS,Cookie_Local,OUTBOUND_CHANNEL_PROFIT,JP
+Retail_JP_SM,Cookie_Local,OUTBOUND_CHANNEL_PROFIT,JP
+Retail_JP_EC,Cookie_Local,OUTBOUND_CHANNEL_PROFIT,JP

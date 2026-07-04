@@ -1,0 +1,7 @@
+sku_id,region,on_hand_qty,on_order_qty,week
+Cookie_Import,CVS,1200,600,2026-W01
+Cookie_Import,SM,1200,600,2026-W01
+Cookie_Import,EC,600,300,2026-W01
+Cookie_Local,CVS,500,150,2026-W01
+Cookie_Local,SM,500,150,2026-W01
+Cookie_Local,EC,200,80,2026-W01

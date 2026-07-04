@@ -1,0 +1,7 @@
+sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
+Cookie_Import,CVS,CN,JP,1905310000,finished_goods,0
+Cookie_Import,SM,CN,JP,1905310000,finished_goods,0
+Cookie_Import,EC,CN,JP,1905310000,finished_goods,0
+Cookie_Local,CVS,JP,JP,1905310000,finished_goods,0
+Cookie_Local,SM,JP,JP,1905310000,finished_goods,0
+Cookie_Local,EC,JP,JP,1905310000,finished_goods,0

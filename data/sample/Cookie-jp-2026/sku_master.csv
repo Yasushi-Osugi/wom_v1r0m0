@@ -1,0 +1,7 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+Cookie_Import,Cookie_Import Japan,CVS,CS,17000,3,7,50,0,52,True,30000,30,45
+Cookie_Import,Cookie_Import Japan,SM,CS,17000,3,7,50,0,52,True,30000,30,45
+Cookie_Import,Cookie_Import Japan,EC,CS,17000,3,7,50,0,52,True,30000,30,45
+Cookie_Local,Cookie_Local Japan,CVS,CS,20000,1,2,50,0,26,True,30000,30,30
+Cookie_Local,Cookie_Local Japan,SM,CS,20000,1,2,50,0,26,True,30000,30,30
+Cookie_Local,Cookie_Local Japan,EC,CS,20000,1,2,50,0,26,True,30000,30,30

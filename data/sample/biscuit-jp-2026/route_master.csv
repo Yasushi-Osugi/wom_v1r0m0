@@ -1,7 +1,0 @@
-sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
-OREO_JP,CVS,CN,JP,1905310000,finished_goods,0
-OREO_JP,SM,CN,JP,1905310000,finished_goods,0
-OREO_JP,EC,CN,JP,1905310000,finished_goods,0
-LUVAN_JP,CVS,JP,JP,1905310000,finished_goods,0
-LUVAN_JP,SM,JP,JP,1905310000,finished_goods,0
-LUVAN_JP,EC,JP,JP,1905310000,finished_goods,0

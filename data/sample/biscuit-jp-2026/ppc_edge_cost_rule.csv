@@ -1,6 +1,0 @@
-edge_id,product_id,cost_type,basis,rate,fixed_amount,currency
-Factory_OREO_CN->SP_OREO_JP,OREO_JP,logistics_cost,per_lot,0.0,500,JPY
-SP_OREO_JP->DC_JP_BONDED,OREO_JP,logistics_cost,per_lot,0.0,2000,JPY
-DC_JP_BONDED->DC_JP_MAIN,OREO_JP,logistics_cost,per_lot,0.0,1000,JPY
-Factory_LUVAN_JP->SP_LUVAN_JP,LUVAN_JP,logistics_cost,per_lot,0.0,200,JPY
-SP_LUVAN_JP->DC_LUVAN_JP,LUVAN_JP,logistics_cost,per_lot,0.0,300,JPY
