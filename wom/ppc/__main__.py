@@ -39,7 +39,7 @@ if _REPO_ROOT not in sys.path:
 
 from wom.ppc.ppc_rules import PPCRuleSet
 from wom.ppc.ppc_engine import (PPCSimulationEngine, build_iphone_vs_paths,
-                                  build_biscuit_vs_paths, detect_scenario)
+                                  build_cookie_vs_paths, detect_scenario)
 from wom.ppc.ppc_export import export_results
 
 
@@ -249,16 +249,16 @@ def main(argv: List[str] = None) -> int:
 
     # Select scenario-specific engine config
     scenario = detect_scenario(sales)
-    if scenario == "biscuit":
-        sc_paths      = build_biscuit_vs_paths()
-        mom_node      = {"OREO_JP": "Factory_OREO_CN",  "LUVAN_JP": "Factory_LUVAN_JP"}
-        supplier_node = {"OREO_JP": "Ingredients_CN",   "LUVAN_JP": "Ingredients_JP"}
-        dad_node      = {"OREO_JP": "DC_JP_BONDED",     "LUVAN_JP": "DC_LUVAN_JP"}
+    if scenario == "cookie":
+        sc_paths      = build_cookie_vs_paths()
+        mom_node      = {"Cookie_Import": "Factory_GP_CN", "Cookie_Local": "Factory_DP_JP"}
+        supplier_node = {"Cookie_Import": "Ingredients_CN", "Cookie_Local": "Ingredients_JP"}
+        dad_node      = {"Cookie_Import": "DC_Import_Buffer", "Cookie_Local": "DC_Local_JP"}
         dad_nodes_chain = {
-            "OREO_JP":  ["DC_JP_BONDED", "DC_JP_MAIN"],
-            "LUVAN_JP": ["DC_LUVAN_JP"],
+            "Cookie_Import": ["DC_Import_Buffer", "DC_Import_Main"],
+            "Cookie_Local":  ["DC_Local_JP"],
         }
-        print(f"[PPC] Scenario: BISCUIT_JP")
+        print(f"[PPC] Scenario: COOKIE_JP")
     else:
         sc_paths        = build_iphone_vs_paths()
         mom_node        = "MOM_China"

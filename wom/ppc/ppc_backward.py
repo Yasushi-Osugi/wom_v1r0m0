@@ -6,8 +6,8 @@ Step 5: Market Requesting Price Backward Propagation (Lot-based).
 mom_node / dad_node accept str or dict[product_id -> node_id].
 dad_nodes_chain accepts an ordered list (MOM-side first, channel-side last)
 or dict[product_id -> list[str]] for multi-tier DC chains such as:
-  [DC_JP_BONDED, DC_JP_MAIN]  (OREO_JP import chain)
-  [DC_LUVAN_JP]               (LUVAN_JP domestic chain)
+  [DC_Import_Buffer, DC_Import_Main]  (Cookie_Import import chain)
+  [DC_Local_JP]                       (Cookie_Local domestic chain)
 
 Costs are accumulated correctly at EVERY node/edge in the chain,
 so SGA at DC_JP_MAIN is no longer ignored.
@@ -120,7 +120,7 @@ def _tariff_base(
     """Compute tariff on edge_id → base currency (0 if no rule).
 
     tp_currency must match the transfer-price currency used in ppc_tariff.py
-    (e.g. "JPY" for biscuit-jp-2026, "USD" for iphone).
+    (e.g. "JPY" for Cookie-jp-2026, "USD" for iphone).
     Defaults to "USD" for backward-compatibility with existing unit tests.
     """
     t = rules.get_tariff(edge_id, product)

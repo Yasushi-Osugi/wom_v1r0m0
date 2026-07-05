@@ -5,7 +5,7 @@ Ingredients_CN,原料調達（中国）,sku_supplier,37.5,118.0,Cookie_Import,CN
 DC_Import_Buffer,輸入保税倉庫（横浜港）,region_dc,35.4437,139.638,,JP,LT5週輸入バッファ Decoupling Point
 DC_Import_Main,国内配送センター（東京）,region_dc,35.69,139.9,,JP,国内向け二次DC
 SP_Cookie_Local,SP_Cookie_Local（国内調達本部）,procurement,35.8617,139.6454,,JP,Cookie_Local Supply Point 仮想ブリッジノード
-Factory_DP_JP,国内ビスケット工場（Domestic_Player）,mother_plant,35.9,139.68,Cookie_Local,JP,Saitama Factory — PULL生産起点
+Factory_DP_JP,国内クッキー工場（Domestic_Player）,mother_plant,35.9,139.68,Cookie_Local,JP,Saitama Factory — PULL生産起点
 Ingredients_JP,原料調達（国内）,sku_supplier,36.0,140.0,Cookie_Local,JP,小麦粉・植物油脂 国内調達
 DC_Local_JP,Domestic_Player DC（パン便相乗り）,region_dc,35.7,139.71,,JP,パン配送ルート活用・超短LT DC
 Retail_JP_CVS,コンビニ チャネル,marketing,35.6762,139.6503,,CVS,全国コンビニ（セブン・ファミマ等）

@@ -12,5 +12,5 @@ DC_Local_JP,SP_Cookie_Local,Cookie_Local,dad,outbound,1,1,JP,3,0,Domestic_Player
 Retail_JP_CVS,DC_Local_JP,Cookie_Local,leaf_out,outbound,1,1,CVS,0,0,コンビニエンスストア チャネル
 Retail_JP_SM,DC_Local_JP,Cookie_Local,leaf_out,outbound,1,1,SM,0,0,スーパーマーケット チャネル
 Retail_JP_EC,DC_Local_JP,Cookie_Local,leaf_out,outbound,1,1,EC,0,0,EC・ドラッグストア チャネル
-Factory_DP_JP,,Cookie_Local,mom,inbound,1,1,JP,3,0,国内ビスケット工場 埼玉
+Factory_DP_JP,,Cookie_Local,mom,inbound,1,1,JP,3,0,国内クッキー工場 埼玉
 Ingredients_JP,Factory_DP_JP,Cookie_Local,leaf_in,inbound,1,1,JP,0,0,小麦粉・植物油脂 (国内調達)

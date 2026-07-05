@@ -18,7 +18,7 @@ from .ppc_engine import (PPCSimulationEngine,
                           build_iphone_vs_paths,
                           build_iphone_global_vs_paths,
                           build_rice_vs_paths,
-                          build_biscuit_vs_paths,
+                          build_cookie_vs_paths,
                           detect_scenario)
 from .ppc_export import export_results
 
@@ -110,18 +110,18 @@ def run_ppc_from_psi(
         supplier_node = "Farm_JP"
         dad_node      = "DC_Rice"
 
-    elif scenario == "biscuit":
-        sc_paths      = build_biscuit_vs_paths()
-        mom_node      = {"OREO_JP": "Factory_OREO_CN",  "LUVAN_JP": "Factory_LUVAN_JP"}
-        supplier_node = {"OREO_JP": "Ingredients_CN",   "LUVAN_JP": "Ingredients_JP"}
-        dad_node      = {"OREO_JP": "DC_JP_BONDED",     "LUVAN_JP": "DC_LUVAN_JP"}
+    elif scenario == "cookie":
+        sc_paths      = build_cookie_vs_paths()
+        mom_node      = {"Cookie_Import": "Factory_GP_CN", "Cookie_Local": "Factory_DP_JP"}
+        supplier_node = {"Cookie_Import": "Ingredients_CN", "Cookie_Local": "Ingredients_JP"}
+        dad_node      = {"Cookie_Import": "DC_Import_Buffer", "Cookie_Local": "DC_Local_JP"}
         dad_nodes_chain = {
-            "OREO_JP":  ["DC_JP_BONDED", "DC_JP_MAIN"],
-            "LUVAN_JP": ["DC_LUVAN_JP"],
+            "Cookie_Import": ["DC_Import_Buffer", "DC_Import_Main"],
+            "Cookie_Local":  ["DC_Local_JP"],
         }
         if verbose:
-            print("[PPC Runner] Scenario: BISCUIT_JP  "
-                  "(Factory_OREO_CN/LUVAN_JP -> DC_JP_BONDED/DC_JP_MAIN/DC_LUVAN_JP -> Retail_JP_*)")
+            print("[PPC Runner] Scenario: COOKIE_JP  "
+                  "(Factory_GP_CN/DP_JP -> DC_Import_Buffer/DC_Import_Main/DC_Local_JP -> Retail_JP_*)")
 
     elif scenario == "iphone_global":
         sc_paths      = build_iphone_global_vs_paths()
