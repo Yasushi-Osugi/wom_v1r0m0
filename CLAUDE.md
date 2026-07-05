@@ -258,6 +258,45 @@ v1r0m1の `backward_planner.py` と `holiday_calendar.csv` にnullバイトが�
 Windowsでフォルダをコピーした場合、`__pycache__/*.pyc` も元のパスを `co_filename` として持つ。Linux FUSE マウント経由では .pyc の削除が permission error になるため、Python が古い .pyc を優先して .py の変更が反映されない。
 **対処**: `os.utime(file, (now+10, now+10))` で .py ファイルのタイムスタンプを .pyc より新しくするか、`PYTHONDONTWRITEBYTECODE=1` + Python による .py 直接書き込み（`python3 << 'EOF'` ヒアドック）で迂回する。pytest 実行時は `PYTHONDONTWRITEBYTECODE=1 python -m pytest ... -p no:cacheprovider` を使うこと。
 
+### PPC detect_scenario() が biscuit-jp-2026 → Cookie-jp-2026 リネーム後に不一致（修正済み、2026-07-05）
+`data/sample/biscuit-jp-2026/` を `Cookie-jp-2026/` にリネーム＋SKU名を `OREO_JP`/`LUVAN_JP` → `Cookie_Import`/`Cookie_Local` に変更した際、`wom/ppc/ppc_engine.py` の `detect_scenario()` 側（`_BISCUIT_PRODUCTS = {"OREO_JP", "LUVAN_JP"}` 等）が更新されておらず、新SKU名と一致しないため `"iphone"` シナリオにフォールバックしていた。`mom_node`/`supplier_node`/`dad_node`/`dad_nodes_chain` も旧ノード名（`Factory_OREO_CN`, `DC_JP_BONDED`, `Factory_LUVAN_JP`, `DC_LUVAN_JP` 等）のままで、`ppc_node_cost_rule.csv` の実ノード名（`Factory_GP_CN`, `DC_Import_Buffer`, `DC_Import_Main`, `Factory_DP_JP`, `DC_Local_JP`）と不一致だった。
+**修正**: `wom/ppc/ppc_engine.py`（`_COOKIE_PRODUCTS`/`_COOKIE_CHANNELS`, `build_cookie_vs_paths()`, `detect_scenario()` の戻り値 `"cookie"`）、`wom/ppc/ppc_runner.py`、`wom/ppc/__main__.py`、`wom/ppc/ppc_backward.py`（コメント）を新ノード名・新シナリオ名に更新。また `node_master.csv` / `sc_tree_master.csv` / `edge_cost_master.csv` 内の日本語ラベル「ビスケット」を「クッキー」に修正（World Map表示にも反映）。
+**確認状況**: World Map表示は確認済みOK。PPC Cockpit（Cookie_Local）のCost Waterfallが `ppc_node_cost_rule.csv` の実値（Factory_DP_JP conversion_cost 9000 JPY, DC_Local_JP sga_cost 4000 JPY）と一致することを確認し、正しいノードチェーンでコストが拾えていることを確認済み。**Cookie_Import 側（`DC_Import_Buffer`→`DC_Import_Main` の2段DADチェーン、`DC_Import_Main`のSGA 1500円が正しく合算されるか）は未確認 — 次回セッションでSKUフィルタを`Cookie_Import`に切り替えて確認すること。** また `python -c "import ast; ast.parse(...)"` によるWindows側の構文チェックも未実施（Linux bashマウント経由では大きめの `.py` ファイルが切り捨てられ `ast.parse` が誤ってSyntaxErrorを出すため、Windows側で確認が必要）。
+
+### ev-thailand-2026 の BYD/Tesla 実ブランド名を匿名化（完了、2026-07-06）
+`data/sample/ev-thailand-2026/` は `BYD_ATTO3`/`TESLA_M3` という実在EVメーカーのブランド名・車種名を含んだままだった。note記事ドラフト（`260704タイEV_note記事ドラフト.docx`）はすでに `EVmaker_Local`/`EVmaker_Import` という匿名名を前提に書かれており、CSVとの不一致があった。
+**修正**: 全17 CSVファイル（`sku_master.csv`, `node_master.csv`, `sc_tree_master.csv`, `node_cost_master.csv`, `edge_cost_master.csv`, `lane_assignment.csv`, `route_master.csv`, `push_config.csv`, `holiday_calendar.csv`, `inventory_master.csv`, `capacity_plan.csv`, `demand_forecast.csv`, `ppc_edge_cost_rule.csv`, `ppc_market_price.csv`, `ppc_node_cost_rule.csv`, `ppc_node_profit_zone.csv`, `ppc_profit_zone_rule.csv`, `ppc_supplier_cost.csv`, `ppc_tariff_rule.csv`, `ppc_transfer_price_rule.csv`）で以下の対応関係にリネーム：
+- `BYD_ATTO3` → `EVmaker_Local`、`TESLA_M3` → `EVmaker_Import`
+- `SP_BYD_TH`→`SP_EV_Local`、`Factory_BYD_TH`→`Factory_Local_TH`、`DC_BYD_TH`→`DC_EV_Local`
+- `SP_TESLA_TH`→`SP_EV_Import`、`Factory_TESLA_CN`→`Factory_Import_CN`、`DC_TESLA_TH`→`DC_EV_Import`、`Components_CN_T`→`Components_CN`
+- `Sales_TH_BKK_t`/`_PRO_t`/`_ONL_t`（Tesla側チャネル）→ `_i` サフィックスに変更（`Sales_TH_BKK_i` 等）。Local側の `Sales_TH_BKK`/`_PRO`/`_ONL` はサフィックスなしのまま据え置き（note記事ドラフトの命名と一致）。
+- 説明文中の実企業名（レバーオートモーティブ、CATL、Gigafactory等）も除去し一般化。
+
+**確認状況**: `wom/ppc/ppc_engine.py`/`ppc_runner.py`にBYD/Tesla固有のハードコード分岐は存在せず（biscuitのような専用シナリオ関数はなし）、PPCエンジンは`ppc_runner.py`の「GENERIC」自動検出パス（sc_treeからmom/supplier/dad nodeを動的に発見）でこのモデルを扱う設計だったため、**Pythonコード側の修正は不要**。リネーム後、CSV内に旧トークン（BYD_ATTO3, TESLA_M3, Factory_BYD_TH等）が残っていないことをGrep確認済み。行数・列構造も変化なし（capacity_plan.csv 625行、demand_forecast.csv 624行、変更前と一致）。GUI起動してWorld MapとPPC Cockpitの実挙動を確認済みOK（下記Landed Costバグ発見時に併せて確認）。
+
+### Landed Cost engine: Landed GM%が1129%等の異常値になるバグ（修正済み、2026-07-06）
+`wom/engine/landed_cost.py` の `compute_landed_cost_kpi()` が、Management タブの「Tariff & FX — Landed Cost Impact」パネルで `ev-thailand-2026` を実行した際に `Landed GM% 1129.0%` という非現実的な値を出していた（ユーザー指摘で発覚）。原因は2つ、いずれも「iPhoneモデル（単価$1000前後・fx_rate=1.0のUSDのみ）でしか成立しない代理計算」だった。
+1. `estimated_lots = max(revenue / 1000.0, 1.0)` — 「1lot≈$1000」という前提の代理計算。EVモデル（1台80万〜160万THB）では `revenue=75,086,960,000` から `estimated_lots≈75,086,960`（実際は数万〜十数万lot程度のはずが桁違いに膨張）となり、`freight_total = blended_freight_per_lot × estimated_lots` が異常膨張（Freight $43,175,002,000 という表示値の直接原因）。
+2. `fx_gain_loss = (blended_fx - 1.0) * cogs` — `fx_rate` が1.0前後の「比率」である前提だが、実際の`edge_cost_master.csv`の`fx_rate`は35.0（THB/USD）や145.0（JPY/USD）といった**絶対為替レート**。`(35.0-1.0)=34倍`がCOGSに掛かり`landed_cogs`から減算され、Landed GM%が桁違いの値になっていた。
+
+**修正**:
+- `wom/engine/money.py`: `evaluate_money()`の週次集計に`total_units`（`demand_fulfilled`の合計＝実lot数）を追加し、`build_scenario_money_kpi()`のシナリオ集計にも`units`列として伝播。これにより`compute_landed_cost_kpi()`が実際のlot数を参照できるようになった（`revenue/1000`の代理計算はunitsが取れない場合のフォールバックとしてのみ残す）。
+- `wom/engine/landed_cost.py`: `lot_count`は`kpi_row["units"]`から取得。`freight_total = blended_freight_per_lot × lot_count × blended_fx`（USD建てのfreightをfx_rateで報告通貨に変換、docstring本来の設計通り）に修正。`fx_gain_loss`（COGSへの誤った为替比率適用）は完全に削除——revenue/cogsは既にWOM money engineで報告通貨（JPY/THB等）建てのため、二重にfx調整する必要がない。ファイル冒頭のdocstring（Calculation model節）も実装と一致するよう全面的に書き直した。
+- 出力dict内の`fx_gain_loss`キーは後方互換のため残すが常に0（廃止済みの注記付き）。
+
+**確認状況**: 手計算でEVモデルのBaseシナリオを検算——修正後 `landed_gm ≈ 28.5%`（元のgross margin 31.9%からtariff/freight負担で妥当な範囲の低下）となることを確認。GUI実行結果（Management タブ）でも Base 27.5%・EV30/EV35 29.6% と妥当な値で表示されることをユーザー確認済み。なお、PPC Cockpit画面で "Base currency: JPY" と表示されるのはTHB建てのev-thailand-2026でも固定表示になっている可能性があり、別途確認の余地あり（今回は未調査）。
+
+### Management タブ: SKUフィルタ追加 + Inv Value常時0バグ修正（完了、2026-07-06）
+Management タブの P&L Summary / Strategic KPI / Tariff&FX (Landed Cost) が SKU=ALL の全体合算のみで、SKU別評価ができなかった（ユーザー要望で追加）。あわせて調査中、`build_scenario_money_kpi()`（`wom/engine/money.py`）の集計キーワードが `inv_value=(Cols.INV_VALUE_COST, "mean")` となっており、出力列名が `"inv_value"`（別の定数 `Cols.INV_VALUE`）になっていた。一方 `app.py` の P&L テーブルや `management.py` の `_row_to_money_dict()` はどちらも `Cols.INV_VALUE_COST`（`"inv_value_cost"`）で参照していたため、**Inv Value は常に0扱い**になっていた（P&L SummaryのInv Value列が常に0だったのはこれが原因）。
+
+**修正**:
+- `wom/engine/scenario.py`: `ScenarioManager` に `sc_tree` / `lc_scens` / `route_idx` を追加。Planning Engine 実行後（`app.py`）にこれらを保持し、Management タブ側でPlanning再実行なしにSKUフィルタの再計算ができるようにした。
+- `wom/engine/strategic_kpi.py`: `compute_strategic_kpi()` に `product_filter` 引数を追加（指定した1製品のノードのみ集計）。
+- `wom/engine/landed_cost.py`: `filter_scenario_by_sku()` を新設（`route_master.csv`の(sku_id,region)→(src_region,dst_region)を使い、LandedCostScenarioのprofilesを対象SKUのレーンだけに絞る）。`compute_landed_cost_kpi()`/`compare_lc_scenarios()`に`sku_id`引数を追加し、KD組立コスト集計・関税/為替ブレンドをSKUスコープにできるようにした（`sku_id`未指定時は従来通り全SKU合算）。
+- `wom/gui/app.py` `ManagementCockpitPanel`: 「SKU:」ドロップダウン（All + 実在SKU一覧）を追加。選択変更で `_refresh_pl_table()` / `_refresh_strategic_kpis()` / `_refresh_lc_table()` / `_refresh_charts()` を、`mgr.summary_money`をSKUでフィルタして`build_scenario_money_kpi()`で再集計した行、`compute_strategic_kpi(sc_tree, product_filter=sku)`、`compare_lc_scenarios(..., sku_id=sku)`を使って再計算するように変更（"All"選択時は従来通りPlanning Engine実行時に事前計算済みの値を使用、挙動不変）。
+- Inv Value バグ修正: `build_scenario_money_kpi()`の集計キーワードを `inv_value_cost=(Cols.INV_VALUE_COST, "mean")` に変更（列名を実際の定数値と一致させた）。
+
+**確認状況**: コードレビューベースで整合性確認済み（Edit toolでの直接編集、bashマウント経由の構文チェックは大きめファイルで信頼できないため未実施）。**次回セッションでGUI起動し、①SKUドロップダウンで実際にP&L/Strategic KPI/Landed Costが切り替わるか、②Inv Value列が0以外の値を表示するか、の実地確認が必要。**
 
 
 ---
