@@ -1,2 +1,2 @@
 sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks
-TESLA_M3,Factory_TESLA_CN,0,0,False,,0,,4
+EVmaker_Import,Factory_Import_CN,0,0,False,,0,,4

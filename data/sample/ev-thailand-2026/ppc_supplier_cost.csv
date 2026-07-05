@@ -1,5 +1,5 @@
 supplier_node,product_id,week,purchase_price,currency
-Battery_CN,BYD_ATTO3,2026-W01,340000,THB
-Factory_BYD_TH,BYD_ATTO3,2026-W01,780000,THB
-Components_CN_T,TESLA_M3,2026-W01,600000,THB
-Factory_TESLA_CN,TESLA_M3,2026-W01,950000,THB
+Battery_CN,EVmaker_Local,2026-W01,340000,THB
+Factory_Local_TH,EVmaker_Local,2026-W01,780000,THB
+Components_CN,EVmaker_Import,2026-W01,600000,THB
+Factory_Import_CN,EVmaker_Import,2026-W01,950000,THB

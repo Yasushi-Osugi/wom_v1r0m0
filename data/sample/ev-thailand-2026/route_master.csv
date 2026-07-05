@@ -1,7 +1,7 @@
 sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
-BYD_ATTO3,BKK,TH,TH,8703800000,finished_goods,0
-BYD_ATTO3,PRO,TH,TH,8703800000,finished_goods,0
-BYD_ATTO3,ONL,TH,TH,8703800000,finished_goods,0
-TESLA_M3,BKK,CN,TH,8703800000,finished_goods,0
-TESLA_M3,PRO,CN,TH,8703800000,finished_goods,0
-TESLA_M3,ONL,CN,TH,8703800000,finished_goods,0
+EVmaker_Local,BKK,TH,TH,8703800000,finished_goods,0
+EVmaker_Local,PRO,TH,TH,8703800000,finished_goods,0
+EVmaker_Local,ONL,TH,TH,8703800000,finished_goods,0
+EVmaker_Import,BKK,CN,TH,8703800000,finished_goods,0
+EVmaker_Import,PRO,CN,TH,8703800000,finished_goods,0
+EVmaker_Import,ONL,CN,TH,8703800000,finished_goods,0

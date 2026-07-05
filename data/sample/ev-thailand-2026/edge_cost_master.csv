@@ -4,7 +4,7 @@ Base,TH,TH,0.0,1.0,THB,THB,200,国内：タイ国内輸送 200THB/台
 EV30,CN,TH,0.02,35.0,USD,THB,950,EV3.0: 関税減免 8%→2%（輸入促進）
 EV30,TH,TH,0.0,1.0,THB,THB,200,国内変化なし
 EV35,CN,TH,0.02,35.0,USD,THB,950,EV3.5: 関税2%維持+現地生産義務2-3倍
-EV35,TH,TH,0.0,1.0,THB,THB,200,国内変化なし（BYD現地生産でカバー）
+EV35,TH,TH,0.0,1.0,THB,THB,200,国内変化なし（現地生産でカバー）
 TariffRestore,CN,TH,0.08,35.0,USD,THB,950,関税復元シナリオ（政策終了リスク）
 TariffRestore,TH,TH,0.0,1.0,THB,THB,200,国内変化なし
 SubsidyEnd,CN,TH,0.02,35.0,USD,THB,950,補助金廃止：関税2%維持だが購入補助金ゼロ

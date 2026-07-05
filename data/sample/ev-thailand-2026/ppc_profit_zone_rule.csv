@@ -1,7 +1,7 @@
 profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
-OUTBOUND_CHANNEL_PROFIT,BYD_ATTO3,channel_margin,market_price,0.25,0
-MOM_PLANT_PROFIT,BYD_ATTO3,mom_margin,transfer_price,0.08,0
-SUPPLIER_COST_BASE,BYD_ATTO3,supplier_cost,transfer_price,1.00,0
-OUTBOUND_CHANNEL_PROFIT,TESLA_M3,channel_margin,market_price,0.30,0
-MOM_PLANT_PROFIT,TESLA_M3,mom_margin,transfer_price,0.08,0
-SUPPLIER_COST_BASE,TESLA_M3,supplier_cost,transfer_price,1.00,0
+OUTBOUND_CHANNEL_PROFIT,EVmaker_Local,channel_margin,market_price,0.25,0
+MOM_PLANT_PROFIT,EVmaker_Local,mom_margin,transfer_price,0.08,0
+SUPPLIER_COST_BASE,EVmaker_Local,supplier_cost,transfer_price,1.00,0
+OUTBOUND_CHANNEL_PROFIT,EVmaker_Import,channel_margin,market_price,0.30,0
+MOM_PLANT_PROFIT,EVmaker_Import,mom_margin,transfer_price,0.08,0
+SUPPLIER_COST_BASE,EVmaker_Import,supplier_cost,transfer_price,1.00,0

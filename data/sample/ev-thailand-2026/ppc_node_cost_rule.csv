@@ -1,8 +1,8 @@
 node_id,product_id,cost_type,basis,rate,fixed_amount,currency,note
-Factory_BYD_TH,BYD_ATTO3,conversion_cost,per_lot,0,80000,THB,現地製造労務費+現地部品組立費 THB/台
-Factory_BYD_TH,BYD_ATTO3,logistics_cost,per_lot,0,10000,THB,工場→DC 国内輸送 THB/台
-DC_BYD_TH,BYD_ATTO3,logistics_cost,per_lot,0,20000,THB,DC→ディーラー 配送費 THB/台
-Factory_TESLA_CN,TESLA_M3,conversion_cost,per_lot,0,50000,THB,上海工場製造費（タイ向け追加費用） THB/台
-Factory_TESLA_CN,TESLA_M3,logistics_cost,per_lot,0,33250,THB,上海→タイ 海上運賃（$950×35THB） THB/台
-DC_TESLA_TH,TESLA_M3,logistics_cost,per_lot,0,76000,THB,"輸入関税 8%×950,000 THB/台"
-DC_TESLA_TH,TESLA_M3,conversion_cost,per_lot,0,10000,THB,通関・DC取扱費 THB/台
+Factory_Local_TH,EVmaker_Local,conversion_cost,per_lot,0,80000,THB,現地製造労務費+現地部品組立費 THB/台
+Factory_Local_TH,EVmaker_Local,logistics_cost,per_lot,0,10000,THB,工場→DC 国内輸送 THB/台
+DC_EV_Local,EVmaker_Local,logistics_cost,per_lot,0,20000,THB,DC→ディーラー 配送費 THB/台
+Factory_Import_CN,EVmaker_Import,conversion_cost,per_lot,0,50000,THB,上海工場製造費（タイ向け追加費用） THB/台
+Factory_Import_CN,EVmaker_Import,logistics_cost,per_lot,0,33250,THB,上海→タイ 海上運賃（$950×35THB） THB/台
+DC_EV_Import,EVmaker_Import,logistics_cost,per_lot,0,76000,THB,"輸入関税 8%×950,000 THB/台"
+DC_EV_Import,EVmaker_Import,conversion_cost,per_lot,0,10000,THB,通関・DC取扱費 THB/台
