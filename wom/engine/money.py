@@ -99,6 +99,7 @@ def evaluate_money(
             total_gp        =(Cols.GROSS_PROFIT,    "sum"),
             avg_margin      =(Cols.GROSS_MARGIN,    "mean"),
             avg_inv_value   =(Cols.INV_VALUE_COST,  "mean"),
+            total_units     =(Cols.DEMAND_FULFILLED,"sum"),   # lot count, for Landed Cost engine
             dso_wks         =(Cols.DSO_WKS,         "first"),   # from price_df
             dpo_wks         =(Cols.DPO_WKS,         "first"),
         )
@@ -145,12 +146,18 @@ def build_scenario_money_kpi(summary_df: pd.DataFrame) -> pd.DataFrame:
     """
     grp = summary_df.groupby(Cols.SCENARIO)
     out = grp.agg(
-        revenue      =(Cols.REVENUE,      "sum"),
-        cogs         =(Cols.COGS,         "sum"),
-        gross_profit =(Cols.GROSS_PROFIT, "sum"),
-        inv_value    =(Cols.INV_VALUE_COST,"mean"),
-        ar_value     =(Cols.AR_VALUE,     "sum"),
-        ap_value     =(Cols.AP_VALUE,     "sum"),
+        revenue         =(Cols.REVENUE,        "sum"),
+        cogs            =(Cols.COGS,           "sum"),
+        gross_profit    =(Cols.GROSS_PROFIT,   "sum"),
+        # NOTE: keyword must equal Cols.INV_VALUE_COST ("inv_value_cost") —
+        # every consumer (app.py P&L table, management.py delta analysis)
+        # looks this column up via that constant. It was previously named
+        # "inv_value" here (a *different* constant, Cols.INV_VALUE), so Inv
+        # Value silently always read back as 0.
+        inv_value_cost  =(Cols.INV_VALUE_COST, "mean"),
+        ar_value        =(Cols.AR_VALUE,       "sum"),
+        ap_value        =(Cols.AP_VALUE,       "sum"),
+        units           =("total_units",       "sum"),  # lot count, for Landed Cost engine
     ).reset_index()
 
     out[Cols.GROSS_MARGIN] = np.where(

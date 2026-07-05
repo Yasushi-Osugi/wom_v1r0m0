@@ -183,7 +183,10 @@ class StrategicKPI:
 # Public API
 # ──────────────────────────────────────────────────────────────────────
 
-def compute_strategic_kpi(sc_tree) -> StrategicKPI:
+def compute_strategic_kpi(
+    sc_tree,
+    product_filter: Optional[str] = None,
+) -> StrategicKPI:
     """
     Compute Strategic KPIs from a post-planning SCTree.
 
@@ -192,12 +195,17 @@ def compute_strategic_kpi(sc_tree) -> StrategicKPI:
     sc_tree : SCTree
         Must have been processed by BackwardPlanner + ForwardPlanner.
         Reads psi4supply, psi4demand, and cap_hard() from all nodes.
+    product_filter : if given (and not "All"), only this product's nodes
+        are included — lets the Management tab show per-SKU Strategic KPI
+        instead of the all-products blend.
 
     Returns
     -------
     StrategicKPI
     """
     products = sc_tree.products
+    if product_filter and product_filter != "All":
+        products = [p for p in products if p == product_filter]
     if not products:
         return StrategicKPI()
 

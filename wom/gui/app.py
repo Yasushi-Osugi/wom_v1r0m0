@@ -630,6 +630,20 @@ class ManagementCockpitPanel(tk.Frame):
         self._build()
 
     def _build(self):
+        # ── SKU filter (applies to P&L / Strategic KPI / Landed Cost) ──
+        filt = tk.Frame(self, bg=BG_DARK)
+        filt.pack(fill="x", padx=8, pady=(8, 0))
+        tk.Label(filt, text="SKU:", bg=BG_DARK, fg=FG_WHITE,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 4))
+        self._sku_var = tk.StringVar(value="All")
+        self._sku_cb = ttk.Combobox(filt, textvariable=self._sku_var,
+                                    values=["All"], width=18, state="readonly",
+                                    font=("Segoe UI", 9))
+        self._sku_cb.pack(side="left")
+        self._sku_cb.bind("<<ComboboxSelected>>", lambda _: self._on_sku_filter_change())
+        tk.Label(filt, text="  （P&L Summary / Strategic KPI / Landed Cost に適用）",
+                 bg=BG_DARK, fg="#546E7A", font=("Segoe UI", 8)).pack(side="left")
+
         # ── P&L table ────────────────────────────────────────────────
         pl_frame = tk.LabelFrame(self, text="  P&L Summary (Scenario Comparison)  ",
                                  bg=BG_MID, fg=FG_ACC, font=("Segoe UI", 9, "bold"),
@@ -819,11 +833,55 @@ class ManagementCockpitPanel(tk.Frame):
 
     def load(self, mgr: ScenarioManager) -> None:
         self._mgr = mgr
+        self._refresh_sku_filter()
         self._refresh_pl_table()
         self._refresh_strategic_kpis()
         self._refresh_lc_table()
         self._refresh_charts()
         self._refresh_issue_selector()
+
+    def _refresh_sku_filter(self):
+        """(Re)populate the SKU dropdown from the latest summary_money."""
+        skus = []
+        sm = getattr(self._mgr, "summary_money", None) if self._mgr else None
+        if sm is not None and Cols.SKU_ID in sm.columns:
+            skus = sorted(sm[Cols.SKU_ID].dropna().unique().tolist())
+        values = ["All"] + skus
+        self._sku_cb["values"] = values
+        if self._sku_var.get() not in values:
+            self._sku_var.set("All")
+
+    def _on_sku_filter_change(self):
+        self._refresh_pl_table()
+        self._refresh_strategic_kpis()
+        self._refresh_lc_table()
+        self._refresh_charts()
+
+    def _current_sku(self) -> Optional[str]:
+        v = self._sku_var.get() if hasattr(self, "_sku_var") else "All"
+        return None if (not v or v == "All") else v
+
+    def _get_filtered_kpi(self):
+        """
+        scenario_money_kpi for the current SKU filter.
+
+        "All" (or missing summary_money) returns the precomputed
+        mgr.scenario_money_kpi as-is. A specific SKU filters
+        mgr.summary_money to that sku_id and re-aggregates to scenario
+        level with the same build_scenario_money_kpi() used for "All",
+        so P&L / Landed Cost stay on one consistent code path.
+        """
+        sku = self._current_sku()
+        if sku is None or self._mgr is None:
+            return getattr(self._mgr, "scenario_money_kpi", None) if self._mgr else None
+        sm = getattr(self._mgr, "summary_money", None)
+        if sm is None or Cols.SKU_ID not in sm.columns:
+            return self._mgr.scenario_money_kpi
+        filtered = sm[sm[Cols.SKU_ID] == sku]
+        if filtered.empty:
+            return self._mgr.scenario_money_kpi
+        from wom.engine.money import build_scenario_money_kpi
+        return build_scenario_money_kpi(filtered)
 
     # ── Strategic KPI colours ────────────────────────────────────────
     _STATUS_FG = {"OK": "#69F0AE", "WARN": "#FFD740", "ISSUE": "#FF5252"}
@@ -831,7 +889,13 @@ class ManagementCockpitPanel(tk.Frame):
 
     def _refresh_strategic_kpis(self):
         """Update the 5 Strategic KPI card widgets."""
-        skpi = getattr(self._mgr, "strategic_kpi", None) if self._mgr else None
+        sku = self._current_sku()
+        sc_tree = getattr(self._mgr, "sc_tree", None) if self._mgr else None
+        if sku is not None and sc_tree is not None:
+            from wom.engine.strategic_kpi import compute_strategic_kpi
+            skpi = compute_strategic_kpi(sc_tree, product_filter=sku)
+        else:
+            skpi = getattr(self._mgr, "strategic_kpi", None) if self._mgr else None
         if skpi is None:
             for card in self._skpi_cards.values():
                 card["val_var"].set("--")
@@ -862,7 +926,16 @@ class ManagementCockpitPanel(tk.Frame):
 
     def _refresh_lc_table(self):
         """Update the Tariff & FX (Landed Cost) treeview and narrative."""
-        lc_df = getattr(self._mgr, "lc_comparison_df", None) if self._mgr else None
+        sku = self._current_sku()
+        lc_scens  = getattr(self._mgr, "lc_scens",  None) if self._mgr else None
+        route_idx = getattr(self._mgr, "route_idx", None) if self._mgr else None
+        if sku is not None and lc_scens:
+            from wom.engine.landed_cost import compare_lc_scenarios
+            kpi = self._get_filtered_kpi()
+            lc_df = (compare_lc_scenarios(kpi, lc_scens, route_idx or {}, sku_id=sku)
+                     if kpi is not None else None)
+        else:
+            lc_df = getattr(self._mgr, "lc_comparison_df", None) if self._mgr else None
         self._lc_tree.delete(*self._lc_tree.get_children())
 
         self._lc_narrative.configure(state="normal")
@@ -899,9 +972,11 @@ class ManagementCockpitPanel(tk.Frame):
         self._lc_narrative.configure(state="disabled")
 
     def _refresh_pl_table(self):
-        if self._mgr is None or self._mgr.scenario_money_kpi is None:
+        if self._mgr is None:
             return
-        kpi = self._mgr.scenario_money_kpi
+        kpi = self._get_filtered_kpi()
+        if kpi is None:
+            return
         self._pl_tree.delete(*self._pl_tree.get_children())
         for _, row in kpi.iterrows():
             rev  = float(row.get(Cols.REVENUE,      0) or 0)
@@ -926,9 +1001,11 @@ class ManagementCockpitPanel(tk.Frame):
             ])
 
     def _refresh_charts(self):
-        if self._mgr is None or self._mgr.scenario_money_kpi is None:
+        if self._mgr is None:
             return
-        kpi = self._mgr.scenario_money_kpi
+        kpi = self._get_filtered_kpi()
+        if kpi is None:
+            return
         scenarios = kpi[Cols.SCENARIO].tolist()
         colours = [COLOURS.get(s, DEFAULT_COLOURS[i % len(DEFAULT_COLOURS)])
                    for i, s in enumerate(scenarios)]
@@ -4769,10 +4846,20 @@ class WOMApp(tk.Tk):
                         route_idx = build_route_index(load_route_master(route_path))
                     self._mgr.lc_comparison_df = compare_lc_scenarios(
                         scenario_money_kpi, lc_scens, route_idx)
+                    # Kept so the Management tab's SKU filter can recompute
+                    # a per-SKU Landed Cost view without re-running Planning.
+                    self._mgr.lc_scens  = lc_scens
+                    self._mgr.route_idx = route_idx
                 else:
                     self._mgr.lc_comparison_df = None
+                    self._mgr.lc_scens  = {}
+                    self._mgr.route_idx = {}
             except Exception as _lc_exc:
                 print(f"[LandedCost] compute failed: {_lc_exc}")
+
+            # Kept so the Management tab's SKU filter can recompute
+            # per-SKU Strategic KPI without re-running Planning.
+            self._mgr.sc_tree = sc_tree
 
             # Reload all KPI panels
             self._chart_panel.load_sc_tree(sc_tree)

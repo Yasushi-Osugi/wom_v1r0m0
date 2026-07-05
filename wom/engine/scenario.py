@@ -16,6 +16,10 @@ class ScenarioManager:
         self.scenario_money_kpi: Optional[pd.DataFrame] = None
         self.management_results: dict = {}
         self.strategic_kpi = None   # StrategicKPI (set after Planning Engine run)
+        # Kept for by-SKU Management tab recompute without a full re-run:
+        self.sc_tree = None                  # SCTree (post-planning)
+        self.lc_scens: dict = {}             # name -> LandedCostScenario
+        self.route_idx: dict = {}            # (sku_id, region) -> RouteAssignment
 
     def add(self, scenario_name: str, df: pd.DataFrame) -> None:
         self._results[scenario_name] = df.copy()
