@@ -119,9 +119,14 @@ class ForwardPlanner:
         in_roots = self.sc_tree.get_in_roots(prod_nm)  # Dict[node_id, PlanNode]
 
         self._clear_derived_p(in_roots, ot_root, n_weeks)
-        # {node_id: {w: [lot, ...]}} -- actual lots shipped by PUSH decoupling node.
-        # Kept separate from psi4supply[w][S] which holds demand_staircase for display.
-        self._push_actual_s: Dict[str, Dict[int, List[str]]] = {}
+        # {node_id: {w: [lot, ...]}} -- Lot_IDs ACTUALLY shipped this week at
+        # every node (identity-matched against physical availability).
+        # Kept separate from psi4supply[w][S]/[CO], which always hold the
+        # PLANNED/demand-anchored record and are never overwritten by the
+        # fulfillment outcome. All downstream physical propagation
+        # (_propagate_to_parent / _propagate_to_child / MOM->supply_point
+        # bridge) reads from this dict, not from psi4supply[w][S].
+        self._actual_s: Dict[str, Dict[int, List[str]]] = {}
 
         # Phase 1: InBound POST-ORDER (all MOM roots)
         #
@@ -155,7 +160,7 @@ class ForwardPlanner:
                     # psi4supply[w][S] = demand_staircase (maintained for display/CO visibility).
                     # actual_s = min(available, demand) -- physically shipped to TSMC_TW etc.
                     if node.parent is not None:
-                        actual_by_w = self._push_actual_s.get(node.node_id, {})
+                        actual_by_w = self._actual_s.get(node.node_id, {})
                         for w in range(n_weeks):
                             actual_s = actual_by_w.get(w, [])
                             if actual_s:
@@ -170,10 +175,13 @@ class ForwardPlanner:
                     self._propagate_to_parent(node, n_weeks)
 
         # Phase 2: Bridge ALL MOM roots -> supply_point
+        # Uses _actual_s (physically-matched shipment), NOT psi4supply[w][S]
+        # (which is the planned/demand-anchored record and may exceed what a
+        # capacity-constrained MOM can actually ship).
         for w in range(n_weeks):
             all_lots: list = []
             for mom_root in in_roots.values():
-                all_lots.extend(mom_root.psi4supply[w][S])
+                all_lots.extend(self._actual_s.get(mom_root.node_id, {}).get(w, []))
             ot_root.psi4supply[w][P] = all_lots
             result.bridge_lots += len(all_lots)
 
@@ -325,23 +333,69 @@ class ForwardPlanner:
     # Core node processing
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _match_by_identity(demand_lots: List[str], supply_lots: List[str]):
+        """
+        Match demand-side Lot_IDs (CO[w] + S[w]) against supply-side Lot_IDs
+        (I[w-1] + P[w]) by Lot_ID IDENTITY -- not by position/count.
+
+        This reproduces the original PySI push_pull engine's
+        calcPS2I4supply()/fifo_lot_diff() design (pysi/network/node_base.py),
+        generalized to also match CO by identity (not just S).
+
+        Returns
+        -------
+        matched:            Lot_IDs present in both -- these physically ship
+                             this week. This becomes psi4supply[w]'s "actual"
+                             shipment (see ForwardPlanner._actual_s), used for
+                             downstream propagation. psi4supply[w][S] itself
+                             is NEVER overwritten with this value.
+        unmatched_demand:   Demanded Lot_IDs with no physical backing this
+                             week -- carried forward as next week's CO[w+1]
+                             (a genuine, Lot_ID-specific shortfall).
+        unmatched_supply:   Physically-available Lot_IDs not yet claimed by
+                             any demand this week -- becomes this week's I[w]
+                             (inventory / early-arrival safety-stock buffer).
+        """
+        supply_set = set(supply_lots)
+        matched: List[str] = []
+        unmatched_demand: List[str] = []
+        matched_set = set()
+        for lot in demand_lots:
+            if lot in supply_set and lot not in matched_set:
+                matched.append(lot)
+                matched_set.add(lot)
+            else:
+                unmatched_demand.append(lot)
+        unmatched_supply = [lot for lot in supply_lots if lot not in matched_set]
+        return matched, unmatched_demand, unmatched_supply
+
     def _process_node(self, node, n_weeks, result, opening_lots):
         """
-        Compute psi4supply[I] and handle CO for one node across all weeks.
+        Compute psi4supply[I]/[CO] and the "actual shipped" set for one node
+        across all weeks.
 
         Step 0a  CapHard sealing: P[w] truncated to cap_hard; excess -> CO[w+1]
         Step 0b  CapSoft check: flag if P[w] > cap_soft (no movement)
 
-        PSI formula (normal / PULL):
-            available = I[w-1] + P[w]               (CO is demand, not supply)
-            total_demand = CO[w] + S_plan[w]
-            Case 1: avail >= total  -> S=S_plan, I=surplus
-            Case 2: avail >= CO     -> S=remaining, CO[w+1]+=shortfall_S
-            Case 3: avail < CO      -> S=available, CO[w+1]+=all_remaining
+        PSI formula (normal / PULL) -- Lot_ID IDENTITY matching:
+            available   = I[w-1] + P[w]
+            demand_lots = CO[w] + S[w]
+            matched, unmatched_demand, unmatched_supply =
+                _match_by_identity(demand_lots, available)
+
+            I[w]   = unmatched_supply     (early-arrival / surplus buffer)
+            CO[w+1] += unmatched_demand   (genuine, Lot_ID-specific shortfall)
+            actual_s[w] = matched         (drives downstream propagation)
+
+            S[w] and CO[w] are NEVER overwritten -- they remain the
+            planned/demand-anchored record (from copy_demand_to_supply /
+            CapHard sealing). "Plan" and "actual fulfillment" are kept in
+            separate channels; see ForwardPlanner._actual_s.
 
         PSI formula (push_sub -- InBound pass-through):
             s_plan = available          (ship ALL supply upward)
-            -> always Case 1, I=0, no CO generated
+            -> always I=0, no CO generated, actual_s = available
         """
         prev_inv_lots: List[str] = list(opening_lots)
         is_push_sub  = (node.plan_mode == "push_sub")
@@ -398,9 +452,9 @@ class ForwardPlanner:
 
                 # Store actual_s for parent propagation (separate from display S)
                 nid = node.node_id
-                if nid not in self._push_actual_s:
-                    self._push_actual_s[nid] = {}
-                self._push_actual_s[nid][w] = actual_s
+                if nid not in self._actual_s:
+                    self._actual_s[nid] = {}
+                self._actual_s[nid][w] = actual_s
 
                 # Record shortage count on node for Debugger visualization
                 if not hasattr(node, '_push_shortfall'):
@@ -410,66 +464,61 @@ class ForwardPlanner:
                 prev_inv_lots = node.psi4supply[w][I]
                 continue
 
+            nid = node.node_id
+            if nid not in self._actual_s:
+                self._actual_s[nid] = {}
+
             if is_push_sub:
                 # PUSH sub-node: ship ALL available supply upward.
-                # No demand gate; inventory stays at zero.
+                # No demand gate; inventory stays at zero. S[w] here has no
+                # separate "planned" meaning (no demand list to match against),
+                # so it continues to display the same value that is shipped.
                 node.psi4supply[w][S] = list(available)
                 node.psi4supply[w][I] = []
+                self._actual_s[nid][w] = list(available)
                 prev_inv_lots         = []
                 continue
 
-            co_lots      = list(node.psi4supply[w][CO])
-            s_plan       = list(node.psi4supply[w][S])
-            total_demand = co_lots + s_plan
+            # -- Normal / PULL: Lot_ID identity matching -----------------
+            # S[w] and CO[w] are read but NEVER overwritten here -- they
+            # stay as the planned/demand-anchored record.
+            co_lots     = list(node.psi4supply[w][CO])
+            s_plan      = list(node.psi4supply[w][S])
+            demand_lots = co_lots + s_plan
 
-            avail_cnt = len(available)
-            total_cnt = len(total_demand)
-            co_cnt    = len(co_lots)
+            matched, unmatched_demand, unmatched_supply = self._match_by_identity(
+                demand_lots, available)
 
-            node.psi4supply[w][CO] = []
+            node.psi4supply[w][I] = unmatched_supply
+            prev_inv_lots         = unmatched_supply
+            self._actual_s[nid][w] = matched
 
-            if avail_cnt >= total_cnt:
-                node.psi4supply[w][S] = s_plan
-                node.psi4supply[w][I] = available[total_cnt:]
-                prev_inv_lots         = node.psi4supply[w][I]
-
-            elif avail_cnt >= co_cnt:
-                remaining = available[co_cnt:]
-                shortfall = s_plan[len(remaining):]
-                node.psi4supply[w][S] = remaining
-                node.psi4supply[w][I] = []
-                prev_inv_lots         = []
-                if shortfall and (w + 1) < n_weeks:
-                    node.psi4supply[w + 1][CO].extend(shortfall)
-                if shortfall:
-                    result.record_shortfall(node.node_id, wk_label, len(shortfall))
-
-            else:
-                unfulfilled = total_demand[avail_cnt:]
-                node.psi4supply[w][S] = available if available else []
-                node.psi4supply[w][I] = []
-                prev_inv_lots         = []
-                if unfulfilled and (w + 1) < n_weeks:
-                    node.psi4supply[w + 1][CO].extend(unfulfilled)
-                if unfulfilled:
-                    result.record_shortfall(node.node_id, wk_label, len(unfulfilled))
+            if unmatched_demand:
+                if (w + 1) < n_weeks:
+                    node.psi4supply[w + 1][CO].extend(unmatched_demand)
+                result.record_shortfall(node.node_id, wk_label, len(unmatched_demand))
 
     # ------------------------------------------------------------------
     # Supply propagation helpers
     # ------------------------------------------------------------------
 
     def _propagate_to_parent(self, node, n_weeks):
-        """InBound: child S[w] -> parent P[w + node.transit_lt_wks].
+        """InBound: child's ACTUAL shipment[w] -> parent P[w + node.transit_lt_wks].
 
         Uses transit_lt_wks (physical transport time) NOT lt_wks (demand planning LT).
         For PUSH_SUB nodes (e.g. SiliconWafer_TW in Taiwan), transit is ~1 week
         while lt_wks=26 is used only by BackwardPlanner for pre-build demand scheduling.
+
+        Reads from self._actual_s (Lot_ID-identity-matched physical shipment),
+        NOT psi4supply[w][S] (the planned/demand-anchored record -- see
+        _process_node / _match_by_identity).
         """
         parent = node.parent
         if parent is None:
             return
+        actual_by_w = self._actual_s.get(node.node_id, {})
         for w in range(n_weeks):
-            confirmed_s = node.psi4supply[w][S]
+            confirmed_s = actual_by_w.get(w, [])
             if not confirmed_s:
                 continue
             tlt = node.transit_lt_wks if node.transit_lt_wks > 0 else node.lt_wks
@@ -492,11 +541,17 @@ class ForwardPlanner:
 
         When parent has only one child, all lots flow through unconditionally
         (no routing decision needed).
+
+        Reads from self._actual_s (Lot_ID-identity-matched physical shipment),
+        NOT psi4supply[w][S] (the planned/demand-anchored record -- see
+        _process_node / _match_by_identity).
         """
+        actual_by_w = self._actual_s.get(parent.node_id, {})
+
         if len(parent.children) == 1:
             # Single child: all lots belong here -- no routing needed
             for w in range(n_weeks):
-                confirmed_s = parent.psi4supply[w][S]
+                confirmed_s = actual_by_w.get(w, [])
                 if not confirmed_s:
                     continue
                 target_w = w + child.lt_wks
@@ -506,7 +561,7 @@ class ForwardPlanner:
 
         # Multiple children: route by walking parent pointers from each lot's leaf_out
         for w in range(n_weeks):
-            confirmed_s = parent.psi4supply[w][S]
+            confirmed_s = actual_by_w.get(w, [])
             if not confirmed_s:
                 continue
 

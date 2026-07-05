@@ -262,15 +262,22 @@ def test_build_mom_capacity_profile():
 
 def test_e2e_cap_hard_causes_leaf_shortfall():
     """
-    Full E2E test: original PySI decouple design.
+    Full E2E test: Lot_ID identity-matched decouple design.
       - demand=4 lots at leaf_out[JP]
       - CapHard=2 at MOM: BackwardPlanner clips to 2 lots
 
-    Original PySI Step 4 (apply_pull_process):
-      - DAD receives real supply (<= 2 lots) -> DAD.S <= 2 (shortfall absorbed at DAD)
-      - leaf_out is PULL (demand-anchored) -> leaf_out.S = 4 (full demand)
-
-    DAD as decouple point absorbs supply variability; leaf_out stays demand-anchored.
+    Design (post identity-matching refactor -- see forward_planner.py
+    ForwardPlanner._match_by_identity):
+      psi4supply[w][S] is NEVER overwritten by the fulfillment outcome; it
+      always stays the planned/demand-anchored record. Both leaf_out.S and
+      DAD.S therefore read as the full demand (4) -- this is intentional,
+      not a regression. The ACTUAL physical fulfillment, constrained by
+      MOM cap_hard=2, is now visible via:
+        - ForwardPlanner._actual_s[dad_node.node_id]  (Lot_IDs really shipped)
+        - dad_node.psi4supply[w][CO]                  (unmatched demand, i.e.
+                                                         the 2-lot shortfall)
+      DAD as decouple point still absorbs supply variability; leaf_out still
+      stays demand-anchored -- just verified through different buckets now.
     """
     sc_tree, weeks, sku_id, mom = build_tree_with_demand(
         cap_hard=2.0, cap_soft=0.0, demand_qty=4
@@ -293,31 +300,43 @@ def test_e2e_cap_hard_causes_leaf_shortfall():
     assert dad_node  is not None, "Could not find DAD node"
 
     weeks_n = sc_tree.num_weeks()
-    total_leaf_s = sum(len(leaf_node.psi4supply[w][S]) for w in range(weeks_n))
-    total_dad_s  = sum(len(dad_node.psi4supply[w][S])  for w in range(weeks_n))
+    total_leaf_s   = sum(len(leaf_node.psi4supply[w][S]) for w in range(weeks_n))
+    total_dad_s    = sum(len(dad_node.psi4supply[w][S])  for w in range(weeks_n))
+    dad_actual_s   = fp._actual_s.get(dad_node.node_id, {})
+    total_dad_real = sum(len(dad_actual_s.get(w, []))    for w in range(weeks_n))
+    total_dad_co   = sum(len(dad_node.psi4supply[w][CO]) for w in range(weeks_n))
 
     print(result)
     print(f"cap_hard_events: {result.cap_hard_events}")
-    print(f"leaf_out total S={total_leaf_s}, DAD total S={total_dad_s}  (demand=4, cap_hard=2)")
+    print(f"leaf_out total S(planned)={total_leaf_s}, "
+          f"DAD total S(planned)={total_dad_s}, "
+          f"DAD actual shipped={total_dad_real}, DAD CO(carried)={total_dad_co}  "
+          f"(demand=4, cap_hard=2)")
 
-    # leaf_out is PULL (demand-anchored) -> always supplies full demand
+    # Both leaf_out and DAD are demand-anchored in the planned/S bucket now.
     assert total_leaf_s == 4, (
-        f"leaf_out.S should be 4 (demand-anchored via PULL), got {total_leaf_s}"
+        f"leaf_out.S (planned) should be 4 (demand-anchored), got {total_leaf_s}"
     )
-    # DAD receives real supply only -> capped at 2 by MOM cap_hard
-    assert total_dad_s <= 2, (
-        f"DAD.S should be <=2 (constrained by MOM cap_hard=2), got {total_dad_s}"
+    assert total_dad_s == 4, (
+        f"DAD.S (planned) should be 4 (demand-anchored, no longer clipped "
+        f"in-place), got {total_dad_s}"
+    )
+    # DAD's REAL physical shipment is what's actually capped at 2 by MOM cap_hard.
+    assert total_dad_real <= 2, (
+        f"DAD actual shipped should be <=2 (constrained by MOM cap_hard=2), "
+        f"got {total_dad_real}"
     )
     # v1r0m3: ForwardPlanner enforces cap_hard; demand=4, cap=2 -> 2 sealed.
     assert result.cap_hard_sealed == 2, (
         f"v1r0m3: ForwardPlanner seals excess at MOM, expected 2 got {result.cap_hard_sealed}"
     )
-    # decouple essence: leaf is PULL-anchored; DAD shows supply constraint
-    assert total_leaf_s > total_dad_s, (
-        f"leaf_out.S ({total_leaf_s}) should exceed DAD.S ({total_dad_s})"
+    # decouple essence: shortfall is absorbed as CO at DAD, not passed to leaf.
+    assert total_dad_co >= 2, (
+        f"DAD.CO should reflect the >=2-lot shortfall absorbed at the "
+        f"decouple point, got {total_dad_co}"
     )
 
-    print("PASS: test_e2e_cap_hard_causes_leaf_shortfall (original PySI decouple)")
+    print("PASS: test_e2e_cap_hard_causes_leaf_shortfall (Lot_ID identity decouple)")
 
 
 # ---------------------------------------------------------------------------
