@@ -139,6 +139,7 @@ HOOK\_POST\_PLAN     \# 全製品計画完了後
 - `HolidayCalendarPlugin` — 長期休暇の能力閉鎖・需要変動（holiday\_calendar.csv）  
 - `CapacityOverridePlugin` — cap\_override.csvによる能力上書き  
 - `DemandSmoothingPlugin` — 3週移動平均需要平準化
+- `BufferingStockOptimizerPlugin`（v1r0m4〜、HOOK\_POST\_BACKWARD） — decouple\_optimizer\_config.csvでSKUごとにON/OFF、有効時はOutBoundのbuffering\_stock\_flag（is\_decoupling）をコスト最適・サービスレベル制約付きの配置に自動上書き（詳細は本ファイル下部「BufferingStockOptimizerPlugin」参照）
 
 新プラグインは `plugin_base.py` の `WOMPlugin` を継承し、`ALL_BUILTIN_PLUGINS` に追加する。
 
@@ -339,4 +340,421 @@ Cookie Japan 2026 note記事ドラフトの注記「DADノードの在庫（I）
 - `find_optimal_decouple_placement(...)`: 全候補を評価し、**サービスレベル制約付きランキング**で最良候補を選定。
 
 **サービスレベル制約が必要だった理由（実装中に発見したバグ）**:
-最初の実装は単純に「在庫コスト最小」で候補をランキングしたところ、`supply_point`（仮想b
+最初の実装は単純に「在庫コスト最小」で候補をランキングしたところ、`supply_point`（仮想bridgeノード）が「最良」に選ばれる縮退結果が発生した。原因は、decouple pointをsupply_pointに置くと、それより下流の全ノードがPULLモードに強制され（`P = demand.P`のコピー）、実際の需給ミスマッチが在庫=0・欠品=0として隠蔽され、真の需給ギャップがsupply_point自身のCOだけに（不自然に）集約されるため。この結果、「在庫コストが低い」ことと「実際にサービスレベルが高い」ことが一致しなくなっていた。
+**対策**: (1) 候補生成時にsupply_pointを含む候補を除外。(2) `find_optimal_decouple_placement`で「全候補中の最小shortfall × 許容比率(デフォルト1.10倍)」以内の候補だけを`eligible`として抽出し、その中でコスト最小を選定（`ranked`は参考として全候補・コストのみのソート結果も保持）。
+
+**確認結果**（`data/sample/Cookie-jp-2026`、node_cost_master.csvベース）:
+- Cookie_Import: 候補3件（`[Retail×3]`, `[DC_Import_Main]`, `[DC_Import_Buffer]`）→ **`DC_Import_Buffer`が最良**（inv_cost最小かつshortfallも最小）。CSV上`buffering_stock_flag=1`が設定されている実際の設計と一致。
+- Cookie_Local: 候補2件（`[Retail×3]`, `[DC_Local_JP]`）→ **`DC_Local_JP`が最良**。
+- 既存63件のテストは無変更・全PASS（本モジュールは既存エンジンを呼び出すだけで、`ForwardPlanner`/テストコード自体には変更なし）。
+
+**スコープ制約・次回検討事項**:
+- OutBound（leaf_out → DAD → supply_point）側のみ対応。InBound（leaf_in → MOM）側のbuffer配置最適化は別問題として未実装（下記の通り、意図的に対応しない方針で確定）。
+- ~~GUI統合（Managementタブ等からの呼び出しUI）は未実装。~~ → `BufferingStockOptimizerPlugin`として実装済み（下記）。
+- shortfall許容比率（デフォルト1.10）は暫定値。業種・SKUごとのサービスレベル要件に応じて調整可能な設計にはなっているが、デフォルト値自体の妥当性検証は未実施。
+
+### InBound側バッファ配置最適化を対象外とする方針確定（2026-07-06）
+
+大杉さんの判断: 「各素材・部材の加工工程の生産能力のLOT単位処理能力で、相対的にボトルネックが発生した場所で、DBR的なbuffering stockが発生する」ため、InBound側はOutBoundのような「どこに置いてもコスト最適化できる自由度」がなく、物理的な設備能力差・ボトルネック制約が支配的。よってバッファ配置最適化という問題そのものに発展しない。**InBound側は今後も対象外のまま据え置く。**
+
+### BufferingStockOptimizerPlugin（`wom/plugins/buffering_stock_optimizer.py`、新規実装、完了、2026-07-06）
+
+`decouple_optimizer.py`をPluginとしてPlanning Engineパイプラインに組み込み、`decouple_optimizer_config.csv`のON/OFFフラグでSKUごとに有効化できるようにした。
+
+**フック位置の設計判断（重要）**: 当初「PRE_PLANで発火」という案があったが、`evaluate_decouple_placement()`は内部で候補ごとにForwardPlannerを試走する前提としてpsi4demandが埋まっている必要がある（BackwardPlanner完了後）。PRE_PLANはSCTree構築直後・BackwardPlanner実行前に発火するため、この時点ではpsi4demandが空でPlugin側の評価が成立しない。よって**`HOOK_POST_BACKWARD`**（BackwardPlanner完了直後、公式の`copy_demand_to_supply`実行前）を正しいフック位置として採用した。
+
+**実装内容**:
+- `BufferingStockOptimizerPlugin`（`WOMPlugin`継承、`on_post_backward`をoverride）:
+  1. `decouple_optimizer_config.csv`（`cap_path`と同じディレクトリ、`cap_override.csv`と同じ解決パターン）を読み、対象SKUの行が無い/`enabled=0`/ファイル自体が無い場合は即return（no-op、既存の手動`buffering_stock_flag`設定がそのまま使われる＝後方互換）。
+  2. `enabled=1`の場合、`find_optimal_decouple_placement()`を実行し、最良候補を選定。
+  3. OutBoundツリー（`sc_tree.get_ot_root(prod_nm)`配下）の全ノードの`is_decoupling`をいったん`False`にリセットし、最良候補のノードのみ`True`に上書き。
+  4. Plugin実行後、`psi4supply`（S/CO/I/P全バケット）を空にクリアした状態で終了（**再`copy_demand_to_supply`は呼ばない**——このHookの直後にパイプライン本体が公式の`copy_demand_to_supply`を実行するため、二重実行を避けた）。
+- `decouple_optimizer_config.csv`スキーマ: `sku_id, enabled, max_shortfall_ratio`（`max_shortfall_ratio`列は省略可、省略時デフォルト1.10）。
+- `wom/plugins/__init__.py`の`ALL_BUILTIN_PLUGINS`に登録済み。
+- `data/sample/Cookie-jp-2026/decouple_optimizer_config.csv`をサンプルとして追加（`enabled=0`——スキーマの見本のみ、デフォルト動作は変更しない）。
+
+**テスト**（`tests/test_decouple_optimizer.py`, `tests/test_buffering_stock_optimizer_plugin.py`、計8件、全PASS）:
+- 候補生成がsupply_pointを除外することを確認。
+- `ss_days`が特定ノードにのみ設定されている場合、そのノードが「decouple点より下流（pull-mode強制）」になると`ss_days`由来の早期在庫シグナルが完全に消える（`psi4supply[w][P]`が`demand.P`で上書きされるため）ことを実際の合成ツリーで確認・数値検証。これが CLAUDE.md 既出の「is_decoupling **かつ** ss_daysが設定されていれば」という前提条件の具体的なメカニズムである。
+- `find_optimal_decouple_placement()`をCookie-jp-2026実データで再検証（`decouple_optimizer.py`本体のテストとしては本セッションで初めて追加——これまでは手動probeスクリプトのみだった）：Cookie_Import→`DC_Import_Buffer`、Cookie_Local→`DC_Local_JP`が引き続き最良候補になることを回帰テスト化。
+- Plugin側: 設定ファイル無し/`enabled=0`/対象外SKUの行のみ、の3パターンで確実にno-opになること、`enabled=1`時に正しいノードへ`is_decoupling`が切り替わり、かつ`psi4supply`が空にクリアされて公式パイプラインに引き渡せる状態になることを確認。
+- 既存63件 + 新規8件 = 計71件、全PASS。
+
+**未対応・次回検討事項**:
+- GUI側のPlugin ON/OFFトグル（Management/Settings的な画面からの切り替えUI）は未実装。現状は`decouple_optimizer_config.csv`を直接編集する運用。
+- レーン障害時の代替ルート切り替えPlugin（例: ホルムズ海峡封鎖時に紅海ルートへ切り替え）は、大杉さんから将来実装候補として提案あり。こちらは`HOOK_PRE_PLAN`（SCTree構築直後・BackwardPlanner実行前、`edge_cost_master.csv`/`route_master.csv`ベースのlt_wks・cap_hard書き換え）が適切なフック位置で、既存の`CapacityOverridePlugin`/`HolidayCalendarPlugin`と同じパターンで実装できる見込み。次回セッションでの実装候補として記録のみ（今回は未着手）。
+
+---
+
+## v1r0m2 実装済み機能（新しいClaude君へ）
+
+### JIT週次同期：cap_hard envelope in `_in_propagate`（commit 7a22648）【v1r0m3で廃止】
+
+~~v1r0m2 で `_in_propagate` に cap_hard envelope を追加し、上流伝播をクリップしていた。~~
+
+**v1r0m3 で廃止**。BackwardPlanner は純粋な需要逆伝播（LT offset のみ）とする方針に変更。
+cap_hard enforcement は `_apply_mom_cap_backward`（MOM 専任）と ForwardPlanner に移譲した。
+これにより上流ノードは cap 前の全量需要を受け取り、ForwardPlanner が supply allocation を判断できる。
+
+---
+
+### DBR設計：PUSH/PULL break-point at Buffer_Wafer_TW（commit 7a22648）
+
+iPhone Global SC の InBound チェーン：
+
+```
+SiliconWafer_TW (leaf_in, PUSH sub)
+  → Buffer_Wafer_TW (decoupling node, PUSH) ← PUSH/PULL break-point
+    → TSMC_TW (PULL)
+      → Foxconn_CN (PULL MOM, Drum)
+```
+
+- **Drum**: Foxconn_CN（cap_hard staircase: 800→534→267→0/wk）
+- **Buffer**: Buffer_Wafer_TW（在庫クッション、DBRバッファ）
+- **SiliconWafer_TW**: 自律PUSH（ウェーハFab = 高固定費・常時稼働型）
+
+`push_config.csv` でBuffer_Wafer_TWをdecoupling nodeとして設定。
+
+---
+
+### Mode 4 LT-shifted PUSH：`push_lead_time_weeks`（commit f9ebc37）
+
+`wom/engine/push_pull.py` の `PushConfig` に `push_lead_time_weeks` フィールドを追加。
+`push[w] = demand_ref_node.psi4demand[w + LT][S]`
+
+この1パラメータで**DBRバッファの完全なライフサイクルPSIパターン**が自動生成される：
+
+| フェーズ | 期間 | 動作 |
+| :---- | :---- | :---- |
+| Pre-build | demand[w]=0, demand[w+LT]>0 | 生産開始、バッファ積み上がり（差分が積み上がる） |
+| Steady | demand[w] == demand[w+LT] | 生産=消費=staircase、バッファ平坦 |
+| Staircase gap | demand[w+LT] < demand[w] | 生産が先行してステップダウン、バッファが差分を吸収 |
+| EOL stop | demand[w+LT]=0, demand[w]>0 | 生産停止、バッファが最終需要を賄いゼロに収束 |
+
+**iPhone16モデルでの設定** (`push_config.csv`)：
+
+```csv
+push_lead_time_weeks=26
+mom_ref_node_id=""（decoupling node自身 = staircase信号を使用）
+```
+
+**確認済み波形** (Buffer_Wafer_TW PSIチャート)：
+- 2026-W01〜W27: 生産ゼロ（demand[w+26]がまだ0）
+- 2026-W28〜W52: 800/wk pre-build、I上昇（〜20,800 lots）
+- 2027-W01〜: P=S=800/wk（平坦）
+- 2027-W40〜: 生産534 < 消費800、I段階的低下
+- 2030-W13付近: I→0（製品ライフサイクル終了と同時に自然消滅）
+
+Foxconn_CN の生産シフトが TSMC_TW 経由で Buffer_Wafer_TW の在庫減少パターンとして
+伝播する「SC lane node間のPSI連動」を実現。
+
+**push_config.csv スキーマ（全フィールド）**：
+
+| フィールド | 説明 |
+| :---- | :---- |
+| `node_id` | decouplingノードのnode_id |
+| `push_qty_per_week` | Mode1: 固定週次生産量（>0でMode1） |
+| `buffer_lots` | Mode2/3: 目標バッファ在庫 |
+| `mode_only` | plan_modeフラグのみ設定（P-schedule上書きなし） |
+| `mom_ref_node_id` | Mode2: 需要参照ノード（空=decoupling node自身） |
+| `pre_build_qty_per_week` | Mode3: Phase1固定生産量 |
+| `pre_build_end_week` | Mode3: Phase1終了週ラベル（例: "2026-W52"） |
+| `push_lead_time_weeks` | Mode4: LTオフセット週数（優先度最高） |
+
+**Mode選択ロジック**：
+1. `push_qty_per_week > 0` → Mode 1（固定）
+2. `push_lead_time_weeks > 0` → Mode 4（LT-shifted、最優先）
+3. `pre_build_qty_per_week > 0` AND `pre_build_end_week` → Mode 3（時間軸分割）
+4. それ以外 → Mode 2（古典的補充）
+
+---
+
+## v1r0m3 実装済み機能（新しいClaude君へ）
+
+### MOM Constrained Demand Allocation（`_apply_mom_cap_backward`）
+
+`wom/engine/backward_planner.py` に Phase 3b として `_apply_mom_cap_backward()` を追加。
+`mom_constrained=True`（デフォルト）のとき、BackwardPlanner が MOM ノードの `psi4demand[w][P]` を cap_hard でクリップし、オーバーフロー分を CO として前週の S に押し戻す。
+
+**設計意図（Plan Transforming Hypothesis）**: BackwardPlanner = Constrained Demand Allocation。
+MOM ノードで cap_hard クリップ + CO前倒しを行うことで、`psi4demand[w][P]` = cap_hard 以内の実行可能計画が生成される。ForwardPlanner は（理想的には）この計画をコピーするだけで CO を発生させない。
+
+```python
+def _apply_mom_cap_backward(self, node, n_weeks, result):
+    if node.node_type != "mom":
+        return
+    for w in range(n_weeks - 1, -1, -1):
+        cap_w = node.cap_hard(w)
+        if cap_w <= 0.0:
+            continue
+        s_lots = list(node.psi4demand[w][S])
+        cap_int = int(cap_w)
+        if len(s_lots) <= cap_int:
+            continue
+        within_cap = s_lots[:cap_int]
+        overflow   = s_lots[cap_int:]
+        node.psi4demand[w][P].clear()
+        node.psi4demand[w][P].extend(within_cap)
+        for lot_id in overflow:
+            node.psi4demand[w][CO].append(lot_id)
+        if w > 0:
+            for lot_id in overflow:
+                node.psi4demand[w - 1][S].append(lot_id)
+        else:
+            for lot_id in overflow:
+                result.record_past_due(node.node_id, lot_id, w)
+```
+
+**`mom_constrained` フラグ**:
+- `True`（デフォルト）: v1r0m3 動作。MOM cap_hard クリップ実行。
+- `False`: v1r0m2 互換。既存テスト（`test_step7_capacity.py`, `test_step8_push_pull.py`）は `config={"mom_constrained": False}` で実行し v1r0m2 セマンティクスを保持。
+
+### ForwardPlanner: PUSH MOM への Demand-S copy 除外
+
+`wom/engine/forward_planner.py` の Phase 1 InBound 処理で、`plan_mode="push"` の MOM ノードには Demand-S copy（`psi4supply[w][P] = psi4demand[w][P]`）を適用しない条件を追加。Buffer_Wafer_TW（`plan_mode="pull"`, `is_decoupling=True`）には引き続き Demand-S copy が適用される。
+
+---
+
+### BackwardPlanner 純粋化：`_in_propagate` からクリッピング削除（v1r0m3後期）
+
+**背景**: v1r0m2 の cap_hard envelope（`_in_propagate` 内のクリッピング）は、上流ノードが cap 前の全量需要を受け取れないという問題を持っていた。MOM の形状（CO あり）と TSMC_TW の形状（クリップ済み）が「少し異なる」という Osugiさんの観察がトリガー。
+
+**変更内容**:
+- `_in_propagate` の cap_hard clipping と is_decoupling fill-up ロジックを削除
+- 純粋な LT offset 伝播のみ残す
+- cap_hard enforcement は `_apply_mom_cap_backward`（MOM 専任）が担当
+- 上流ノードは cap 前の全量需要を受け取り、ForwardPlanner が supply allocation を判断
+
+**テスト更新**:
+- `test_step7_capacity.py` の `cap_hard_sealed` 期待値を `0` → `2` に変更
+  （v1r0m2: BackwardPlanner がクリップ → sealed=0 → v1r0m3: ForwardPlanner が enforce → sealed=demand-cap）
+
+### DebugPanel PSI グラフに Capacity Line 追加（v1r0m3後期）
+
+`app.py` の `_draw_psi_subplot` に `cap_values` 引数を追加。
+`_refresh_charts` で `dbg.get_node(product, node_name)` から cap_hard を週次リストとして取得し、
+グラフ左軸（lots）に橙色破線のステップ関数として描画する。
+
+```python
+# In _refresh_charts:
+node_obj  = dbg.get_node(product, node_name)
+cap_values = [node_obj.cap_hard(w) for w in range(n_weeks)] if node_obj else None
+
+# In _draw_psi_subplot: step-line where cap > 0
+if cap_values and any(v > 0 for v in cap_values):
+    # cap_x/cap_y: horizontal segments, NaN breaks for cap=0 weeks
+    ax.plot(cap_x, cap_y, color="#FF9800", linestyle="--", linewidth=1.2, label="Cap. Hard")
+```
+
+### app.py: v1r0m3 タイトル更新 + デフォルトサンプルパス修正
+
+- タイトルバーを `v1r0m2` → `v1r0m3` に変更（3箇所）
+- `_sample_dir` を `data/sample` → `data/sample/iphone-2027-2029` に変更（直下に `sc_tree_master.csv` がないため）
+
+---
+
+## v1r0m2 設計課題：Lead Time offset と DAD 回転在庫
+
+### 背景（PySI v0r8 からの継承設計思想）
+
+PySI v0r8 では BackwardPlanner が各エッジの Lead Time（LT）オフセットを計算する際、
+Holiday Calendar の Long Holiday フラグを参照して閉鎖週をスキップする処理を
+Planning Engine 内部で行っていた。
+現行 WOM v1r0m1 ではこの LT offset が未実装であり、全ノードが同一週に
+需要が発生するように扱われている（設計上の制約）。
+
+### 現状の制約
+
+- DADノード（DC等）の `psi4supply[w][I]` は常に 0（pass-through 設計）
+- BackwardPlanner は LT オフセットなしで需要を逆伝播するため、
+  上流ノードほど早い週に需要が配置されるべき「market requesting position」が
+  正しく計算されていない
+- 例: Week 10 に Retail_AMER で需要 100 lots、DC→Retail LT=1週、
+  Foxconn→DC LT=2週 の場合、本来は Foxconn に Week 7 の需要として伝播すべきだが、
+  現状は全ノードが Week 10 に配置される
+
+### v1r0m2 向け役割分担設計
+
+#### BackwardPlanner（LT計算 + Holiday Calendar 参照）
+- LT オフセット計算: `week_idx -= lead_time_weeks`
+- 閉鎖週スキップ: `explicit_closures`（PlanningContext 経由）を参照し、
+  LT 計算中に閉鎖週があれば実質 LT を加算して正しい週に需要を配置する
+  例: LT=2、W9 が閉鎖週 → W10 の需要を W7 に配置（閉鎖週1週分を追加オフセット）
+- 責任範囲: 市場要求ポジションの正確な配置
+
+#### HolidayCalendarPlugin
+- `HOOK_PRE_PLAN (on_pre_plan)`:
+  - cap_hard 設定（ForwardPlanner への能力制約）
+  - `explicit_closures dict` を `PlanningContext` に書き込む
+    （BackwardPlanner が参照するための共有データ）
+- `HOOK_POST_BACKWARD (on_post_backward)`:
+  - BackwardPlanner が誤って閉鎖週に配置した P-lot の残余修正（フォールバック）
+- 責任範囲: ForwardPlanner の能力制約が主担当
+
+#### ForwardPlanner（v1r0m2 で拡張）
+- cap_hard に従って CO 生成（現行）
+- DAD ノードの在庫計算を追加（`psi4supply[w][I]` が 0 固定から解放）
+- `sc_tree_to_planning_df()` を DAD ノードも KPI 対象に拡張
+
+#### 疎結合の維持方法
+BackwardPlanner が HolidayCalendarPlugin のインスタンスに直接依存しないよう、
+`sc_tree` または `PlanningContext` に `explicit_closures dict` を事前書き込みし、
+BackwardPlanner はそれを参照するだけにする。
+
+### 実装時のパフォーマンス考慮事項
+
+`explicit_closures` は `dict[node_name, set[week_idx]]` 構造であり、
+`week_idx in explicit_closures.get(node_name, set())` の lookup は O(1)。
+ただし 156週 × 全ノード × 全 Lot のループ内での判定となるため、
+以下の最適化を検討すること：
+- `explicit_closures` は HOOK_PRE_PLAN で一度だけ構築し、計画期間全体で再利用
+- BackwardPlanner 内では node ごとに closure_set を変数にキャッシュしてループ内参照を最小化
+- 閉鎖週のない node（closure_set が空）は判定処理をスキップ
+
+### 影響ファイル（v1r0m2 実装時）
+
+| ファイル | 変更内容 |
+| :---- | :---- |
+| `sc_tree_master.csv` | `lead_time_weeks` 列追加（エッジ属性） |
+| `wom/engine/backward_planner.py` | LT オフセット付き需要逆伝播 + 閉鎖週スキップ |
+| `wom/engine/forward_planner.py` | DAD ノード在庫計算追加 |
+| `wom/engine/holiday_calendar_plugin.py` | `explicit_closures` を PlanningContext に書き込む処理追加 |
+| `wom/model/sc_tree.py` | エッジ属性として LT 保持 |
+| `wom/engine/sc_tree_to_df.py` | DAD ノードも KPI DataFrame 対象に拡張 |
+
+---
+
+## WOM Original KPI Framework
+
+### 設計思想：3次元 KPI アーキテクチャ
+
+従来の財務 KPI ツリーは「財務指標 → 現場指標」へのトップダウン分解（静的・2次元）。
+WOM の KPI フレームワークは根本的に異なる 3 次元構造を持つ：
+
+```
+次元1（空間軸）: SC Node  leaf_in → MOM → supply_point → DAD → leaf_out
+次元2（財務軸）: KPI     現場活動指標 → 中間KPI → 事業損益 → 資本効率(ROE)
+次元3（時間軸）: PSI週次  Week 1 → Week 2 → ... → Week 156（アニメーション可能）
+```
+
+静的な財務報告ではなく、**サプライチェーンの因果連鎖が時間軸で動く "活きた KPI"** を実現する。
+
+---
+
+### WOM SC Node × KPI マッピング
+
+#### leaf_in（原材料・調達ノード）
+調達起点の現場活動指標：
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 調達 Lead Time (週) | P バケット配置週 | 工場部材在庫日数 → 棚卸資産回転日数 |
+| サプライヤー納入精度 | P 実績 vs 計画差 | 欠品率 → 在庫補償費比率 |
+| 調達ロック期間 (週) | 計画確定ホライズン | 部品関連変化対応率 → 販売機会損失率 |
+| 調達単価 | ppc_supplier_cost | 直材費比率 → 売上原価率 |
+
+#### MOM（製造・産地集荷ノード）
+製造起点の現場活動指標：
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 製造 Lead Time (週) | P→I バケット幅 | 工場仕掛在庫日数 → 棚卸資産回転日数 |
+| 工場安全在庫日数 | `psi4supply[w][I]` / 週次出荷 | 棚卸資産回転日数 → 資産コスト |
+| 生産能力充足率 (Fill Rate) | P 実績 / P 計画 | 欠品率 → 販売機会損失率 |
+| 製造ノードコスト | ppc_node_cost_rule | 労務費比率 → 売上原価率 |
+| Air 輸送発生率 | edge_cost（Air シナリオ） | Air コスト比率 → 物流コスト比率 |
+
+#### supply_point（HQ Bridge ノード）
+全体最適の調整指標：
+
+| WOM 指標 | 役割 | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| Multi-MOM 配分比率 | lane_assignment.csv | 物流コスト比率・製造コスト比率 |
+| Scenario Delta (Upside/Downside) | シナリオ感応度 | 変化対応率 → 販売機会損失率 |
+| Tariff & FX 影響額 | Landed Cost engine | 売上原価率・物流コスト比率 |
+
+#### DAD（DC・流通在庫ノード）
+※ v1r0m1 現在 pass-through 設計。v1r0m2 で回転在庫を実装予定。
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 販社在庫日数（回転在庫） | `psi4supply[w][I]`（v1r0m2〜） | 棚卸資産回転日数 → 資産コスト |
+| DC → Retail 輸送 LT | エッジ属性（v1r0m2〜） | 販社配送 LT → 販社在庫日数 |
+| DC スループット (週次) | S バケット | 物流コスト比率 → 販管費比率 |
+
+#### leaf_out（販売チャネル・需要ノード）
+市場起点の販売指標：
+
+| WOM 指標 | PSI バケット | 上位 KPI への接続 |
+| :---- | :---- | :---- |
+| 需要予測精度 | demand_forecast vs 実績差 | 販売予測精度 → 変化対応率 |
+| Fill Rate (充足率) | S 実績 / S 計画 | 販売機会損失率 → 売上高成長率 |
+| Sell-through サイクル (週) | S バケット連続性 | デイリー在庫日数 → 販社在庫日数 |
+| 販売チャネル Revenue | ppc_market_price × S | 売上高 → 事業損益 |
+| Gross Profit / Profit Zone | PPC engine 出力 | 事業利益 → ROE |
+
+---
+
+### WOM KPI 集約ツリー（SC Node ボトムアップ → 財務 KPI）
+
+```
+ROE
+├─ 事業損益（PPC engine が週次計算）
+│   ├─ Revenue（売上高）
+│   │   └─ 売上高成長率
+│   │       ├─ Fill Rate（leaf_out: S実績/S計画）       ← 販売機会損失率
+│   │       ├─ 需要予測精度（leaf_out: 予測vs実績）      ← 変化対応率
+│   │       └─ Scenario Upside/Downside 感応度          ← 変化対応率
+│   ├─ COGS（売上原価）
+│   │   └─ 売上原価率
+│   │       ├─ 直材費比率（leaf_in: ppc_supplier_cost）
+│   │       ├─ 労務費比率（MOM: ppc_node_cost_rule）
+│   │       └─ Tariff & FX 影響（supply_point: Landed Cost）
+│   └─ 物流・販管費
+│       └─ 物流コスト比率
+│           ├─ Air コスト比率（MOM: edge_cost Air シナリオ）
+│           └─ 通常輸送コスト（DAD: edge_cost Base シナリオ）
+│
+└─ 資産コスト（棚卸資産回転日数が主ドライバー）
+    ├─ 棚卸資産回転日数
+    │   ├─ 工場安全在庫日数（MOM: psi4supply[w][I] / 週次S）
+    │   ├─ 工場仕掛在庫日数（MOM: 製造LTから算出）
+    │   ├─ 販社在庫日数（DAD: psi4supply[w][I]、v1r0m2〜）
+    │   └─ 工場部材在庫日数（leaf_in: 調達LTから算出）
+    ├─ 売上債権回転日数
+    │   └─ Sell-through サイクル（leaf_out: S バケット）
+    └─ 固定資産
+        └─ 製造設備稼働率（MOM: cap_hard 充足率）
+```
+
+---
+
+### WOM KPI の時間軸展開（3次元目）
+
+上記ツリーの各指標は **週次 PSI アニメーション**と連動する：
+
+```
+Week t の ROE 分解：
+  Revenue[t]   = Σ leaf_out.psi4supply[t][S] × market_price
+  COGS[t]      = Σ leaf_in.psi4supply[t][P]  × supplier_cost
+                + Σ node.psi4supply[t][P]     × node_cost
+  在庫資産[t]  = Σ MOM.psi4supply[t][I]      × unit_cost   （現行）
+               + Σ DAD.psi4supply[t][I]      × unit_cost   （v1r0m2〜）
+```
+
+**これにより達成できること：**
+- 特定週の Supply Shock（台風・関税引上げ）が ROE に波及するまでの因果連鎖を可視化
+- Scenario Delta（Upside/Downside）が財務 KPI に与える感応度をアニメーションで確認
+- 在庫日数の週次推移から「どの Node・どの週に在庫コストが集中するか」を特定
+
+---
+
+### v1r0m2 以降の実装優先度（KPI 完全性の観点から）
+
+| 優先度 | 実装内容 | 解決する KPI ギャップ |
+| :---- | :---- | :---- |
+| ★★★ | DAD 回転在庫（`psi4supply[w][I]`） | 販社在庫日数 → 棚卸資産回転日数 |
+| ★★★ | Lead Time offset（BackwardPlanner） | 工場部材在庫日数・工場仕掛在庫日数 |
+| ★★  | Fill Rate の週次 KPI タブ表示 | 販売機会損失率の定量化 |
+| ★★  | 棚卸資産回転日数の Management タブ追加 | 資産コスト → ROE 接続 |
+| ★   | 需要予測精度の週次トラッキング | 変化対応率の定量化 |
