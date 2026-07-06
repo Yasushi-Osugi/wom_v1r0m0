@@ -1,0 +1,19 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+SP_EV_Local,SP_EV_Local（EVmaker_Local Germany HQ）,procurement,50.11,8.68,,DE,EVmaker_Local Germany 供給調整本部（架空）
+Factory_Local_DE,ドイツ国内組立工場（カッセル近郊・架空拠点）,mother_plant,51.3,9.5,EVmaker_Local,DE,Local EV Assembly Plant（架空）— 年産15万台
+Battery_DE,バッテリー工場（ドイツ北西部・架空拠点）,sku_supplier,51.9,7.6,EVmaker_Local,DE,バッテリーセル 域内調達（架空）
+Motor_DE,モーター工場（ドイツ北部・架空拠点）,sku_supplier,52.37,9.73,EVmaker_Local,DE,駆動モーター 域内調達（架空）
+ECU_DE,ECU工場（ドイツ東部・架空拠点）,sku_supplier,51.05,13.74,EVmaker_Local,DE,車両制御ECU 域内調達（架空）
+DC_EV_Local,国内ディーラー DC（フランクフルト近郊・架空拠点）,region_dc,50.11,8.68,,DE,国内ディーラー物流センター（架空）
+Sales_DE_BER,ベルリン ディーラー,marketing,52.52,13.405,,BER,地場ディーラー ベルリン旗艦店（架空）
+Sales_DE_REG,地方 ディーラー,marketing,48.14,11.58,,REG,南部・地方ディーラー（架空）
+Sales_DE_ONL,オンライン直販,marketing,50.11,8.68,,ONL,EVmaker_Local Germany 直販・法人フリート（架空）
+SP_EV_Import,SP_EV_Import（EVmaker_Import Germany HQ）,procurement,49.45,11.08,,DE,EVmaker_Import Germany 輸入調達本部（架空）
+Factory_Import_HU,ハンガリー組立工場（南部・架空拠点）,mother_plant,46.25,20.15,EVmaker_Import,HU,Import Assembly Plant（架空）— ドイツ向け割当枠
+Battery_HU,バッテリー調達（ハンガリー・架空拠点）,sku_supplier,46.1,20.3,EVmaker_Import,HU,バッテリーセル 域内調達（架空）
+Motor_HU,モーター調達（ハンガリー・架空拠点）,sku_supplier,46.3,20.0,EVmaker_Import,HU,駆動モーター 域内調達（架空）
+ECU_HU,ECU調達（ハンガリー・架空拠点）,sku_supplier,46.2,20.5,EVmaker_Import,HU,車両制御ECU 域内調達（架空）
+DC_EV_Import,輸入バッファ DC（ニュルンベルク近郊・架空拠点）,region_dc,49.45,11.08,,DE,輸入バッファ倉庫（ハンガリー→ドイツ・架空）
+Sales_DE_BER_i,ベルリン旗艦店（輸入車）,marketing,52.5,13.4,,BER,Import Berlin Showroom（架空）— 直販
+Sales_DE_REG_i,地方 代理店（輸入車）,marketing,48.1,11.6,,REG,南部他 地方拠点（輸入車・架空）
+Sales_DE_ONL_i,オンライン直販（輸入車）,marketing,49.4,11.0,,ONL,EVimport.com Germany（架空）

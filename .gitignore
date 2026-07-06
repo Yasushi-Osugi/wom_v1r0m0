@@ -7,3 +7,9 @@ output/
 .DS_Store
 data/sample/*_BK*/
 data/worldmap_cache.db 
+
+# note article deliverables & screenshots (local-only, not versioned)
+/*.docx
+/*.jpg
+/*.jpeg
+/*.png

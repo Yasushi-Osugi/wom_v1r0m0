@@ -1,0 +1,19 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+EVmaker_Local,Battery_DE,10800,10500,バッテリーセル 域内調達（架空） EUR/台
+EVmaker_Local,Motor_DE,3700,3600,駆動モーター 域内調達（架空） EUR/台
+EVmaker_Local,ECU_DE,1650,1600,車両制御ECU 域内調達（架空） EUR/台
+EVmaker_Local,Factory_Local_DE,20100,19900,ドイツ工場 組立+域内部品費 EUR/台
+EVmaker_Local,SP_EV_Local,20100,20100,Supply Point pass-through EUR/台
+EVmaker_Local,DC_EV_Local,20900,20900,国内ディーラーDC 輸送+取扱費 EUR/台
+EVmaker_Local,Sales_DE_BER,42000,29700,ベルリン販売価格 EUR/台
+EVmaker_Local,Sales_DE_REG,42000,29900,地方販売価格（+輸送費増） EUR/台
+EVmaker_Local,Sales_DE_ONL,40000,29500,オンライン直販（若干安値） EUR/台
+EVmaker_Import,Battery_HU,8200,8000,バッテリーセル 域内調達（架空） EUR/台
+EVmaker_Import,Motor_HU,3050,3000,駆動モーター 域内調達（架空） EUR/台
+EVmaker_Import,ECU_HU,1420,1400,車両制御ECU 域内調達（架空） EUR/台
+EVmaker_Import,Factory_Import_HU,15500,14900,ハンガリー工場 組立+域内部品費 EUR/台
+EVmaker_Import,SP_EV_Import,15500,15500,Supply Point pass-through EUR/台
+EVmaker_Import,DC_EV_Import,17840,17440,輸入DC 関税8%+越境輸送+取扱費 EUR/台
+EVmaker_Import,Sales_DE_BER_i,42000,26240,ベルリン旗艦店 直販 EUR/台
+EVmaker_Import,Sales_DE_REG_i,42000,26440,地方代理店 EUR/台
+EVmaker_Import,Sales_DE_ONL_i,40000,26040,オンライン直販 EUR/台

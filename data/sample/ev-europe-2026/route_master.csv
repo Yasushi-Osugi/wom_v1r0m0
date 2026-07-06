@@ -1,0 +1,7 @@
+sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
+EVmaker_Local,BER,DE,DE,8703800000,finished_goods,0
+EVmaker_Local,REG,DE,DE,8703800000,finished_goods,0
+EVmaker_Local,ONL,DE,DE,8703800000,finished_goods,0
+EVmaker_Import,BER,HU,DE,8703800000,finished_goods,0
+EVmaker_Import,REG,HU,DE,8703800000,finished_goods,0
+EVmaker_Import,ONL,HU,DE,8703800000,finished_goods,0

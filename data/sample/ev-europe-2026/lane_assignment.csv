@@ -1,0 +1,7 @@
+sku_id,leaf_node_name,mom_node_id,priority
+EVmaker_Local,Sales_DE_BER,IN:mom:Factory_Local_DE:EVmaker_Local,1
+EVmaker_Local,Sales_DE_REG,IN:mom:Factory_Local_DE:EVmaker_Local,1
+EVmaker_Local,Sales_DE_ONL,IN:mom:Factory_Local_DE:EVmaker_Local,1
+EVmaker_Import,Sales_DE_BER_i,IN:mom:Factory_Import_HU:EVmaker_Import,1
+EVmaker_Import,Sales_DE_REG_i,IN:mom:Factory_Import_HU:EVmaker_Import,1
+EVmaker_Import,Sales_DE_ONL_i,IN:mom:Factory_Import_HU:EVmaker_Import,1

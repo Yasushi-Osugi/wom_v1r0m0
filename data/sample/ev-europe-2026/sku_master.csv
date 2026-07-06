@@ -1,0 +1,7 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+EVmaker_Local,EVmaker_Local (Germany),BER,EA,20100,1,3,10,0,0,True,42000,8,60
+EVmaker_Local,EVmaker_Local (Germany),REG,EA,20100,1,4,10,0,0,True,42000,8,60
+EVmaker_Local,EVmaker_Local (Germany),ONL,EA,20100,1,2,10,0,0,True,40000,8,60
+EVmaker_Import,EVmaker_Import (Germany),BER,EA,17440,2,5,5,0,0,True,42000,8,90
+EVmaker_Import,EVmaker_Import (Germany),REG,EA,17440,2,6,5,0,0,True,42000,8,90
+EVmaker_Import,EVmaker_Import (Germany),ONL,EA,17440,2,4,5,0,0,True,40000,8,90

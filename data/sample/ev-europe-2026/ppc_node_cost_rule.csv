@@ -1,0 +1,7 @@
+node_id,product_id,cost_type,basis,rate,fixed_amount,currency,note
+Factory_Local_DE,EVmaker_Local,conversion_cost,per_lot,0,3200,EUR,現地製造労務費（架空） EUR/台
+Factory_Local_DE,EVmaker_Local,logistics_cost,per_lot,0,400,EUR,工場→DC 国内輸送 EUR/台
+DC_EV_Local,EVmaker_Local,logistics_cost,per_lot,0,800,EUR,DC→ディーラー 配送費 EUR/台
+Factory_Import_HU,EVmaker_Import,conversion_cost,per_lot,0,2500,EUR,ハンガリー工場製造費（架空） EUR/台
+Factory_Import_HU,EVmaker_Import,logistics_cost,per_lot,0,600,EUR,ハンガリー→ドイツ 越境輸送費（架空） EUR/台
+DC_EV_Import,EVmaker_Import,logistics_cost,per_lot,0,1940,EUR,"輸入関税8%(1240)+DC取扱費(700) EUR/台"

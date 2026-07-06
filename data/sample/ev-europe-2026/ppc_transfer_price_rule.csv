@@ -1,0 +1,3 @@
+mom_node,product_id,method,margin_rate,fixed_price,currency
+Factory_Local_DE,EVmaker_Local,fixed,0.0,20100.0,EUR
+Factory_Import_HU,EVmaker_Import,fixed,0.0,15500.0,EUR

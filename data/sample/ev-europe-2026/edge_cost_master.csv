@@ -1,0 +1,11 @@
+scenario,src_region,dst_region,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
+Base,HU,DE,0.08,0.0025,HUF,EUR,600,標準：ハンガリー→ドイツ 輸入levy8% 1台あたり越境輸送費600EUR相当
+Base,DE,DE,0.0,1.0,EUR,EUR,60,国内：ドイツ国内輸送 60EUR/台
+EUpref,HU,DE,0.02,0.0025,HUF,EUR,600,EU域内優遇: levy 8%→2%（部材域内調達比率アップ）
+EUpref,DE,DE,0.0,1.0,EUR,EUR,60,国内変化なし
+LocalContent,HU,DE,0.02,0.0025,HUF,EUR,600,域内含有率規制: levy 2%維持+現地調達義務2-3倍
+LocalContent,DE,DE,0.0,1.0,EUR,EUR,60,国内変化なし（現地調達でカバー）
+LevyRestore,HU,DE,0.08,0.0025,HUF,EUR,600,levy復元シナリオ（優遇終了リスク）
+LevyRestore,DE,DE,0.0,1.0,EUR,EUR,60,国内変化なし
+FreightUp,HU,DE,0.08,0.0025,HUF,EUR,900,越境輸送費+50%（燃料費・混雑高騰シナリオ）
+FreightUp,DE,DE,0.0,1.0,EUR,EUR,60,国内変化なし

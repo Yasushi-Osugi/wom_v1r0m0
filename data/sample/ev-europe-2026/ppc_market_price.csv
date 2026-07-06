@@ -1,0 +1,7 @@
+market_node,product_id,week,market_price,currency
+Sales_DE_BER,EVmaker_Local,2026-W01,42000,EUR
+Sales_DE_REG,EVmaker_Local,2026-W01,42000,EUR
+Sales_DE_ONL,EVmaker_Local,2026-W01,40000,EUR
+Sales_DE_BER_i,EVmaker_Import,2026-W01,42000,EUR
+Sales_DE_REG_i,EVmaker_Import,2026-W01,42000,EUR
+Sales_DE_ONL_i,EVmaker_Import,2026-W01,40000,EUR

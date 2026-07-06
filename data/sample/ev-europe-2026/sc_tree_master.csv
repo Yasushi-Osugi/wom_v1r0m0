@@ -1,0 +1,19 @@
+node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,ss_days,buffering_stock_flag,description
+SP_EV_Local,,EVmaker_Local,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (EVmaker_Local)
+DC_EV_Local,SP_EV_Local,EVmaker_Local,dad,outbound,1,1,DE,7,0,ドイツ 国内ディーラー配送センター（架空）
+Sales_DE_BER,DC_EV_Local,EVmaker_Local,leaf_out,outbound,1,1,BER,0,0,ベルリン ディーラー（旗艦店）
+Sales_DE_REG,DC_EV_Local,EVmaker_Local,leaf_out,outbound,2,1,REG,0,0,南部・地方 ディーラー
+Sales_DE_ONL,DC_EV_Local,EVmaker_Local,leaf_out,outbound,1,1,ONL,0,0,オンライン直販・フリート
+Factory_Local_DE,,EVmaker_Local,mom,inbound,2,1,DE,7,0,ドイツ国内組立工場（架空・年産15万台）
+Battery_DE,Factory_Local_DE,EVmaker_Local,leaf_in,inbound,1,1,DE,0,0,バッテリーセル 域内調達（架空）
+Motor_DE,Factory_Local_DE,EVmaker_Local,leaf_in,inbound,1,1,DE,0,0,駆動モーター 域内調達（架空）
+ECU_DE,Factory_Local_DE,EVmaker_Local,leaf_in,inbound,2,1,DE,0,0,車両制御ECU 域内調達（架空）
+SP_EV_Import,,EVmaker_Import,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (EVmaker_Import)
+DC_EV_Import,SP_EV_Import,EVmaker_Import,dad,outbound,1,1,DE,14,1,輸入バッファ DC（ハンガリー→ドイツ輸入在庫・架空）
+Sales_DE_BER_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,1,1,BER,0,0,ベルリン旗艦店 直販（輸入車）
+Sales_DE_REG_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,2,1,REG,0,0,南部他 地方代理店（輸入車）
+Sales_DE_ONL_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,1,1,ONL,0,0,オンライン直販（輸入車）
+Factory_Import_HU,,EVmaker_Import,mom,inbound,3,1,HU,7,0,ハンガリー組立工場（架空・ドイツ向け割当）
+Battery_HU,Factory_Import_HU,EVmaker_Import,leaf_in,inbound,2,1,HU,0,0,バッテリーセル 域内調達（架空）
+Motor_HU,Factory_Import_HU,EVmaker_Import,leaf_in,inbound,2,1,HU,0,0,駆動モーター 域内調達（架空）
+ECU_HU,Factory_Import_HU,EVmaker_Import,leaf_in,inbound,3,1,HU,0,0,車両制御ECU 域内調達（架空）
