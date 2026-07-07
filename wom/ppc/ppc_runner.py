@@ -145,7 +145,7 @@ def run_ppc_from_psi(
         # Collects ALL DAD nodes per product in OT preorder for multi-tier support.
         sc_paths = {}
         _mom_map: dict = {}
-        _sup_map: dict = {}
+        _sup_list_map: dict = {}  # ALL leaf_in (Tier-1 supplier) nodes per product, OT preorder
         _dad_map: dict = {}       # first DAD per product (for tariff)
         _dad_list_map: dict = {}  # all DADs per product in OT preorder
 
@@ -157,6 +157,7 @@ def run_ppc_from_psi(
                 if _prod not in known_products:
                     continue
                 _dad_list_map[_prod] = []
+                _sup_list_map[_prod] = []
                 for _nd in sc_tree.iter_all_nodes(_prod):
                     _nt = getattr(_nd, "node_type", "")
                     _nm = getattr(_nd, "node_name",
@@ -167,8 +168,12 @@ def run_ppc_from_psi(
                             _dad_map[_prod] = _nm  # first DAD (for tariff compat)
                     elif _nt == NODE_TYPE_MOM and _prod not in _mom_map:
                         _mom_map[_prod] = _nm
-                    elif _nt == NODE_TYPE_LEAF_IN and _prod not in _sup_map:
-                        _sup_map[_prod] = _nm
+                    elif _nt == NODE_TYPE_LEAF_IN:
+                        # Collect EVERY Tier-1 supplier (leaf_in) feeding this
+                        # product's MOM -- e.g. Battery/Motor/ECU -- not just
+                        # the first one encountered. See ppc_forward.py's
+                        # _resolve_node_list for how this list is consumed.
+                        _sup_list_map[_prod].append(_nm)
 
         # Build dad_nodes_chain for multi-tier DAD backward propagation
         dad_nodes_chain = _dad_list_map if _dad_list_map else None
@@ -179,9 +184,13 @@ def run_ppc_from_psi(
                 _mom_map if len(_mom_map) != 1
                 else next(iter(_mom_map.values()))
             )
+            # supplier_node: dict[product_id -> list[node_id]] in the
+            # multi-product case, or a bare list[node_id] when there's only
+            # one product -- both forms are handled by
+            # ppc_forward._resolve_node_list().
             supplier_node = (
-                _sup_map if len(_sup_map) != 1
-                else next(iter(_sup_map.values()))
+                _sup_list_map if len(_sup_list_map) != 1
+                else next(iter(_sup_list_map.values()))
             )
             dad_node = (
                 _dad_map if len(_dad_map) != 1

@@ -96,11 +96,22 @@ def export_results(result: PPCSimulationResult, output_dir: str) -> None:
     _safe_write_json(result.kpi_summary,
                      os.path.join(output_dir, "ppc_kpi_summary.json"))
 
+    # ── ppc_node_pl_summary.csv (拠点別P/L評価, full-horizon per node) ──
+    node_pl_df = result.node_pl_summary
+    if node_pl_df is None:
+        node_pl_df = pd.DataFrame(columns=[
+            "node_id", "product_id", "revenue_base", "cost_base",
+            "tariff_base", "gross_profit_base", "gross_margin_pct", "lot_events",
+        ])
+    _safe_write_csv(node_pl_df,
+                    os.path.join(output_dir, "ppc_node_pl_summary.csv"))
+
     print(f"[PPC Export] Written to {output_dir}/")
     print(f"  ppc_event_ledger.csv        ({len(events_df)} events)")
     print(f"  ppc_node_week_summary.csv   ({len(result.node_week_summary)} rows)")
     print(f"  ppc_profit_zone_summary.csv ({len(result.profit_zone_summary)} rows)")
     print(f"  ppc_lot_reconciliation.csv  ({len(result.lot_reconciliation)} rows)")
+    print(f"  ppc_node_pl_summary.csv     ({len(node_pl_df)} rows)")
     print(f"  ppc_kpi_summary.json")
 
 

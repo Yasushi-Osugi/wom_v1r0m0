@@ -39,7 +39,8 @@ from .ppc_tariff import run_tariff_and_landed_cost
 from .ppc_profit_zone import run_profit_zone_allocation
 from .ppc_backward import run_backward_propagation
 from .ppc_reconcile import run_reconciliation
-from .ppc_kpi import build_node_week_summary, build_profit_zone_summary, build_kpi_summary
+from .ppc_kpi import (build_node_week_summary, build_profit_zone_summary,
+                       build_kpi_summary, build_node_pl_summary)
 
 
 class PPCSimulationEngine:
@@ -139,6 +140,7 @@ class PPCSimulationEngine:
         node_week_df = build_node_week_summary(all_events)
         profit_zone_df = build_profit_zone_summary(all_events)
         kpi = build_kpi_summary(accumulators, trust_events, self.base_currency)
+        node_pl_df = build_node_pl_summary(all_events)  # 拠点別P/L評価 (v1r0m5)
 
         self._result = PPCSimulationResult(
             base_currency=self.base_currency,
@@ -149,6 +151,7 @@ class PPCSimulationEngine:
             profit_zone_summary=profit_zone_df,
             lot_reconciliation=lot_df,
             kpi_summary=kpi,
+            node_pl_summary=node_pl_df,
         )
         return self._result
 

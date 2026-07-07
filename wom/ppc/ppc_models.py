@@ -179,3 +179,4 @@ class PPCSimulationResult:
     profit_zone_summary:    "pd.DataFrame"   # type: ignore
     lot_reconciliation:     "pd.DataFrame"   # type: ignore
     kpi_summary:            Dict
+    node_pl_summary:        "pd.DataFrame" = None   # type: ignore  # 拠点別P/L評価 (full-horizon, per node x product)

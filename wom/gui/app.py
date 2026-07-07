@@ -667,6 +667,38 @@ class ManagementCockpitPanel(tk.Frame):
         self._pl_tree.pack(side="left", fill="x", expand=True)
         pl_vsb.pack(side="right", fill="y")
 
+        # ── Node P&L table (拠点別P/L評価, v1r0m5) ────────────────────
+        # Full-horizon Revenue/Cost/Gross Profit per SC Node (leaf_in supplier /
+        # MOM / DAD / leaf_out channel), sourced from the PPC engine's
+        # ppc_node_pl_summary.csv (see wom/ppc/ppc_kpi.py build_node_pl_summary).
+        # Respects the same SKU filter as the P&L Summary table above.
+        node_pl_frame = tk.LabelFrame(self, text="  \U0001f4cd Node P&L (拠点別損益)  ",
+                                      bg=BG_MID, fg=FG_ACC, font=("Segoe UI", 9, "bold"),
+                                      relief="groove", bd=1)
+        node_pl_frame.pack(fill="x", padx=8, pady=(0, 4))
+
+        node_pl_cols = ["node_id", "product_id", "revenue", "cost",
+                        "gross_profit", "gross_margin%", "tariff"]
+        self._node_pl_tree = ttk.Treeview(node_pl_frame, columns=node_pl_cols,
+                                          show="headings", height=6)
+        node_pl_widths = {"node_id": 150, "product_id": 110, "revenue": 100,
+                          "cost": 100, "gross_profit": 100,
+                          "gross_margin%": 95, "tariff": 90}
+        node_pl_heads = {"node_id": "Node", "product_id": "Product",
+                         "gross_margin%": "GM%"}
+        for c in node_pl_cols:
+            self._node_pl_tree.heading(c, text=node_pl_heads.get(c, c.replace("_", " ").title()))
+            self._node_pl_tree.column(c, width=node_pl_widths.get(c, 100), anchor="center")
+        self._node_pl_tree.tag_configure("NEG", background="#4A1A1A", foreground="#FF6B6B")
+
+        node_pl_vsb = ttk.Scrollbar(node_pl_frame, orient="vertical",
+                                    command=self._node_pl_tree.yview)
+        self._node_pl_tree.configure(yscrollcommand=node_pl_vsb.set)
+        self._node_pl_tree.pack(side="left", fill="x", expand=True)
+        node_pl_vsb.pack(side="right", fill="y")
+
+        self._node_pl_output_dir = "output/ppc"
+
         # ── Strategic KPI Cards ──────────────────────────────────────
         skpi_frame = tk.LabelFrame(self,
                                    text="  \U0001f3ed Strategic KPI  (Planning Engine)",
@@ -835,10 +867,58 @@ class ManagementCockpitPanel(tk.Frame):
         self._mgr = mgr
         self._refresh_sku_filter()
         self._refresh_pl_table()
+        self._refresh_node_pl_table()
         self._refresh_strategic_kpis()
         self._refresh_lc_table()
         self._refresh_charts()
         self._refresh_issue_selector()
+
+    def refresh_node_pl(self, output_dir: Optional[str] = None) -> None:
+        """Public API — call after the PPC engine finishes a run (B2 thread),
+        so the Node P&L table picks up the freshly written
+        output/ppc/ppc_node_pl_summary.csv without needing a full re-load."""
+        if output_dir:
+            self._node_pl_output_dir = output_dir
+        self._refresh_node_pl_table()
+
+    def _refresh_node_pl_table(self):
+        """
+        拠点別P/L評価 — populate the Node P&L table from
+        <output_dir>/ppc_node_pl_summary.csv (written by
+        wom/ppc/ppc_export.py, built by wom/ppc/ppc_kpi.py
+        build_node_pl_summary()). Filtered by the SKU dropdown above.
+        """
+        self._node_pl_tree.delete(*self._node_pl_tree.get_children())
+        path = os.path.join(getattr(self, "_node_pl_output_dir", "output/ppc"),
+                             "ppc_node_pl_summary.csv")
+        if not os.path.exists(path):
+            return
+        try:
+            df = pd.read_csv(path)
+        except Exception as exc:
+            print(f"[Management] Node P&L load error: {exc}")
+            return
+        if df.empty:
+            return
+        sku = self._current_sku()
+        if sku and "product_id" in df.columns:
+            df = df[df["product_id"] == sku]
+        for _, row in df.iterrows():
+            rev  = float(row.get("revenue_base", 0) or 0)
+            cost = float(row.get("cost_base", 0) or 0)
+            gp   = float(row.get("gross_profit_base", 0) or 0)
+            gm   = float(row.get("gross_margin_pct", 0) or 0)
+            tar  = float(row.get("tariff_base", 0) or 0)
+            tags = ("NEG",) if gp < 0 else ()
+            self._node_pl_tree.insert("", "end", tags=tags, values=[
+                row.get("node_id", ""),
+                row.get("product_id", ""),
+                f"{rev:,.0f}",
+                f"{cost:,.0f}",
+                f"{gp:,.0f}",
+                f"{gm*100:.1f}%",
+                f"{tar:,.0f}",
+            ])
 
     def _refresh_sku_filter(self):
         """(Re)populate the SKU dropdown from the latest summary_money."""
@@ -853,6 +933,7 @@ class ManagementCockpitPanel(tk.Frame):
 
     def _on_sku_filter_change(self):
         self._refresh_pl_table()
+        self._refresh_node_pl_table()
         self._refresh_strategic_kpis()
         self._refresh_lc_table()
         self._refresh_charts()
@@ -4969,6 +5050,10 @@ class WOMApp(tk.Tk):
         # Refresh the PPC tab with newly written output/ppc/ files
         if hasattr(self, "_ppc_panel"):
             self._ppc_panel.refresh(output_dir="output/ppc")
+        # Node P&L (拠点別損益) table lives on the Management tab but is
+        # sourced from the same output/ppc/ppc_node_pl_summary.csv file
+        if hasattr(self, "_mgmt_panel"):
+            self._mgmt_panel.refresh_node_pl(output_dir="output/ppc")
 
     def _on_ppc_error(self, msg: str):
         """Called on main thread if PPC engine fails (non-fatal)."""

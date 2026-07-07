@@ -225,7 +225,9 @@ Planning Engine完了後に自動実行（`_run_ppc_from_planning`）。
 
 ## 設計上の制約・注意事項
 
-- `app.py`はLinuxのbashでは約172KBで切り捨てられる。構文チェックはWindowsで行うこと: `python -c "import ast; ast.parse(open('wom/gui/app.py').read())"`  
+- `app.py`はLinuxのbashでは約172KB付近で切り捨てられる。構文チェックはWindowsで行うこと: `python -c "import ast; ast.parse(open('wom/gui/app.py').read())"`
+  **重要（2026-07-07追記、v1r0m5セッションで再確認・範囲を拡大）**: この切り捨ては`cat`/`python open()`だけでなく**`git`コマンド自体**（Linux bashマウント経由で実行した場合）にも及ぶことを確認済み。`git diff`/`git status`がapp.pyの末尾（`_on_ppc_done`以降、`launch()`まで）を「削除」として表示するが、これは実際の変更ではなく、bashマウント越しにgitが読んだファイルが切り捨てられているために生じる幻影。しかも**この現象はapp.py（約170KB超級）だけでなく、CLAUDE.md自体（57KB程度、760行）でも再現した**——`wc -l`がgit HEAD blobより少ない行数を返し、`git diff -w`が実際には発生していない大量の削除を表示した。つまり閾値は「約172KB」という固定サイズではなく、bashマウントのセッション内での累積読み込み量や再読込みタイミングに依存する可能性が高く、**編集した全てのファイルについて`git`をLinux bash経由で実行するのは危険**と考えるべき。
+  **対策**: WOMのコード・ドキュメントに変更を加えたセッションでは、`git add`/`git commit`/`git push`は必ずユーザー自身のWindows側ターミナルで実行してもらうこと。Claude側のbashツールで`git add`/`git commit`を実行するのは絶対に避ける（ステージされる内容が切り捨てられた壊れたバージョンになる恐れがあるため）。`git diff`/`git status`をClaude側で覗き見て「変更点の要約」を作ること自体は無害だが、その差分表示を鵜呑みにせず、真に受けるべきは常にRead toolで読んだ内容（Windows側の実ファイル）である。
 - `sc_tree_to_planning_df()`は`leaf_out`ノードのみを処理するため、DAD在庫はKPI DataFrameに現れない  
 - `fit_bounding_box()`はtkintermapview \>= 0.3が必要  
 - Planning Engine実行後にChartsタブを確認する場合、`Refresh`ボタンを押すこと  
@@ -383,6 +385,31 @@ Cookie Japan 2026 note記事ドラフトの注記「DADノードの在庫（I）
 **未対応・次回検討事項**:
 - GUI側のPlugin ON/OFFトグル（Management/Settings的な画面からの切り替えUI）は未実装。現状は`decouple_optimizer_config.csv`を直接編集する運用。
 - レーン障害時の代替ルート切り替えPlugin（例: ホルムズ海峡封鎖時に紅海ルートへ切り替え）は、大杉さんから将来実装候補として提案あり。こちらは`HOOK_PRE_PLAN`（SCTree構築直後・BackwardPlanner実行前、`edge_cost_master.csv`/`route_master.csv`ベースのlt_wks・cap_hard書き換え）が適切なフック位置で、既存の`CapacityOverridePlugin`/`HolidayCalendarPlugin`と同じパターンで実装できる見込み。次回セッションでの実装候補として記録のみ（今回は未着手）。
+
+---
+
+## v1r0m5 実装済み機能（新しいClaude君へ）
+
+### PPC: 複数Tier-1サプライヤー対応 + 拠点別P/L評価（`ppc_forward.py`, `ppc_kpi.py`, Management タブ、完了）
+
+「第4回: 仮想の欧州EV市場」note記事（`data/sample/ev-europe-2026/`）で、EVのBOM構造を Battery/Motor/ECU の3 Tier-1 サプライヤー（leaf_in）が1つのMOMに供給する形にした際、既存のPPCエンジンが**最初に見つけたleaf_inノード1つしかコストに反映していない**ことが判明した。
+
+**原因**: `wom/ppc/ppc_runner.py`のGENERICシナリオ自動判定で `elif _nt == NODE_TYPE_LEAF_IN and _prod not in _sup_map: _sup_map[_prod] = _nm` としており、`_prod not in _sup_map`のガードにより2つ目以降のleaf_inは無視されていた。さらに`wom/ppc/ppc_forward.py`の`run_forward_propagation()`は`supplier_node`を単一ノードとしてしか解決しない設計だった（`_resolve_node()`がstr/dict[str,str]のみ対応）。この結果、Motor/ECU側は`ppc_supplier_cost.csv`に行があっても一切参照されず、PPCEventすら生成されないため、ノード別コスト集計をしても0円のまま欠落する。
+
+**修正**:
+- `wom/ppc/ppc_forward.py`: `_resolve_node_list(node, product_id) -> List[str]` を新設（str / list[str] / dict[str,str] / dict[str,list[str]] の全形式に対応、`ppc_backward.py`の`dad_nodes_chain`解決パターンを踏襲）。`run_forward_propagation()`の`supplier_node`引数をこの関数で解決し、**解決された全サプライヤーをループしてコストを積算 + サプライヤーごとに1件ずつ`supplier_cost`イベントを生成**するよう変更（各イベントの`node_id`はそのサプライヤー自身のノードID）。Cookie/iPhone/RiceのようなシングルサプライヤーはP`_resolve_node_list`が単一値を1要素リストにラップするため無変更で動作する。
+- `wom/ppc/ppc_runner.py`: GENERIC分岐の`_sup_map`（単一値）を`_sup_list_map`（全leaf_inのリスト）に変更。積み上げたリストは複数製品時`dict[product_id -> list[str]]`、単一製品時は素の`list[str]`として`supplier_node`に渡す。
+- `wom/ppc/ppc_kpi.py`: `build_node_pl_summary(events)` を新設。週次分解の`build_node_week_summary()`と異なり、全期間を通算した「拠点別P/L評価」テーブル（`node_id, product_id, revenue_base, cost_base, tariff_base, gross_profit_base, gross_margin_pct, lot_events`）を1ノード1行で返す。PPCEventの`node_id`にサプライヤーごとの実ノードIDが乗るようになった今回の修正により、Battery/Motor/ECUがそれぞれ独立した行として正しく現れる。
+- `wom/ppc/ppc_models.py` / `ppc_engine.py` / `ppc_export.py`: `PPCSimulationResult.node_pl_summary`フィールドを追加し、`run()`内で自動計算・`output/ppc/ppc_node_pl_summary.csv`として出力するよう配線。
+- `wom/gui/app.py` `ManagementCockpitPanel`: 既存の「P&L Summary」テーブル直下に新しい「Node P&L（拠点別損益）」テーブルを追加（既存のSKUフィルタドロップダウンに連動）。`_refresh_node_pl_table()`が`output/ppc/ppc_node_pl_summary.csv`を読み込み表示。PPCエンジンが完了した際（`_on_ppc_done`）にも自動リフレッシュされるよう配線済み。
+
+**確認結果**:
+- `tests/test_ppc_multi_supplier.py`（新規10件）: `_resolve_node_list`の4形式、複数サプライヤーのイベント生成・コスト合算、`dict[product_id -> list]`形式、既存の単一サプライヤー形式が無変更で動作すること、`build_node_pl_summary`の拠点別内訳を確認。既存71件と合わせて計81件、全PASS。
+- `data/sample/ev-europe-2026/`実データで検証（`ppc_supplier_cost.csv`にMotor_DE/ECU_DE/Motor_HU/ECU_HUの行を追加——`node_cost_master.csv`の`unit_cost_per_lot`と整合する値: 3600/1600/3000/1400 EUR）: 修正前はBattery_DE/HUのみノード別コストが乗っていたはずが、修正後は`ppc_node_pl_summary.csv`にBattery/Motor/ECUの3ノードすべてが両SKU（EVmaker_Local/Import）で非ゼロコストとして現れることを確認（Battery_DE ¥265.1M、Motor_DE ¥90.9M、ECU_DE ¥40.4M、Battery_HU ¥202.0M、Motor_HU ¥75.7M、ECU_HU ¥35.3M）。
+
+**設計上の注意（次回のClaude君へ）**:
+- 「拠点別P/L評価」は現状、**leaf_outチャネルにのみRevenueが立ち、それ以外の全ノードはCostのみ**という構造（PPCエンジンがMOM一箇所にしかtransfer_priceを持たないため）。よって非チャネルノードの`gross_profit_base`は実質「-cost_base」であり、真の意味でのノード単体P&L（各ノードに自前のRevenue/Costがある社内取引評価）ではない。あくまで「どのノードにコストが集中しているか」を可視化するための一次的な実装であり、真の拠点別損益（ノード間振替価格を全エッジに設定する等）は将来の拡張候補として残っている。
+- InBound側（leaf_in）のバッファ配置最適化は引き続き対象外方針（v1r0m4の`decouple_optimizer.py`のセクション参照）。今回の修正はコスト集計のみでPSI計画ロジックには一切手を入れていない。
 
 ---
 

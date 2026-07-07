@@ -120,6 +120,61 @@ def build_profit_zone_summary(events: List[PPCEvent]) -> pd.DataFrame:
     return agg
 
 
+def build_node_pl_summary(events: List[PPCEvent]) -> pd.DataFrame:
+    """
+    Full-horizon (all weeks combined) per-node P&L table -- "拠点別P/L評価".
+
+    Unlike build_node_week_summary(), this collapses the week dimension so
+    each SC Node (leaf_in supplier / MOM / DAD / leaf_out channel) appears
+    exactly once per product with its total Revenue / Cost / Gross Profit
+    across the whole simulation horizon. Intended for the Management tab's
+    per-node P&L table (node-level granularity, as opposed to the existing
+    SKU-level P&L Summary table).
+
+    Node attribution relies on every PPCEvent carrying the node_id where the
+    cost/revenue actually occurred -- see ppc_forward.py's per-supplier event
+    emission (Battery/Motor/ECU etc. each get their own supplier_cost event)
+    for why this is now accurate even for multi-Tier-1-supplier BOMs.
+
+    Columns: node_id, product_id, revenue_base, cost_base, tariff_base,
+             gross_profit_base, gross_margin_pct, lot_events
+    """
+    rows = []
+    for ev in events:
+        if ev.ppc_event_type in ("transfer_price_set", "backward_allowable", "landed_cost_total"):
+            continue
+        rows.append({
+            "node_id":     ev.node_id,
+            "product_id":  ev.product_id,
+            "is_revenue":  ev.ppc_event_type in REVENUE_EVENT_TYPES,
+            "is_cost":     ev.ppc_event_type in COST_EVENT_TYPES,
+            "is_tariff":   ev.ppc_event_type == "tariff_cost",
+            "amount_base": ev.amount_base,
+        })
+    if not rows:
+        return pd.DataFrame(columns=[
+            "node_id", "product_id", "revenue_base", "cost_base",
+            "tariff_base", "gross_profit_base", "gross_margin_pct", "lot_events",
+        ])
+    df = pd.DataFrame(rows)
+    agg = (
+        df.groupby(["node_id", "product_id"])
+        .apply(lambda g: pd.Series({
+            "revenue_base": g.loc[g["is_revenue"], "amount_base"].sum(),
+            "cost_base":    g.loc[g["is_cost"],    "amount_base"].sum(),
+            "tariff_base":  g.loc[g["is_tariff"],  "amount_base"].sum(),
+            "lot_events":   len(g),
+        }))
+        .reset_index()
+    )
+    agg["gross_profit_base"] = agg["revenue_base"] - agg["cost_base"]
+    agg["gross_margin_pct"] = agg.apply(
+        lambda r: r["gross_profit_base"] / r["revenue_base"] if r["revenue_base"] > 0 else 0.0,
+        axis=1,
+    )
+    return agg.sort_values(["product_id", "node_id"]).reset_index(drop=True)
+
+
 def build_kpi_summary(
     accumulators: List[LotCostAccumulator],
     trust_events: List[PPCTrustEvent],
