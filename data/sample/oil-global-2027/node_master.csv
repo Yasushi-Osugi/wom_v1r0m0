@@ -1,0 +1,54 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+SP_Oil_Local,SP_Oil_Local（Gasoline_Local 供給調整拠点）,procurement,35.6,140.12,,JP,国内精製 供給調整拠点（架空）
+Refinery_Local,国内製油所（千葉近郊・架空拠点）,mother_plant,35.62,140.1,Gasoline_Local,JP,国内製油所（架空）
+Crude_ME,中東産原油 積出基地（架空・地域名のみ、実在産油地未特定）,sku_supplier,26.2,50.6,Gasoline_Local,ME,中東産原油 調達（架空）
+Tank_Local,国内貯油タンク（東京湾岸・架空拠点）,region_dc,35.55,139.75,,JP,国内貯油・出荷基地（架空）
+Retail_Local_KANTO,関東 給油所チャネル（架空）,marketing,35.68,139.77,,KANTO,関東地域 給油所（架空）
+Retail_Local_KANSAI,関西 給油所チャネル（架空）,marketing,34.69,135.5,,KANSAI,関西地域 給油所（架空）
+Retail_Local_CHUBU,中部 給油所チャネル（架空）,marketing,35.18,136.91,,CHUBU,中部地域 給油所（架空）
+SP_Oil_Import,SP_Oil_Import（Gasoline_Import 輸入調整拠点）,procurement,34.65,135.2,,JP,輸入品 供給調整拠点（架空）
+Import_Hub,輸入基地（大阪湾岸・架空拠点）,mother_plant,34.63,135.18,Gasoline_Import,JP,完成品輸入 受入基地（架空）
+Refinery_SG,海外精製拠点（シンガポール・架空）,sku_supplier,1.29,103.85,Gasoline_Import,SG,海外精製済み完成品ガソリン 調達（架空）
+Tank_Import,輸入貯油タンク（大阪湾岸・架空拠点）,region_dc,34.6,135.15,,JP,輸入品貯油・出荷基地（架空）
+Retail_Import_KANTO_I,関東 給油所チャネル（輸入品・架空）,marketing,35.68,139.77,,KANTO_I,関東地域 給油所（輸入品・架空）
+Retail_Import_KANSAI_I,関西 給油所チャネル（輸入品・架空）,marketing,34.69,135.5,,KANSAI_I,関西地域 給油所（輸入品・架空）
+SP_Oil_Local_H,SP_Oil_Local_H（Hormuz正規ルート 供給調整拠点）,procurement,35.6,140.12,,JP,ホルムズ正規ルート 供給調整拠点（架空）
+Refinery_Local_H,国内製油所（千葉近郊・架空・Hormuz正規ルート原油で稼働）,mother_plant,35.62,140.1,Gasoline_Local_Hormuz,JP,国内製油所（架空、ホルムズ海峡正規ルート原油）
+Crude_ME_Hormuz,サウジ湾岸積出港（ラスタヌラ想定・ホルムズ海峡経由 正規ルート、架空）,sku_supplier,26.7,50.2,Gasoline_Local_Hormuz,ME,中東産原油 タンカー輸送（ホルムズ海峡正規ルート、架空）
+Tank_Local_H,国内貯油タンク（東京湾岸・架空・戦略備蓄4週間分）,region_dc,35.55,139.75,,JP,国内貯油・出荷基地（架空、Hormuz正規ルート）
+Retail_Local_H_KANTO,関東 給油所チャネル（Hormuz正規ルート・架空）,marketing,35.68,139.77,,KANTO,関東地域 給油所（Hormuz正規ルート・架空）
+Retail_Local_H_KANSAI,関西 給油所チャネル（Hormuz正規ルート・架空）,marketing,34.69,135.5,,KANSAI,関西地域 給油所（Hormuz正規ルート・架空）
+Retail_Local_H_CHUBU,中部 給油所チャネル（Hormuz正規ルート・架空）,marketing,35.18,136.91,,CHUBU,中部地域 給油所（Hormuz正規ルート・架空）
+SP_Oil_Local_R,SP_Oil_Local_R（RedSea代替ルート 供給調整拠点）,procurement,35.6,140.12,,JP,紅海代替ルート 供給調整拠点（架空）
+Refinery_Local_R,国内製油所（千葉近郊・架空・RedSea代替ルート原油で稼働）,mother_plant,35.62,140.1,Gasoline_Local_RedSea,JP,国内製油所（架空、紅海代替ルート原油）
+Crude_ME_RedSea,サウジ内陸パイプライン出口 ヤンブー港（紅海岸・代替ルート、架空）,sku_supplier,24.09,38.06,Gasoline_Local_RedSea,ME,中東産原油 内陸パイプライン+紅海タンカー輸送（代替ルート・迂回、架空）
+Tank_Local_R,国内貯油タンク（東京湾岸・架空・戦略備蓄4週間分）,region_dc,35.55,139.75,,JP,国内貯油・出荷基地（架空、RedSea代替ルート）
+Retail_Local_R_KANTO,関東 給油所チャネル（RedSea代替ルート・架空）,marketing,35.68,139.77,,KANTO,関東地域 給油所（RedSea代替ルート・架空）
+Retail_Local_R_KANSAI,関西 給油所チャネル（RedSea代替ルート・架空）,marketing,34.69,135.5,,KANSAI,関西地域 給油所（RedSea代替ルート・架空）
+Retail_Local_R_CHUBU,中部 給油所チャネル（RedSea代替ルート・架空）,marketing,35.18,136.91,,CHUBU,中部地域 給油所（RedSea代替ルート・架空）
+SP_Oil_EU_Local,SP_Oil_EU_Local（Gasoline_EU_Local 供給調整拠点）,procurement,51.9,4.4,,EU,欧州域内精製 供給調整拠点（架空）
+Refinery_EU,欧州製油所（ロッテルダム近郊・架空拠点）,mother_plant,51.95,4.14,Gasoline_EU_Local,EU,欧州製油所（架空、中東原油を域内精製）
+Crude_ME_EU,中東産原油 積出基地（カタール沖想定・架空）,sku_supplier,25.3,51.5,Gasoline_EU_Local,ME,中東産原油 調達（欧州向け、架空）
+Tank_EU_Local,欧州貯油タンク（ロッテルダム近郊・架空拠点）,region_dc,51.88,4.3,,EU,欧州域内貯油・出荷基地（架空）
+Retail_EU_DE,ドイツ 給油所チャネル（架空）,marketing,52.52,13.4,,DE,ドイツ地域 給油所（架空）
+Retail_EU_FR,フランス 給油所チャネル（架空）,marketing,48.86,2.35,,FR,フランス地域 給油所（架空）
+Retail_EU_NL,オランダ 給油所チャネル（架空）,marketing,52.09,5.12,,NL,オランダ地域 給油所（架空）
+SP_Oil_EU_Import,SP_Oil_EU_Import（Gasoline_EU_Import 輸入調整拠点）,procurement,51.92,4.2,,EU,米国産輸入品 供給調整拠点（架空）
+Import_Hub_EU,輸入基地（ロッテルダム・Europoort想定・架空拠点）,mother_plant,51.95,4.1,Gasoline_EU_Import,EU,完成品輸入 受入基地（架空）
+Refinery_US,米国湾岸製油所（テキサス州想定・架空）,sku_supplier,29.75,-95.36,Gasoline_EU_Import,US,米国湾岸産 精製済みガソリン 調達（架空）
+Tank_EU_Import,輸入貯油タンク（ロッテルダム・架空拠点）,region_dc,51.93,4.05,,EU,輸入品貯油・出荷基地（架空）
+Retail_EU_Import_DE_I,ドイツ 給油所チャネル（輸入品・架空）,marketing,52.52,13.4,,DE_I,ドイツ地域 給油所（輸入品・架空）
+Retail_EU_Import_FR_I,フランス 給油所チャネル（輸入品・架空）,marketing,48.86,2.35,,FR_I,フランス地域 給油所（輸入品・架空）
+SP_Oil_US_Local,SP_Oil_US_Local（Gasoline_US_Local 供給調整拠点）,procurement,29.8,-95.3,,US,米国内精製 供給調整拠点（架空）
+Refinery_USGulf,米国湾岸製油所（テキサス州想定・架空拠点、シェール原油精製）,mother_plant,29.75,-95.36,Gasoline_US_Local,US,米国湾岸製油所（架空）
+Shale_Permian,シェールオイル産地（パーミアン盆地想定・架空）,sku_supplier,31.8,-102.0,Gasoline_US_Local,US,米国産シェールオイル 調達（架空、パイプライン輸送）
+Tank_US_Local,米国内貯油タンク（湾岸近郊・架空拠点）,region_dc,29.7,-95.2,,US,米国内貯油・出荷基地（架空）
+Retail_US_TX,テキサス 給油所チャネル（架空）,marketing,29.76,-95.37,,TX,テキサス地域 給油所（架空）
+Retail_US_CA,カリフォルニア 給油所チャネル（架空）,marketing,34.05,-118.24,,CA,カリフォルニア地域 給油所（架空）
+Retail_US_NY,ニューヨーク 給油所チャネル（架空）,marketing,40.71,-74.01,,NY,ニューヨーク地域 給油所（架空）
+SP_Oil_US_Import,SP_Oil_US_Import（Gasoline_US_Import 輸入調整拠点）,procurement,36.0,-96.8,,US,カナダ産輸入品 供給調整拠点（架空）
+Import_Hub_US,輸入基地（クッシング原油ハブ想定・架空拠点）,mother_plant,35.98,-96.77,Gasoline_US_Import,US,パイプライン受入基地（架空）
+OilSands_Alberta,オイルサンド産地（アルバータ州想定・架空）,sku_supplier,56.7,-111.4,Gasoline_US_Import,CA_PROV,カナダ産オイルサンド 調達（架空、パイプライン輸送）
+Tank_US_Import,輸入貯油タンク（クッシング近郊・架空拠点）,region_dc,36.05,-96.7,,US,輸入品貯油・出荷基地（架空）
+Retail_US_Import_MW_I,中西部 給油所チャネル（カナダ産輸入品・架空）,marketing,41.85,-87.65,,MW_I,中西部地域 給油所（輸入品・架空）
+Retail_US_Import_NE_I,北東部 給油所チャネル（カナダ産輸入品・架空）,marketing,42.36,-71.06,,NE_I,北東部地域 給油所（輸入品・架空）

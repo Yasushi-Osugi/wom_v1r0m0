@@ -1,0 +1,25 @@
+node_id,product_id,cost_type,basis,rate,fixed_amount,currency,note
+Refinery_Local,Gasoline_Local,conversion_cost,per_lot,0,25000,JPY,精製コスト（架空）JPY/kL
+Refinery_Local,Gasoline_Local,logistics_cost,per_lot,0,3000,JPY,製油所→Tank 国内輸送 JPY/kL
+Tank_Local,Gasoline_Local,logistics_cost,per_lot,0,2500,JPY,Tank→給油所 配送費 JPY/kL
+Import_Hub,Gasoline_Import,conversion_cost,per_lot,0,5000,JPY,受入・blending費（架空）JPY/kL
+Import_Hub,Gasoline_Import,logistics_cost,per_lot,0,4000,JPY,タンカー陸揚げ+輸入基地取扱費（架空）JPY/kL
+Tank_Import,Gasoline_Import,logistics_cost,per_lot,0,2500,JPY,Tank→給油所 配送費 JPY/kL
+Refinery_Local_H,Gasoline_Local_Hormuz,conversion_cost,per_lot,0,400000000,JPY,精製コスト（架空）JPY/lot(100kbbl)
+Refinery_Local_H,Gasoline_Local_Hormuz,logistics_cost,per_lot,0,50000000,JPY,製油所→Tank 国内輸送 JPY/lot
+Tank_Local_H,Gasoline_Local_Hormuz,logistics_cost,per_lot,0,40000000,JPY,Tank→給油所 配送費 JPY/lot
+Refinery_Local_R,Gasoline_Local_RedSea,conversion_cost,per_lot,0,400000000,JPY,精製コスト（架空）JPY/lot(100kbbl)
+Refinery_Local_R,Gasoline_Local_RedSea,logistics_cost,per_lot,0,50000000,JPY,製油所→Tank 国内輸送 JPY/lot
+Tank_Local_R,Gasoline_Local_RedSea,logistics_cost,per_lot,0,40000000,JPY,Tank→給油所 配送費 JPY/lot
+Refinery_EU,Gasoline_EU_Local,conversion_cost,per_lot,0,160,EUR,精製コスト（架空）EUR/kL
+Refinery_EU,Gasoline_EU_Local,logistics_cost,per_lot,0,20,EUR,製油所→Tank 域内輸送 EUR/kL
+Tank_EU_Local,Gasoline_EU_Local,logistics_cost,per_lot,0,15,EUR,Tank→給油所 配送費 EUR/kL
+Import_Hub_EU,Gasoline_EU_Import,conversion_cost,per_lot,0,30,EUR,受入・blending費（架空）EUR/kL
+Import_Hub_EU,Gasoline_EU_Import,logistics_cost,per_lot,0,25,EUR,タンカー陸揚げ+輸入基地取扱費（架空）EUR/kL
+Tank_EU_Import,Gasoline_EU_Import,logistics_cost,per_lot,0,15,EUR,Tank→給油所 配送費 EUR/kL
+Refinery_USGulf,Gasoline_US_Local,conversion_cost,per_lot,0,180,USD,精製コスト（架空）USD/kL
+Refinery_USGulf,Gasoline_US_Local,logistics_cost,per_lot,0,25,USD,製油所→Tank 国内輸送 USD/kL
+Tank_US_Local,Gasoline_US_Local,logistics_cost,per_lot,0,20,USD,Tank→給油所 配送費 USD/kL
+Import_Hub_US,Gasoline_US_Import,conversion_cost,per_lot,0,40,USD,受入・blending費（架空）USD/kL
+Import_Hub_US,Gasoline_US_Import,logistics_cost,per_lot,0,30,USD,パイプライン受入+輸入基地取扱費（架空）USD/kL
+Tank_US_Import,Gasoline_US_Import,logistics_cost,per_lot,0,20,USD,Tank→給油所 配送費 USD/kL

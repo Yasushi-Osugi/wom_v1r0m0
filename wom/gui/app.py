@@ -2885,6 +2885,9 @@ class WorldMapPanel(tk.Frame):
         self._anim_speed_ms = 1000
         self._anim_after_id = None
         self._map_widget    = None
+        self._sc_tree_path: str = ""     # sc_tree_master.csv path (optional)
+        self._sc_edges: list = []        # [{"child":node_id,"parent":node_id,"product":str}, ...]
+        self._product_nodes: dict = {}   # product_name -> set(node_id) incl. bridge/dad nodes
         self._build()
 
     # ── Layout ───────────────────────────────────────────────────────────
@@ -2922,6 +2925,18 @@ class WorldMapPanel(tk.Frame):
                   command=self._reload,
                   bg="#1565C0", fg="white", font=("Segoe UI", 8),
                   relief="flat").pack(side="left", padx=(6, 2))
+
+        # SKU/product filter — narrows markers + SC-tree edges to one product
+        # so multi-SKU / multi-region models don't turn into an unreadable
+        # tangle of overlapping pins and lines.
+        tk.Label(bar, text="  SKU:", bg=BG_MID, fg=FG_WHITE,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(10, 2))
+        self._map_sku_var = tk.StringVar(value="All")
+        self._map_sku_cb = ttk.Combobox(bar, textvariable=self._map_sku_var,
+                                         values=["All"], width=16, state="readonly",
+                                         font=("Segoe UI", 8))
+        self._map_sku_cb.pack(side="left", padx=2)
+        self._map_sku_cb.bind("<<ComboboxSelected>>", lambda _: self._on_map_sku_change())
 
         # Animation controls (enabled after planning)
         tk.Label(bar, text="  |", bg=BG_MID, fg="#546E7A").pack(side="left")
@@ -3020,9 +3035,16 @@ class WorldMapPanel(tk.Frame):
             self._file_var.set(path)
             self._reload()
 
-    def load_default(self, csv_path: str) -> None:
-        """Load a node master CSV path without user interaction."""
+    def load_default(self, csv_path: str, sc_tree_path: str = "") -> None:
+        """Load a node master CSV path without user interaction.
+
+        sc_tree_path (optional): sc_tree_master.csv from the same model
+        folder — used to derive real parent/child edges and the SKU filter
+        list. Without it, the panel falls back to the old node_type
+        all-pairs heuristic (_MAP_LINKS) and shows no SKU filter options.
+        """
         self._file_var.set(csv_path)
+        self._sc_tree_path = sc_tree_path or ""
         self._reload()
 
     def _reload(self):
@@ -3032,9 +3054,88 @@ class WorldMapPanel(tk.Frame):
         try:
             df = pd.read_csv(path)
             self._nodes = df.to_dict("records")
+            self._load_sc_tree_edges()
             self._draw_nodes()
         except Exception as exc:
             messagebox.showerror("World Map", f"Failed to load {path}:\n{exc}")
+
+    def _load_sc_tree_edges(self):
+        """
+        Parse sc_tree_master.csv (if available) into real parent/child edges
+        and a product_name -> {node_id} map, so the map can (a) draw only
+        actually-linked nodes instead of a node_type all-pairs guess, and
+        (b) offer a SKU/product filter dropdown.
+
+        Note: sc_tree_master.csv's "node_name" column holds the same short
+        identifier as node_master.csv's "node_id" column (node_master's own
+        "node_name" is a separate, human-readable description) — matching
+        must be done on that id, not on node_master's node_name.
+        """
+        self._sc_edges = []
+        self._product_nodes = {}
+        path = self._sc_tree_path
+        if not path or not os.path.exists(path):
+            self._map_sku_cb["values"] = ["All"]
+            self._map_sku_var.set("All")
+            return
+        try:
+            sc_df = pd.read_csv(path)
+        except Exception as exc:
+            print(f"[WorldMap] sc_tree_master load failed: {exc}")
+            self._map_sku_cb["values"] = ["All"]
+            self._map_sku_var.set("All")
+            return
+
+        # mom_root(s) / supply_point_root per product, for the synthetic
+        # InBound<->OutBound bridge edge (see note below). A product can
+        # have more than one mom root (Multi-MOM models, e.g. iphone-2027-2029).
+        mom_roots: dict = {}   # product -> [node_id, ...]
+        sp_root: dict = {}     # product -> node_id
+
+        for _, row in sc_df.iterrows():
+            node_id  = str(row.get("node_name", "")).strip()
+            parent   = str(row.get("parent_node", "") or "").strip()
+            product  = str(row.get("product_name", "")).strip()
+            ntype    = str(row.get("node_type", "")).strip()
+            if not node_id or not product:
+                continue
+            self._product_nodes.setdefault(product, set()).add(node_id)
+            if parent and parent.lower() != "nan":
+                self._product_nodes[product].add(parent)
+                self._sc_edges.append(
+                    {"child": node_id, "parent": parent, "product": product})
+            elif ntype == "mom":
+                mom_roots.setdefault(product, []).append(node_id)
+            elif ntype == "supply_point":
+                sp_root[product] = node_id
+
+        # WOM's InBound (mom root) and OutBound (supply_point root) trees
+        # are two independent roots in sc_tree_master.csv — the engine
+        # bridges them at runtime by product_name match, not via a
+        # parent_node cell (see CLAUDE.md's SCTree diagram: "Bridge").
+        # Without this synthetic edge, the map shows the MOM/leaf_in side
+        # (e.g. an overseas factory) as visually disconnected from its own
+        # DC/leaf_out side, even though they're the same product's one lane.
+        for product, mom_ids in mom_roots.items():
+            sp_id = sp_root.get(product)
+            if not sp_id:
+                continue
+            for mom_id in mom_ids:
+                self._sc_edges.append(
+                    {"child": sp_id, "parent": mom_id, "product": product})
+
+        products = sorted(self._product_nodes.keys())
+        values = ["All"] + products
+        self._map_sku_cb["values"] = values
+        if self._map_sku_var.get() not in values:
+            self._map_sku_var.set("All")
+
+    def _current_map_sku(self):
+        v = self._map_sku_var.get() if hasattr(self, "_map_sku_var") else "All"
+        return None if (not v or v == "All") else v
+
+    def _on_map_sku_change(self):
+        self._draw_nodes()
 
     # ── Map drawing ───────────────────────────────────────────────────────
 
@@ -3051,30 +3152,64 @@ class WorldMapPanel(tk.Frame):
         self._markers.clear()
         self._paths.clear()
 
-        # Group nodes by type for link drawing
-        by_type: dict = {}
-        for node in self._nodes:
-            ntype = str(node.get("node_type", ""))
-            by_type.setdefault(ntype, []).append(node)
+        # ── SKU/product filter ────────────────────────────────────────────
+        sku = self._current_map_sku()
+        allowed_ids = self._product_nodes.get(sku) if sku else None
+        if allowed_ids is not None:
+            nodes_to_draw = [n for n in self._nodes
+                             if str(n.get("node_id", "")) in allowed_ids]
+        else:
+            nodes_to_draw = list(self._nodes)
 
-        # Draw SC link paths first (beneath markers)
+        # Lat/lon lookup by node_id (used for sc_tree-edge endpoints,
+        # unfiltered so edges always resolve even if only one endpoint
+        # happens to be shared infrastructure)
+        pos_by_id = {}
+        for n in self._nodes:
+            try:
+                pos_by_id[str(n.get("node_id", ""))] = (float(n["lat"]), float(n["lon"]))
+            except (TypeError, ValueError, KeyError):
+                pass
+
+        # ── Draw SC link paths first (beneath markers) ───────────────────
         link_color = "#546E7A"
-        for src_type, dst_type in _MAP_LINKS:
-            src_nodes = by_type.get(src_type, [])
-            dst_nodes = by_type.get(dst_type, [])
-            for src in src_nodes:
-                for dst in dst_nodes:
-                    try:
-                        path = self._map_widget.set_path(
-                            [(float(src["lat"]), float(src["lon"])),
-                             (float(dst["lat"]), float(dst["lon"]))],
-                            color=link_color, width=2)
-                        self._paths.append(path)
-                    except Exception:
-                        pass
+        if self._sc_edges:
+            # Real parent/child edges from sc_tree_master.csv, optionally
+            # narrowed to the selected product — no more all-pairs guessing.
+            for edge in self._sc_edges:
+                if sku and edge["product"] != sku:
+                    continue
+                p1 = pos_by_id.get(edge["child"])
+                p2 = pos_by_id.get(edge["parent"])
+                if p1 is None or p2 is None:
+                    continue
+                try:
+                    path = self._map_widget.set_path(
+                        [p1, p2], color=link_color, width=2)
+                    self._paths.append(path)
+                except Exception:
+                    pass
+        else:
+            # Fallback: no sc_tree_master.csv available for this model —
+            # use the old node_type all-pairs heuristic on the filtered set.
+            by_type: dict = {}
+            for node in nodes_to_draw:
+                ntype = str(node.get("node_type", ""))
+                by_type.setdefault(ntype, []).append(node)
+            for src_type, dst_type in _MAP_LINKS:
+                for src in by_type.get(src_type, []):
+                    for dst in by_type.get(dst_type, []):
+                        try:
+                            path = self._map_widget.set_path(
+                                [(float(src["lat"]), float(src["lon"])),
+                                 (float(dst["lat"]), float(dst["lon"]))],
+                                color=link_color, width=2)
+                            self._paths.append(path)
+                        except Exception:
+                            pass
 
-        # Draw node markers
-        for node in self._nodes:
+        # Draw node markers (filtered set only)
+        for node in nodes_to_draw:
             ntype  = str(node.get("node_type", ""))
             style  = _MAP_NODE_STYLE.get(ntype, ("#607D8B", "#455A64", "📍"))
             cc, co, icon = style
@@ -3092,18 +3227,21 @@ class WorldMapPanel(tk.Frame):
             except Exception:
                 pass
 
-        # ── Auto-fit map view to node bounding box ────────────────────────
+        # ── Auto-fit map view to node bounding box (filtered set) ─────────
+        self._fit_nodes_cache = nodes_to_draw
         self.after(200, self._fit_to_nodes)
 
     def _fit_to_nodes(self):
-        """Fit the map view to the bounding box of all loaded nodes (with padding)."""
-        if not self._nodes or self._map_widget is None:
+        """Fit the map view to the bounding box of the currently-drawn
+        (SKU-filtered) node set, with padding."""
+        nodes = getattr(self, "_fit_nodes_cache", None) or self._nodes
+        if not nodes or self._map_widget is None:
             return
         try:
             import math
-            lats = [float(n["lat"]) for n in self._nodes
+            lats = [float(n["lat"]) for n in nodes
                     if n.get("lat") not in (None, "", "nan")]
-            lons = [float(n["lon"]) for n in self._nodes
+            lons = [float(n["lon"]) for n in nodes
                     if n.get("lon") not in (None, "", "nan")]
             if not lats or not lons:
                 return
@@ -3254,25 +3392,51 @@ class WorldMapPanel(tk.Frame):
             except Exception:
                 pass
 
-        # Static dim lines for inactive edges
-        for src_type, dst_type in _MAP_LINKS:
-            for src_node in self._nodes:
-                if src_node.get("node_type") != src_type:
+        # Static dim lines for inactive edges (respects the SKU filter)
+        sku = self._current_map_sku()
+        if self._sc_edges:
+            pos_by_id = {}
+            for n in self._nodes:
+                try:
+                    pos_by_id[str(n.get("node_id", ""))] = (float(n["lat"]), float(n["lon"]))
+                except (TypeError, ValueError, KeyError):
+                    pass
+            for edge in self._sc_edges:
+                if sku and edge["product"] != sku:
                     continue
-                for dst_node in self._nodes:
-                    if dst_node.get("node_type") != dst_type:
+                s_pos = pos_by_id.get(edge["child"])
+                d_pos = pos_by_id.get(edge["parent"])
+                if s_pos is None or d_pos is None:
+                    continue
+                try:
+                    path = self._map_widget.set_path(
+                        [s_pos, d_pos], color="#263238", width=1)
+                    self._paths.insert(0, path)  # behind flow paths
+                except Exception:
+                    pass
+        else:
+            allowed_ids = self._product_nodes.get(sku) if sku else None
+            nodes_scope = ([n for n in self._nodes
+                            if str(n.get("node_id", "")) in allowed_ids]
+                           if allowed_ids is not None else self._nodes)
+            for src_type, dst_type in _MAP_LINKS:
+                for src_node in nodes_scope:
+                    if src_node.get("node_type") != src_type:
                         continue
-                    # Check if this edge already has a flow path
-                    s_pos = (float(src_node["lat"]), float(src_node["lon"]))
-                    d_pos = (float(dst_node["lat"]), float(dst_node["lon"]))
-                    # Add dim background line
-                    try:
-                        path = self._map_widget.set_path(
-                            [s_pos, d_pos],
-                            color="#263238", width=1)
-                        self._paths.insert(0, path)  # behind flow paths
-                    except Exception:
-                        pass
+                    for dst_node in nodes_scope:
+                        if dst_node.get("node_type") != dst_type:
+                            continue
+                        # Check if this edge already has a flow path
+                        s_pos = (float(src_node["lat"]), float(src_node["lon"]))
+                        d_pos = (float(dst_node["lat"]), float(dst_node["lon"]))
+                        # Add dim background line
+                        try:
+                            path = self._map_widget.set_path(
+                                [s_pos, d_pos],
+                                color="#263238", width=1)
+                            self._paths.insert(0, path)  # behind flow paths
+                        except Exception:
+                            pass
 
 # ──────────────────────────────────────────────────────────────────────
 
@@ -4342,9 +4506,12 @@ class WOMApp(tk.Tk):
 
         # Load node_master into WorldMap immediately on folder selection
         node_path = os.path.join(folder, "node_master.csv")
+        sc_tree_path_wm = os.path.join(folder, "sc_tree_master.csv")
+        if not os.path.exists(sc_tree_path_wm):
+            sc_tree_path_wm = ""
         if os.path.exists(node_path):
             try:
-                self._worldmap_panel.load_default(node_path)
+                self._worldmap_panel.load_default(node_path, sc_tree_path_wm)
             except Exception as _wm_exc:
                 print(f"[WorldMap] node load on folder select failed: {_wm_exc}")
 
@@ -4487,8 +4654,13 @@ class WOMApp(tk.Tk):
         if not node_path:
             # fallback to sample
             node_path = os.path.join(self._sample_dir, "node_master.csv")
+        sc_tree_path_wm = self._f_sc_tree.get() if hasattr(self, '_f_sc_tree') else ""
+        if not sc_tree_path_wm:
+            sc_tree_path_wm = os.path.join(self._sample_dir, "sc_tree_master.csv")
+        if not os.path.exists(sc_tree_path_wm):
+            sc_tree_path_wm = ""
         if os.path.exists(node_path):
-            self._worldmap_panel.load_default(node_path)
+            self._worldmap_panel.load_default(node_path, sc_tree_path_wm)
 
     def _on_simulation_error(self, tb: str):
         self._progress.stop()
@@ -4846,8 +5018,13 @@ class WOMApp(tk.Tk):
             node_path = self._f_node.get() if hasattr(self, "_f_node") else ""
             if not node_path:
                 node_path = os.path.join(self._sample_dir, "node_master.csv")
+            sc_tree_path_wm = self._f_sc_tree.get() if hasattr(self, "_f_sc_tree") else ""
+            if not sc_tree_path_wm:
+                sc_tree_path_wm = os.path.join(self._sample_dir, "sc_tree_master.csv")
+            if not os.path.exists(sc_tree_path_wm):
+                sc_tree_path_wm = ""
             if os.path.exists(node_path):
-                self._worldmap_panel.load_default(node_path)
+                self._worldmap_panel.load_default(node_path, sc_tree_path_wm)
         except Exception as _wm_exc:
             print(f"[WorldMap] node load failed: {_wm_exc}")
 

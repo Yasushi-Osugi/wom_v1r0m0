@@ -413,6 +413,201 @@ Cookie Japan 2026 note記事ドラフトの注記「DADノードの在庫（I）
 
 ---
 
+### 第5回note記事向け: Global Oil Supply Chain（`data/sample/oil-global-2027/`、新規モデル、2026-07-07）
+
+Grokとの構想検討を経て、Claude主導でモデル定義からCSV構築・ヘッドレス検証まで実施。Cookie/EVと同じ「現地生産（Gasoline_Local）vs 越境輸入（Gasoline_Import）」の対比構造を踏襲しつつ、石油SC特有の要素（クラックスプレッド、タンカーLT、貯油タンクの安全在庫）を**新規エンジン拡張なし**で表現する設計とした。
+
+**モデル構造**:
+```
+Gasoline_Local:  Crude_ME(leaf_in, ME) → Refinery_Local(mom, JP) → supply_point
+                   → Tank_Local(dad, ss_days=7, buffering_stock_flag=0)
+                   → Retail_Local_KANTO/KANSAI/CHUBU(leaf_out)
+Gasoline_Import: Refinery_SG(leaf_in, SG) → Import_Hub(mom, JP) → supply_point
+                   → Tank_Import(dad, ss_days=21, buffering_stock_flag=1)
+                   → Retail_Import_KANTO_I/KANSAI_I(leaf_out)
+```
+78週（2027-W01〜2028-W26）。原油/輸入完成品価格（`ppc_supplier_cost.csv`）とUSD/JPY為替（`ppc_fx_rate.csv`）は2027-W20〜W30に一時的にスパイクする一方、小売価格（`ppc_market_price.csv`）は据え置き（粘着的）に設定 — クラックスプレッド圧縮を**データの組み方だけ**で表現できることを実証する狙い。
+
+**ヘッドレス検証用スクリプト**: `wom/gui/app.py`の`_build_planning_context`（4562行目〜）と`_planning_thread`（4728行目〜）、`_run_ppc_from_planning`（4980行目〜）をtkinter抜きで移植したスタンドアロンスクリプトを作成（このセッションでは`/sessions`一時領域に置いたのみでリポジトリ未コミット。次回セッションで`tools/run_headless_from_folder.py`のような形で正式に追加する価値あり——「手動probeスクリプトが毎回消えている」問題の恒久対策）。
+
+**確認できたこと**:
+- クラックスプレッド圧縮: Refinery_LocalのPPC `mom_profit`イベントが週次で **+2,000円/kL（平常時）→ −23,750円/kL（原油スパイク中、2027-W20〜W30）→ −1,520円/kL（スパイク後、元の水準には戻らない）** と推移することを`ppc_event_ledger.csv`で確認。小売価格据え置き＋調達コスト急騰＋円安の組み合わせがそのままマージン圧縮として現れることを実証。
+- タンカー安全在庫バッファ: Tank_Import（ss_days=21, buffering_stock_flag=1）の`psi4supply[w][I]`が400〜420ロット程度で安定的に積み上がることを確認（Cookie-jp-2026のDC_Import_Bufferと同じ挙動）。
+- 71+10=81件の既存テストに影響なし（このモデル追加はサンプルデータのみで、エンジンコードは無変更）。
+
+**未解決・次回検討事項（Refinery_Outageシナリオ）**:
+`holiday_calendar.csv`でRefinery_Local（MOM）に2週間の稼働率低下（cap_hard 650→30、supply_closure）を設定したところ、Refinery_Local自身の`psi4supply[w][P/S]`は正しく30に絞られることを確認した。しかし、その下流のTank_Local（DAD）・Retail_Local_*（leaf_out）のPSIには一切変化が見られなかった（`psi4supply[w][S]`は滑らかな季節変動のみ、`psi4supply[w][CO]`もクロージャー前後で完全に同一値のまま凍結）。
+調査の結果わかったこと：
+1. `_apply_mom_cap_backward`（backward_planner.py）は`cap_hard <= 0.0`のとき`continue`（何もしない）——これは意図的な設計（`plan_node.py`が全ノードをデフォルトcap_hard=0.0で初期化するため、「0.0=未設定」と「0.0=意図的な全停止」を区別できないことに起因、HolidayCalendarPlugin MemoryError修正の教訓と同根）。よって本当の「全停止」を表現したい場合は`holiday_calendar.csv`のvalue列に0ではなく小さい正の値（本モデルでは30、平常時cap_hardの約5%）を設定する必要がある。**この制約は既存の全モデルに影響するため、エンジン側の修正（0.0を「意図的な閉鎖」として扱うための別フラグ導入等）は今回は見送り、次回セッションでの検討課題として記録するに留めた。**
+2. 上記のworkaroundで cap_hard=30 に変更後、Refinery_Local自身のP/Sは正しく650→30に落ちることを確認したが、DAD/leaf_out側のPSIには依然として変化が伝播しなかった。`tests/test_step7_capacity.py::test_e2e_cap_hard_causes_leaf_shortfall`（MOM cap_hardがleaf shortfallを引き起こすことを検証する既存の合格テスト）と突き合わせたところ、v1r0m4のLot_ID identity-matching方式導入以降、DAD/leaf_outの`psi4supply[w][S]`は**意図的に**需要アンカー型（demand-anchored）のままで欠品を表示しない設計になっており、真の欠品は`psi4supply[w][CO]`（このモデルでは常に1506で凍結して見えた）や`ForwardPlanner._actual_s`（GUIには一切露出しない内部dict）を見る必要があることが判明。ただし本モデルでCOが本当に「凍結」しているのか、単に立ち上がり期の在庫ゼロに起因する既存の恒常的バックログ（52週デモランプ後も残る）に埋もれて見えないだけなのか、そこの切り分けは未完了。
+3. **次回セッションでの検討候補**: (a) `ForwardPlanner._actual_s`をCO同様にGUI/CSVエクスポート対象に含めるかどうかの検討、(b) 本モデルのCO=1506が実際に閉鎖期間中増加しているのか純粋なフローズンバックログなのかを、小規模な合成ツリーで切り分けて確認、(c) cap_hard=0.0の意味の曖昧さ（「未設定」 vs 「意図的な全停止」）を解消する設計変更の要否検討。
+
+**現時点の記事化方針**: Refinery_Outageのダウンストリーム欠品可視化は保留とし、クラックスプレッド圧縮とタンカー安全在庫バッファの2本柱でnote記事を書き進める（大杉さんとの合意、2026-07-07）。
+
+---
+
+### World Map: SKUフィルタ + sc_tree_master.csvベースの実エッジ描画（`WorldMapPanel`、完了、2026-07-07）
+
+oil-global-2027モデルをWorld Mapで確認した際、大杉さんから「北米・欧州・東南アジア・中国・アフリカ・ロシア・インドのようにGlobal Main Marketが増えると、地図が真っ黒になって判別できなくなるのでは？SKUでフィルタリングするのか？」という指摘があり、実際に調査したところ2つの根本的な制約が見つかった。
+
+**発見した制約**:
+1. `WorldMapPanel`にはSKU/region/node_typeいずれのフィルタ機構も一切存在しなかった（`node_master.csv`に`sku_id`列はあり読み込まれてはいたが、`_on_marker_click`の情報表示にしか使われておらず、フィルタリングには未配線だった）。
+2. 線（ルート）の描画が`sc_tree_master.csv`の実際の親子関係を一切見ておらず、`_MAP_LINKS`という固定の`node_type`総当たりペア（procurement→sku_supplier→mother_plant→region_dc→marketing）で機械的に引かれていた。これはSKU・地域が増えるほどノード数×ノード数で線の本数が爆発し、かつ本来繋がっていないノード同士にも線を引いてしまう設計だった。
+
+**修正内容**（`wom/gui/app.py` `WorldMapPanel`クラス）:
+- コントロールバーに「SKU:」ドロップダウン（`_map_sku_var`/`_map_sku_cb`、Managementタブの`_sku_var`と同じパターン）を追加。
+- `load_default(csv_path, sc_tree_path="")`に`sc_tree_path`引数を追加し、3箇所の呼び出し元（`_load_model_folder`、`_on_simulation_done`、`_on_planning_done`）すべてで`sc_tree_master.csv`のパス（`self._f_sc_tree`またはフォルダ内の同名ファイル）も渡すように変更。
+- 新設`_load_sc_tree_edges()`: `sc_tree_master.csv`を読み込み、`node_name`/`parent_node`列から実際の親子エッジ（`self._sc_edges`）と`product_name → {node_id}`のマップ（`self._product_nodes`）を構築。**重要な注意点**: `sc_tree_master.csv`の`node_name`列は`node_master.csv`の`node_id`列と同じ短い識別子を指しており（`node_master.csv`自身の`node_name`列は人間可読な説明文で別物）、マッチングは`node_id`基準で行う必要がある。
+- `_draw_nodes()`: 選択中のSKUで`self._nodes`を絞り込み、エッジ描画も`self._sc_edges`（SKUで絞り込み可）ベースに変更。`sc_tree_master.csv`が渡されていない旧来モデルのために、`_MAP_LINKS`総当たり方式もフォールバックとして残した。`_fit_to_nodes()`（自動ズーム）も絞り込み後のノード集合に対して行うよう変更。
+- `_draw_animated_paths()`の背景の淡色ライン（アニメーション時の非アクティブエッジ表示）も同様に`_sc_edges`＋SKUフィルタベースに変更。
+
+**確認状況**: 大杉さんがGUIで実機確認（oil-global-2027の2 SKU、ev-europe-2026のEVmaker_Local、Cookie-jp-2026のCookie_Import/Local）。SKUフィルタ・実エッジ描画とも概ね良好に動作。
+
+**追加で見つかった不具合とその修正（同日）**: Cookie-jp-2026のCookie_Importで、北京クッキー工場（`Factory_GP_CN`、mom）が日本側のDC/店舗クラスタ（`SP_Cookie_Import`以下、supply_point側）と地図上で線が繋がっていないことが判明。原因は、`sc_tree_master.csv`にはInBound側のmom rootとOutBound側のsupply_point rootの間に`parent_node`列の関係が一切無い（両方とも`parent_node=""`の独立したroot行）ため——CLAUDE.mdのSCTree図で「Bridge」と書かれている部分は、CSV上の親子関係ではなく**エンジンが実行時に`product_name`一致で内部的に繋いでいるだけ**（`forward_planner.py`のPhase 2ブリッジ、`_actual_s`経由）で、`_load_sc_tree_edges()`はCSVの`parent_node`列しか見ていなかったため、このブリッジ区間だけ線が抜け落ちていた。EV/Oilモデルではmom側とsupply_point側の拠点がすべて同じ国・近距離に固まっていたため気づかれなかったが、Cookie_Import（中国工場↔日本市場、地理的に大きく離れている）で初めて可視化されて発覚。
+**修正**: `_load_sc_tree_edges()`に、各`product_name`ごとの`mom` root（複数可、Multi-MOM対応）と`supply_point` root を集計し、`mom_root → supply_point_root`という合成エッジを追加する処理を追加。
+
+**次回セッションでの確認候補**: 上記修正後の再確認（Cookie_Importで北京工場↔日本市場の線が繋がるか）はまだ大杉さんに見てもらえていない。iPhone Global SC（Multi-MOM、`Buffer_Wafer_TW`のPUSH/PULLブレークポイント）でも正しく複数mom→supply_pointのブリッジ線が引かれるか確認する価値がある。
+
+---
+
+### 第5回note記事: Hormuz海峡封鎖 vs Red Sea代替ルート比較（`data/sample/oil-global-2027/`拡張、新規2 SKU追加、完了、2026-07-07）
+
+大杉さんの提案：「ホルムズ海峡封鎖前の正規ルート(サウジ→ホルムズ海峡経由タンカー)と、封鎖後の緊急ルート(サウジ内陸パイプライン→紅海経由タンカー)を、SKU_nameレベルで`_normal`/`_alt`のように分けて定義し、使わない期間はdemandを0にすれば比較できるのでは」という設計案を採用。さらに「切替の瞬間にTank在庫が消化されずに凍結される」という当初の懸念に対し、「生産STOP後も+4週間分はdemandを継続させ、Tank在庫を自然に消化させる」という改善案も採用。加えて「1 lot = 平均的な原油タンカー1隻分」という物理単位でlot粒度を再定義する提案があり、Crude_ME→Refinery_Localの原油輸送レグに限定して採用（小売側は既存の抽象lot単位を維持、というスコープ限定は大杉さんの了承のもと今回はClaude側の判断で決定）。
+
+**モデル構造**（既存の`Gasoline_Local`/`Gasoline_Import`とは完全に独立な、追加の2 SKU）:
+```
+Gasoline_Local_Hormuz: Crude_ME_Hormuz(leaf_in, ラスタヌラ想定 26.70/50.20, lt_wks=3)
+                          → Refinery_Local_H(mom, 千葉近郊, cap_hard=8lot/wk→W15以降1lot/wk)
+                          → Tank_Local_H(dad, ss_days=28[4週間の戦略備蓄], buffering_stock_flag=1)
+                          → Retail_Local_H_KANTO/KANSAI/CHUBU(leaf_out)
+
+Gasoline_Local_RedSea:  Crude_ME_RedSea(leaf_in, ヤンブー想定 24.09/38.06, lt_wks=5)
+                          → Refinery_Local_R(mom, 千葉近郊, cap_hard=5lot/wk終始一定)
+                          → Tank_Local_R(dad, ss_days=28, buffering_stock_flag=1)
+                          → Retail_Local_R_KANTO/KANSAI/CHUBU(leaf_out)
+```
+Refinery_Local_H/RはCLAUDE.mdの既存記法通り「同一の物理拠点だが別SKU＝別ノードとして複製」というCookie/EVで確立済みのパターンを踏襲（1ノードを複数productで共有する仕組みは未検証のため踏み込まなかった）。
+
+**lot粒度**: 1 lot = 100,000 bbl 原油換算（≈15,900 kL）。VLCCではなくSuezmaxクラスの部分カーゴを想定（Red Sea/紅海ルートは喫水制限でVLCCが使えないため、より現実的）。この結果、ppc_supplier_cost/ppc_market_price/ppc_node_cost_ruleの金額は既存Local/Import SKU（kL単位相当、lotあたり数万〜十数万円）と比べて桁違いに大きい（crude供給コスト≈$7.8M〜8.5M/lot、小売価値換算で≈27億円/lot）。これは意図的な設計で、実際のタンカー規模の原油貿易金額を反映した結果であり、モデルの誤りではない旨をCSVのdescription列とここに明記。
+
+**需要のchoreography**（週次lot数、KANTO=4/KANSAI=2/CHUBU=2=計8lot/wk基準）:
+- W01-W14: Hormuz側=フル稼働(8/wk)、RedSea側=0（休眠）
+- W15（ホルムズ海峡封鎖発生）: Refinery_Local_Hのcap_hardが8→1に低下（`holiday_calendar.csv`の`supply_closure`、cap_hard=0.0の意味論的曖昧さ問題を回避するため既存Refinery_Outageと同じ「0ではなく小さい正の値」ワークアラウンドを踏襲）
+- W15-W18（4週間のtail）: Hormuz側demandは1.0→0.75→0.5→0.25と逓減させ、Tank_Local_Hの4週間分バッファ在庫を自然に消化。RedSea側demandは0→0.25→0.5→0.75と逆に立ち上げ、両者の合計が概ね一定（総需要は変わらない）になるよう設計
+- W19以降: Hormuz側demand=0（ルート放棄）。RedSea側demandは封鎖前と同じフル目標値(8/wk)に設定——ただしRefinery_Local_Rのcap_hardは5/wkで頭打ちのため、意図的に「需要が供給能力を恒常的に上回る」状態を作り、紅海パイプラインの物理的な容量制約（正規ルートの約6割程度しか代替できない）を表現
+
+**検証結果**（`run_oil_headless.py`拡張トレースで確認）:
+- Refinery_Local_Hのcap_hardは想定通りW14の8からW15以降1に切り替わる（既存のRefinery_Local Maintenanceパターンと同じ、信頼できる挙動）。
+- Tank_Local_Hのpsi4supply[w][S]はW15-W18で8→6→4→2→0と滑らかに逓減し、[I]も12→6→2→0と減少——「供給停止後も在庫を使い切りながら緩やかにゼロへ収束する」という設計意図通りの挙動を確認。
+- Refinery_Local_Rはcap_hard=5固定のもとdemand.P/supply.Pともに5で安定（BackwardPlannerの`_apply_mom_cap_backward`がMOM側で先にcapへクリップするため、demand.P自体が5に収まる——「demand.P vs supply.Pのギャップ」で資源制約を可視化する当初の想定とは異なる形になったが、代わりに下流のTank_Local_RのCOが可視化の役割を果たした）。
+- **重要な発見**: Tank_Local_RのCOは、W25=2 → W30=17 → W40=47 → 2028-W01=86 と週を追うごとに単調増加した。これは今回のシナリオが「恒久的な構造的供給不足」（RedSeaのcap_hard=5がW19以降ずっと需要8を下回り続ける）であるため。Refinery_Outageで見られた「CO凍結」現象（2026-07-07の別セクション参照）は**一時的な閉鎖**（2週間）だった場合に限られる観察だった可能性が高く、**恒久的な供給不足の場合はCOが正しく・視覚的にも成長し続けることを確認**。これはCO凍結問題の完全解明ではないが、少なくとも「今回のRedSeaシナリオでは実用上問題なく資源制約の帰結を可視化できる」ことが実証された。記事化においては、このCO成長カーブ（週次3lotずつ積み上がる未充足需要）が「ホルムズ海峡封鎖の恒久的コスト」を定量的に語る主要な数値になる。
+- PPC/Node P&L（`ppc_node_pl_summary.csv`）でもCrude_ME_Hormuz/RedSea・Refinery_Local_H/R・Tank_Local_H/Rそれぞれにコストが正しく計上されることを確認（Crude_ME_Hormuz総コスト≈573億円 vs Crude_ME_RedSea総コスト≈2,436億円、稼働期間の違い[Hormuzは約2週間強、RedSeaは約63週間]を反映した妥当な比率）。
+
+**確認状況（2026-07-07、追記）**: 大杉さんがGUIのNetworkタブでGasoline_Local_Hormuz/Gasoline_Local_RedSeaの両方を確認。`Retail_Local_H_CHUBU`（Hormuz、閉鎖後Sが0に落ちる波形）、`Retail_Local_R_CHUBU`（RedSea、W15付近でSが立ち上がる波形）とも正しく需要切替の様子が可視化されていることを確認済み。RedSea側の追加動作確認は大杉さんが引き続き実施中。
+
+**未対応・次回検討事項**:
+- Refinery_Local_H/Refinery_Local_Rを本当に「同一物理拠点」として1ノード共有で表現できないか（BOM的な複数leaf_inパターンとは意味が異なる、真の「代替ルート」ケースでの1ノード共有の可否）は未検証のまま。
+- 北米市場（自国産シェールオイル中心、輸入依存度が低い市場）を3市場目として追加するかどうかは、大杉さんとの合意通りまだ未着手（日本市場+Hormuz/RedSea拡張を優先）。
+- World Mapでの表示確認（Gasoline_Local_Hormuz/Gasoline_Local_RedSeaをSKUフィルタで選択した際、Crude_ME_Hormuz(ラスタヌラ)とCrude_ME_RedSea(ヤンブー)が地理的に異なる地点として正しく描画されるか）は未確認——次回GUI起動時に確認する価値がある。
+- `gen_oil_model.py`/`gen_oil_model_eu_patch.py`/`run_oil_headless.py`は引き続き`/sessions`側のスクラッチ領域にのみ存在し、リポジトリ未コミット（既出の「手動probeスクリプトが毎回消えている」問題、今回も未解消）。
+
+---
+
+### 第5回note記事: 欧州市場（`data/sample/oil-global-2027/`拡張、新規2 SKU追加、完了、2026-07-07）
+
+日本市場（中東原油+シンガポール輸入）に続く2市場目として、欧州市場を追加。既存の`Gasoline_Local`/`Gasoline_Import`/`Gasoline_Local_Hormuz`/`Gasoline_Local_RedSea`はすべて無変更のまま、追加で`Gasoline_EU_Local`/`Gasoline_EU_Import`という2つの独立SKUを新設した（日本市場と同じ「域内精製 vs 越境輸入」の対比構造を踏襲、lotは既存Local/Importと同じ抽象kL単位——Hormuz/RedSeaのタンカー単位とは異なる）。
+
+**モデル構造**:
+```
+Gasoline_EU_Local:  Crude_ME_EU(leaf_in, カタール沖想定 25.30/51.50, lt_wks=3)
+                       → Refinery_EU(mom, ロッテルダム近郊 51.95/4.14, cap_hard=650/wk→W25-27ストライキで25/wk)
+                       → Tank_EU_Local(dad, ss_days=7, buffering_stock_flag=0)
+                       → Retail_EU_DE/FR/NL(leaf_out)
+Gasoline_EU_Import: Refinery_US(leaf_in, テキサス湾岸想定 29.75/-95.36, lt_wks=3)
+                       → Import_Hub_EU(mom, ロッテルダム・Europoort想定 51.95/4.10)
+                       → Tank_EU_Import(dad, ss_days=21, buffering_stock_flag=1)
+                       → Retail_EU_Import_DE_I/FR_I(leaf_out)
+```
+日本市場は「地政学リスク（ホルムズ海峡封鎖）」がテーマだったのに対し、欧州市場は意図的に異なる撹乱要因として**労働ストライキ**（`holiday_calendar.csv`、Refinery_EU、2027-W25〜W27の3週間、cap_hard 650→25）を採用——フランスの製油所ストライキが実際に繰り返し発生している現実を踏まえた選択。通貨もEUR建て（`ppc_fx_rate.csv`にEUR/JPY=163.0を追加）で日本市場のJPY/USDとは独立させ、原油・輸入品のUSD建て価格とEUR建て小売価格の両方が同一モデル内に混在する構成とした。
+
+**検証結果**（`run_oil_headless.py`拡張、全6 SKU: Gasoline_Local/Import/Local_Hormuz/Local_RedSea/EU_Local/EU_Importを同一パイプラインで一括実行）:
+- Refinery_EUのcap_hardはW24以前650、W25-27で25、W28以降650に正しく復帰。demand.P/supply.Pともにcap_hardに追従（gapなし）——既存のRefinery_Local Maintenance・Refinery_Local_H Hormuz closureと同じ、信頼できるパターンで機能することを確認。
+- PPC実行後、`ppc_node_pl_summary.csv`にCrude_ME_EU/Refinery_EU/Tank_EU_Local/Refinery_US/Import_Hub_EU/Tank_EU_Importそれぞれの費用、Retail_EU_DE/FR/NL・Retail_EU_Import_DE_I/FR_Iの収益が正しく計上されることを確認（EUR建て金額がppc_fx_rate経由でJPYベース金額に変換されている）。
+- Tank_EU_LocalのCOは大きく増加し続ける値（W10=1907→W40=5372）が観測されたが、Refinery_EUのdemand.P/supply.Pにgapが無い（cap_hardに起因する新規の欠品ではない）ことから、これは日本市場のGasoline_Local/Tank_LocalでもすでにCLAUDE.mdに記録済みの「起動ランプ期由来のCO凍結」現象と同種のものである可能性が高い。ストライキ固有の追加欠品ではなく、モデル全体の既知の未解明事象（前セクション参照）に帰着すると考えられ、今回は深追いしていない。
+
+**未対応・次回検討事項**:
+- `gen_oil_model.py`本体と`gen_oil_model_eu_patch.py`（欧州追加分、行追記パッチとして別ファイル化）の2スクリプトを順番に実行する必要がある構成になっている。将来的に1本化する価値があるが、今回はマージ時の事故リスクを避けるため分離のまま。
+- World Mapでの表示確認（Refinery_EU/Crude_ME_EU/Refinery_USが地理的に正しい位置——ロッテルダム、カタール沖、テキサス湾岸——に描画されるか）は未確認。
+
+---
+
+### 第5回note記事: 米州市場（`data/sample/oil-global-2027/`拡張、新規2 SKU追加、完了、2026-07-07）
+
+日本市場・欧州市場に続く3市場目として、米州市場を追加。既存4 SKU（Gasoline_Local/Import/Local_Hormuz/Local_RedSea）・欧州2 SKU（Gasoline_EU_Local/Import）はすべて無変更のまま、追加で`Gasoline_US_Local`/`Gasoline_US_Import`という2つの独立SKUを新設した（`gen_oil_model_us_patch.py`、既存CSVへの行追記パターンをEUパッチと同様に踏襲）。lotは既存Local/Import/EUと同じ抽象kL単位。通貨はUSD（既存の`ppc_fx_rate.csv`のUSD/JPY行をそのまま再利用、新規FXペア追加不要）。
+
+**モデル構造**:
+```
+Gasoline_US_Local:  Shale_Permian(leaf_in, パーミアン盆地想定 31.80/-102.00, lt_wks=1[国内短距離])
+                       → Refinery_USGulf(mom, テキサス湾岸想定 29.75/-95.36, cap_hard=900/wk→W35-36ハリケーンで45/wk)
+                       → Tank_US_Local(dad, ss_days=7, buffering_stock_flag=0)
+                       → Retail_US_TX/CA/NY(leaf_out)
+Gasoline_US_Import: OilSands_Alberta(leaf_in, アルバータ州想定 56.70/-111.40, lt_wks=2[パイプライン])
+                       → Import_Hub_US(mom, クッシング原油ハブ想定 35.98/-96.77, lt_wks=1)
+                       → Tank_US_Import(dad, ss_days=14, buffering_stock_flag=1)
+                       → Retail_US_Import_MW_I/NE_I(leaf_out)
+```
+
+**日本・欧州との差別化ポイント（3市場の物語構造）**:
+- 日本＝地政学リスク（ホルムズ海峡封鎖、数ヶ月単位の恒久的迂回）
+- 欧州＝労働争議（製油所ストライキ、3週間の一時的closure）
+- 米州＝自然災害（メキシコ湾岸ハリケーン、`holiday_calendar.csv`のW35-36に2週間のcap_hard急減 900→45、実際のハリケーン・ハービー/アイダ等でメキシコ湾岸製油所が繰り返し停止してきた現実を踏まえた選択）
+
+さらに米州市場は構造自体が日本・欧州と異なり、**需要の約90%をLocal（国内シェールオイル）が占め、Importは約10%（カナダ産オイルサンド、パイプライン輸送）に留まる**設計とした（`demand_forecast.csv`のbase値: Local=TX450+CA300+NY150=900、Import=MW_I60+NE_I40=100）。日本（Local 570 : Import 130 ≈ 81:19）・欧州（Local 680 : Import 160 ≈ 81:19）と比べて明確に輸入依存度が低く、「自国産資源を持つ市場は地政学リスクに対して構造的に強い」という対比を打ち出せる。また調達コストもOilSands_Alberta（$350/lot）がShale_Permian（$450/lot）より安値設定——WTI対比のカナダ産原油ディスカウント（Western Canadian Select）という実際の市場現象を反映しつつ、USMCA下でCanada→US間は無関税（tariff_rate=0.0、欧州のUS→EU関税2%・日本のSG→JP実質関税3%と対照的）とした。
+
+**検証結果**（`run_oil_headless.py`拡張、全8 SKU一括実行）:
+- Refinery_USGulfのcap_hardはW34以前900、W35-36で45、W37以降900に正しく復帰。Tank_US_LocalのIもW34の870からW36に45まで急落し、W38には843まで回復——ハリケーンによる「急激・短期・深刻」な供給ショックが、欧州のストライキ（3週間、6割減）や日本の恒久封鎖よりもさらに鋭い落ち込みとして可視化されることを確認（cap_hardの下げ幅が900→45と実質95%減のため）。
+- W37（closure翌週）でdemand.P=0・supply.P=900という一時的な不整合が観測されたが、これは既存のRefinery_Local Maintenance検証時にも見られた回復直後の一時的スナップショット挙動と同種と考えられ、新規のバグではない可能性が高い（深追いはしていない）。
+- Node P&L（`ppc_node_pl_summary.csv`）でShale_Permian/Refinery_USGulf/Tank_US_Local・OilSands_Alberta/Import_Hub_US/Tank_US_Importそれぞれのコスト、Retail各chの収益が正しく計上されることを確認。
+- サニティチェック: 2027-W20時点のLocal合計972 lots/wk・Import合計108 lots/wkで、設計通り約90:10の比率を維持していることを確認。
+
+**未対応・次回検討事項**:
+- `gen_oil_model.py`本体・`gen_oil_model_eu_patch.py`・`gen_oil_model_us_patch.py`の3スクリプトを順番に実行する必要がある構成（既出のマージ保留方針を踏襲）。
+- World Mapでの表示確認（Refinery_USGulf/Shale_Permian/OilSands_Albertaが地理的に正しい位置——テキサス湾岸、パーミアン盆地、アルバータ州——に描画されるか）は未確認。
+- これで日本・欧州・米州の3市場体制が完成。記事化の段階に進む場合、3市場の対比表（地政学 vs 労働 vs 自然災害、輸入依存度の違い）が構成の軸になる見込み。
+
+---
+
+### 第5回note記事: 「外側シナリオレイヤー」構想とOPEC+協調減産シナリオの実装（`data/sample/oil-global-2027/`拡張、新規エンジンコード無し、完了、2026-07-07）
+
+大杉さんから「Global Oil Caseの需給バランスのポイントはどこにあるのか？OPEC+・BP・エクソンのようなメジャーが、価格を高値維持しつつ需要破壊を招かない匙加減で供給を調整している、というイメージでは？」という指摘があり、現状のoil-global-2027モデルには**その戦略的・双方向フィードバック（供給調整→価格→需要破壊）が一切実装されていないこと**を確認・共有した。WOMのPlanning Engine（BackwardPlanner/ForwardPlanner）は「需要予測と生産能力を与えられたらその通りに計画する」決定論的エンジンであり、価格弾力性つきの経済均衡ソルバーではないため、本格的な双方向ループをエンジン内部に実装するのはスコープ外と判断。
+
+大杉さんの提案：「WOMの内部に新機能を実装するのではなく、WOMの外側にGlobal Oil Production and Priceのシナリオをセットするpluginを用意する。OPEC+シナリオ、BPシナリオ、エクソン・シナリオなど、各プレイヤーが何を目指すかをシナリオとして記述し、WOMの外側に定義できるのではないか」。これを採用し、**エンジンを一切変更せず、既存の`gen_oil_model*.py`パターン（CSV生成スクリプト）を拡張する形でOPEC+シナリオを1本、具体的に実装した**（`gen_oil_model_opec_patch.py`）。
+
+**設計**: WOMの既存Pluginシステム（`HookBus`、`HOOK_PRE_PLAN`等）はエンジンの「内側」で`sc_tree`を直接操作する仕組みだが、今回の「外側シナリオレイヤー」はその手前、WOMが読み込む入力CSV（`holiday_calendar.csv`／`ppc_supplier_cost.csv`／`demand_forecast.csv`）を生成する外部スクリプトとして実装した。WOM本体（BackwardPlanner/ForwardPlanner/PPC/HolidayCalendarPlugin）は一切無変更。
+
+**シナリオ内容**（既存のGasoline_Local/Gasoline_EU_Localに追加データを重ねる形、新SKUは追加しない）:
+1. **OPEC+協調減産**: `holiday_calendar.csv`に`Refinery_Local`（Gasoline_Local）と`Refinery_EU`（Gasoline_EU_Local）の同時cap_hard削減行を追加（2027-W45〜W50の6週間、650→500、約23%減産）。両方ともCrude_ME系（中東原油）を調達源とする2市場を同時に絞ることで「OPEC+の協調行動」を表現。
+2. **価格スパイクと恒久的な価格フロア上昇**: `ppc_supplier_cost.csv`にCrude_ME/Crude_ME_EUの価格行を追加（減産開始と同時に$680/$690へスパイク、減産終了後の2028-W01に$540/$550へ部分的に緩和——ただし元の水準$500/$510より高い「恒久的に切り上がった床」として着地させ、日本市場のRedSeaシナリオで確認済みの「一時的措置が恒久コストに転化する」パターンを踏襲）。
+3. **非OPEC+のスイング供給者としての米国シェール**: `holiday_calendar.csv`に`Refinery_USGulf`（Gasoline_US_Local）のcap_hard**増加**行を追加（OPEC+減産開始から2週遅れの2027-W47〜2028-W02、900→1000、約11%増産）。HolidayCalendarPluginの`supply_closure`エフェクトはcap_hardを指定値に単純上書きするだけの仕組みのため、より高い値を指定すれば増産としても機能することを確認——エフェクト名は「閉鎖」だが実体は汎用cap_hard上書きである点に注意。
+4. **遅行する需要破壊**: `demand_forecast.csv`のGasoline_Local（KANTO/KANSAI/CHUBU）・Gasoline_EU_Local（DE/FR/NL）の既存デマンド行を、価格スパイクから5〜7週遅れて効いてくる需要減少係数（1.00→0.85まで4週かけて低下、4週間トラフを維持、その後4週かけて1.00へ回復）で直接書き換え。これは本セッション初の「既存デマンド行を後から係数で書き換える」パターン（他は全て新規行の追記のみだった）。
+
+**実装時のバグと修正**: 最初の実装では減産開始週（2027-W45）から起算して「+8週目=2027-W53」のように単純に西暦年+週番号の文字列を組み立てたが、**2027年はISO週が52週しかなく、53週目は「2027-W53」ではなく「2028-W01」にロールオーバーする**ため、存在しない週ラベルを`demand_forecast.csv`の書き換えに使ってしまい、84行が調整されるべきところ18行しか一致しなかった（サイレントに大半のデータが素通りするバグ）。`week_list()`関数の出力を実際に確認して正しいラベル（2028-W01〜2028-W11）に修正し、全CSVを`gen_oil_model.py`→`gen_oil_model_eu_patch.py`→`gen_oil_model_us_patch.py`→`gen_oil_model_opec_patch.py`の順でクリーンに再生成することで解消した。**次回、週番号を跨ぐ期間指定を行う際は`week_list()`の実出力を必ず確認すること。**
+
+**検証結果**（`run_oil_headless.py`拡張、全8 SKU一括実行）:
+- Refinery_Local/Refinery_EUのcap_hardはW45-50でともに650→500に正しく低下、W51で650に復帰（demand.P/supply.Pともに追従、Refinery_EU側はgapなしのクリーンな復帰、Refinery_Local側はW51直後に既知の一時的スナップショット不整合あり——他の閉鎖イベントでも見られる既存パターンで新規バグではない）。
+- Refinery_USGulf（非OPEC+シェール）のcap_hardは2027-W47（OPEC+減産開始の2週後）に900→1000へ上昇し2028-W02まで持続、2028-W03に900へ復帰——「OPEC+減産に対して、コストが低く機動力のある非加盟プレイヤーが遅れて増産で応答する」という設計意図通りの挙動を確認。
+- Retail_Local_KANTOのdemand.Sは、2027-W51=280 → 2028-W04=247（トラフ、-12%程度）→ 2028-W13=316（回復、季節要因も加わり元水準を上回る）と、価格スパイクに遅行する形で明確な需要破壊カーブを描くことを確認。
+- Crude_ME/Crude_ME_EUの価格系列も設計通り：$500(W01)→$650(W20)→$520(W31)→$680(W45、OPEC+スパイク)→$540(2028-W01、部分緩和・恒久的に切り上がった床)。Crude_ME_EUも同様に$510→$690→$550。
+
+**確認できたこと（大杉さんの問いへの回答）**: 「WOMのエンジンを変えずに、外側のシナリオ生成スクリプトだけでOPEC+的な戦略的供給管理（協調減産・価格スパイク・非加盟プレイヤーのスイング供給・遅行する需要破壊）を一通り表現できる」ことを実証した。これはWOM本体の疎結合設計（`holiday_calendar.csv`・`ppc_supplier_cost.csv`・`demand_forecast.csv`という素直なCSVインターフェース）のおかげであり、既存のHookBus Plugin（エンジン内部）とは異なる、もう一段外側の「シナリオレイヤー」として明確に区別できる設計であることが確認できた。
+
+**未対応・次回検討事項**:
+- 今回はOPEC+シナリオ1本（Crude_ME/Crude_ME_EUのみ）に限定。Gasoline_Import/Gasoline_EU_Import（シンガポール・米国精製品）やGasoline_US_Local/Import（シェール・カナダ産）への波及（グローバル原油価格上昇が間接的に全SKUへ波及する効果）は意図的に対象外とした。
+- BP/エクソンのような「個別メジャーのプレイヤーシナリオ」や、複数プレイヤーの意思決定が絡む汎用フレームワーク化（価格バンド・反応ルール・弾力性パラメータを設定ファイル化する等）は、今回は見送り、大杉さんとの合意通り「まず1本の具体例を作る」を優先した。汎用化する場合の設計候補は、プレイヤーごとの価格バンド・供給反応ルール・需要弾力性パラメータを定義し、それらから週次CSVを計算する小さな「シナリオコンパイラ」を作ること。
+- `gen_oil_model_opec_patch.py`も引き続き`/sessions`側のスクラッチ領域にのみ存在し、リポジトリ未コミット。
+
+---
+
 ## v1r0m2 実装済み機能（新しいClaude君へ）
 
 ### JIT週次同期：cap_hard envelope in `_in_propagate`（commit 7a22648）【v1r0m3で廃止】

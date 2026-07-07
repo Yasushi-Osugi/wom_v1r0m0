@@ -1,0 +1,13 @@
+scenario,src_region,dst_region,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
+Base,JP,JP,0.0,1.0,JPY,JPY,0,国内：製油所/輸入基地→販売、国内輸送費はnode_cost側で計上
+Base,SG,JP,0.03,150.0,USD,JPY,20,標準：シンガポール精製品→日本 石油石炭税等相当3%+タンカー輸送費$20/kL
+StraitRisk,JP,JP,0.0,1.0,JPY,JPY,0,国内変化なし
+StraitRisk,SG,JP,0.03,150.0,USD,JPY,35,主要航路混雑・迂回想定：輸送費+75%（$20→$35/kL）
+Base,EU,EU,0.0,1.0,EUR,EUR,0,EU域内：製油所→販売、域内輸送費はnode_cost側で計上
+Base,US,EU,0.02,0.92,USD,EUR,22,標準：米国湾岸精製品→欧州 EU輸入関税相当2%+タンカー輸送費$22/kL
+StrikeRisk,EU,EU,0.0,1.0,EUR,EUR,0,EU域内変化なし
+StrikeRisk,US,EU,0.02,0.92,USD,EUR,22,欧州製油所ストライキ時も米国輸入ルート自体は平時と変わらず
+Base,US,US,0.0,150.0,USD,JPY,0,米国内：製油所→販売、国内輸送費はnode_cost側で計上
+Base,CA_PROV,US,0.0,150.0,USD,JPY,8,標準：カナダ産オイルサンド→米国 USMCA下で無関税、パイプライン輸送費$8/kL（タンカーよりも割安）
+HurricaneRisk,US,US,0.0,150.0,USD,JPY,0,米国内変化なし（ハリケーンは製油所稼働自体を止めるためnode capacity側で表現）
+HurricaneRisk,CA_PROV,US,0.0,150.0,USD,JPY,8,パイプラインルート自体はハリケーンの影響を受けない

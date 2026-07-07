@@ -1,0 +1,9 @@
+mom_node,product_id,method,margin_rate,fixed_price,currency
+Refinery_Local,Gasoline_Local,fixed,0.0,105000.0,JPY
+Import_Hub,Gasoline_Import,fixed,0.0,95000.0,JPY
+Refinery_Local_H,Gasoline_Local_Hormuz,fixed,0.0,1670000000.0,JPY
+Refinery_Local_R,Gasoline_Local_RedSea,fixed,0.0,1670000000.0,JPY
+Refinery_EU,Gasoline_EU_Local,fixed,0.0,700.0,EUR
+Import_Hub_EU,Gasoline_EU_Import,fixed,0.0,650.0,EUR
+Refinery_USGulf,Gasoline_US_Local,fixed,0.0,620.0,USD
+Import_Hub_US,Gasoline_US_Import,fixed,0.0,480.0,USD

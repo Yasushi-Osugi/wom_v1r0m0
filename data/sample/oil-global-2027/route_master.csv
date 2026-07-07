@@ -1,0 +1,16 @@
+sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
+Gasoline_Local,KANTO,JP,JP,271012,refined_petroleum,0
+Gasoline_Local,KANSAI,JP,JP,271012,refined_petroleum,0
+Gasoline_Local,CHUBU,JP,JP,271012,refined_petroleum,0
+Gasoline_Import,KANTO_I,SG,JP,271012,refined_petroleum,0
+Gasoline_Import,KANSAI_I,SG,JP,271012,refined_petroleum,0
+Gasoline_EU_Local,DE,EU,EU,271012,refined_petroleum,0
+Gasoline_EU_Local,FR,EU,EU,271012,refined_petroleum,0
+Gasoline_EU_Local,NL,EU,EU,271012,refined_petroleum,0
+Gasoline_EU_Import,DE_I,US,EU,271012,refined_petroleum,0
+Gasoline_EU_Import,FR_I,US,EU,271012,refined_petroleum,0
+Gasoline_US_Local,TX,US,US,271012,refined_petroleum,0
+Gasoline_US_Local,CA,US,US,271012,refined_petroleum,0
+Gasoline_US_Local,NY,US,US,271012,refined_petroleum,0
+Gasoline_US_Import,MW_I,CA_PROV,US,271012,refined_petroleum,0
+Gasoline_US_Import,NE_I,CA_PROV,US,271012,refined_petroleum,0

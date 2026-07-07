@@ -1,0 +1,9 @@
+edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
+Refinery_Local->Tank_Local,JP,JP,Gasoline_Local,271012,0.0,transfer_price
+Import_Hub->Tank_Import,SG,JP,Gasoline_Import,271012,0.03,transfer_price
+Refinery_Local_H->Tank_Local_H,JP,JP,Gasoline_Local_Hormuz,271012,0.0,transfer_price
+Refinery_Local_R->Tank_Local_R,JP,JP,Gasoline_Local_RedSea,271012,0.0,transfer_price
+Refinery_EU->Tank_EU_Local,EU,EU,Gasoline_EU_Local,271012,0.0,transfer_price
+Import_Hub_EU->Tank_EU_Import,US,EU,Gasoline_EU_Import,271012,0.02,transfer_price
+Refinery_USGulf->Tank_US_Local,US,US,Gasoline_US_Local,271012,0.0,transfer_price
+Import_Hub_US->Tank_US_Import,CA_PROV,US,Gasoline_US_Import,271012,0.0,transfer_price

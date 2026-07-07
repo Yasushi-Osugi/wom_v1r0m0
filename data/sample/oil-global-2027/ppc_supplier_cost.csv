@@ -1,0 +1,17 @@
+supplier_node,product_id,week,purchase_price,currency
+Crude_ME,Gasoline_Local,2027-W01,500,USD
+Crude_ME,Gasoline_Local,2027-W20,650,USD
+Crude_ME,Gasoline_Local,2027-W31,520,USD
+Refinery_SG,Gasoline_Import,2027-W01,550,USD
+Refinery_SG,Gasoline_Import,2027-W20,700,USD
+Refinery_SG,Gasoline_Import,2027-W31,570,USD
+Crude_ME_Hormuz,Gasoline_Local_Hormuz,2027-W01,7800000,USD
+Crude_ME_RedSea,Gasoline_Local_RedSea,2027-W01,8500000,USD
+Crude_ME_EU,Gasoline_EU_Local,2027-W01,510,USD
+Refinery_US,Gasoline_EU_Import,2027-W01,560,USD
+Shale_Permian,Gasoline_US_Local,2027-W01,450,USD
+OilSands_Alberta,Gasoline_US_Import,2027-W01,350,USD
+Crude_ME,Gasoline_Local,2027-W45,680,USD
+Crude_ME,Gasoline_Local,2028-W01,540,USD
+Crude_ME_EU,Gasoline_EU_Local,2027-W45,690,USD
+Crude_ME_EU,Gasoline_EU_Local,2028-W01,550,USD

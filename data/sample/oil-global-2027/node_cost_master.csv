@@ -1,0 +1,54 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+Gasoline_Local,Crude_ME,77000,75000,中東原油 CIF価格（架空）baseline $500/lot*150JPY
+Gasoline_Local,Refinery_Local,105000,100000,国内製油所 精製+原油費（架空）
+Gasoline_Local,SP_Oil_Local,105000,105000,Supply Point pass-through
+Gasoline_Local,Tank_Local,108000,108000,貯油タンク+国内輸送 込み（架空）
+Gasoline_Local,Retail_Local_KANTO,170000,110500,関東 給油所 販売価格（架空）
+Gasoline_Local,Retail_Local_KANSAI,168000,110500,関西 給油所 販売価格（架空）
+Gasoline_Local,Retail_Local_CHUBU,172000,111000,中部 給油所 販売価格（架空）
+Gasoline_Import,Refinery_SG,85000,82500,海外精製済み完成品 FOB価格（架空）baseline $550/lot*150JPY
+Gasoline_Import,Import_Hub,95000,91500,輸入基地 受入+関税相当込み（架空）
+Gasoline_Import,SP_Oil_Import,95000,95000,Supply Point pass-through
+Gasoline_Import,Tank_Import,97500,97500,輸入貯油タンク+国内輸送 込み（架空）
+Gasoline_Import,Retail_Import_KANTO_I,165000,100000,関東 給油所 販売価格（輸入品・架空）
+Gasoline_Import,Retail_Import_KANSAI_I,163000,100000,関西 給油所 販売価格（輸入品・架空）
+Gasoline_Local_Hormuz,Crude_ME_Hormuz,1170000000,1170000000,"サウジ原油CIF（架空）baseline $78/bbl*100,000bbl*150JPY"
+Gasoline_Local_Hormuz,Refinery_Local_H,1670000000,1620000000,国内製油所 精製+原油費（架空）
+Gasoline_Local_Hormuz,SP_Oil_Local_H,1670000000,1670000000,Supply Point pass-through
+Gasoline_Local_Hormuz,Tank_Local_H,1710000000,1710000000,貯油タンク（戦略備蓄）+国内輸送 込み（架空）
+Gasoline_Local_Hormuz,Retail_Local_H_KANTO,2700000000,1750000000,関東 給油所 販売価格（架空）
+Gasoline_Local_Hormuz,Retail_Local_H_KANSAI,2670000000,1750000000,関西 給油所 販売価格（架空）
+Gasoline_Local_Hormuz,Retail_Local_H_CHUBU,2730000000,1760000000,中部 給油所 販売価格（架空）
+Gasoline_Local_RedSea,Crude_ME_RedSea,1275000000,1275000000,"サウジ原油CIF+パイプライン費（架空）baseline $85/bbl*100,000bbl*150JPY"
+Gasoline_Local_RedSea,Refinery_Local_R,1670000000,1720000000,国内製油所 精製+原油費（架空、割高な代替原油）
+Gasoline_Local_RedSea,SP_Oil_Local_R,1670000000,1670000000,Supply Point pass-through
+Gasoline_Local_RedSea,Tank_Local_R,1710000000,1710000000,貯油タンク（戦略備蓄）+国内輸送 込み（架空）
+Gasoline_Local_RedSea,Retail_Local_R_KANTO,2700000000,1850000000,関東 給油所 販売価格（架空）
+Gasoline_Local_RedSea,Retail_Local_R_KANSAI,2670000000,1850000000,関西 給油所 販売価格（架空）
+Gasoline_Local_RedSea,Retail_Local_R_CHUBU,2730000000,1860000000,中部 給油所 販売価格（架空）
+Gasoline_EU_Local,Crude_ME_EU,79000,76500,中東原油 CIF価格（欧州向け・架空）baseline $510/lot*150JPY相当（USD建て）
+Gasoline_EU_Local,Refinery_EU,1930,1780,欧州製油所 精製+原油費（架空、EUR建て）
+Gasoline_EU_Local,SP_Oil_EU_Local,1930,1930,Supply Point pass-through
+Gasoline_EU_Local,Tank_EU_Local,1945,1945,貯油タンク+域内輸送 込み（架空、EUR建て）
+Gasoline_EU_Local,Retail_EU_DE,1750,1960,ドイツ 給油所 販売価格（架空、EUR建て）
+Gasoline_EU_Local,Retail_EU_FR,1800,1965,フランス 給油所 販売価格（架空、EUR建て）
+Gasoline_EU_Local,Retail_EU_NL,1900,1970,オランダ 給油所 販売価格（架空、EUR建て）
+Gasoline_EU_Import,Refinery_US,86800,84000,米国湾岸産 精製済みガソリン FOB価格（架空）baseline $560/lot*150JPY相当（USD建て）
+Gasoline_EU_Import,Import_Hub_EU,705,655,輸入基地 受入+関税相当込み（架空、EUR建て）
+Gasoline_EU_Import,SP_Oil_EU_Import,705,705,Supply Point pass-through
+Gasoline_EU_Import,Tank_EU_Import,720,720,輸入貯油タンク+域内輸送 込み（架空、EUR建て）
+Gasoline_EU_Import,Retail_EU_Import_DE_I,1700,750,ドイツ 給油所 販売価格（輸入品・架空、EUR建て）
+Gasoline_EU_Import,Retail_EU_Import_FR_I,1720,752,フランス 給油所 販売価格（輸入品・架空、EUR建て）
+Gasoline_US_Local,Shale_Permian,67500,66000,パーミアン盆地シェール原油 調達価格（架空）baseline $450/lot*150JPY相当（USD建て）
+Gasoline_US_Local,Refinery_USGulf,930,830,米国湾岸製油所 精製+原油費（架空、USD建て）
+Gasoline_US_Local,SP_Oil_US_Local,930,930,Supply Point pass-through
+Gasoline_US_Local,Tank_US_Local,950,950,貯油タンク+国内輸送 込み（架空、USD建て）
+Gasoline_US_Local,Retail_US_TX,900,975,テキサス 給油所 販売価格（架空、USD建て）
+Gasoline_US_Local,Retail_US_CA,1050,980,カリフォルニア 給油所 販売価格（架空、州税込み高め・USD建て）
+Gasoline_US_Local,Retail_US_NY,950,978,ニューヨーク 給油所 販売価格（架空、USD建て）
+Gasoline_US_Import,OilSands_Alberta,52500,51500,アルバータ産オイルサンド CIF価格（架空）baseline $350/lot*150JPY相当（WTI対比ディスカウント、USD建て）
+Gasoline_US_Import,Import_Hub_US,730,690,パイプライン受入基地 受入費（架空、USD建て）
+Gasoline_US_Import,SP_Oil_US_Import,730,730,Supply Point pass-through
+Gasoline_US_Import,Tank_US_Import,750,750,輸入貯油タンク+国内輸送 込み（架空、USD建て）
+Gasoline_US_Import,Retail_US_Import_MW_I,880,795,中西部 給油所 販売価格（輸入品・架空、USD建て）
+Gasoline_US_Import,Retail_US_Import_NE_I,920,798,北東部 給油所 販売価格（輸入品・架空、USD建て）
