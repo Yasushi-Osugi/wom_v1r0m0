@@ -14,9 +14,30 @@
 > shows up in P&L. It is not a solver that hands you "the optimal answer"; it is
 > a model you run, watch, and reason about.
 >
-> Built as an ongoing "vibe coding" collaboration between the author and Claude
-> (Anthropic) — the repository's `CLAUDE.md` doubles as a living design/handoff
-> document for whichever developer (human or AI) picks this up next.
+> Built as an ongoing AI-assisted "vibe coding" collaboration. For AI coding
+> agents, the common entry point is `AGENTS.md`. Claude Code may also read
+> `CLAUDE.md` for Claude-specific historical context, but canonical WOM knowledge
+> is maintained under `docs/`.
+
+---
+
+## AI coding agents / Vibe Coding entry point
+
+If you are an AI coding agent working on WOM, start by reading **`AGENTS.md`** at the repository root.
+
+`AGENTS.md` is the AI-neutral entry point for Claude Code, ChatGPT Codex, Grok, Gemini, and other AI-assisted development environments. It explains what to read before editing, how to distinguish implementation facts from design intent, and how to keep WOM knowledge in the repository rather than only in chat logs.
+
+Recommended starting path:
+
+```text
+AGENTS.md
+  -> docs/development/README.md
+  -> docs/architecture/README.md
+  -> docs/design/README.md
+  -> docs/scenarios/README.md
+```
+
+`CLAUDE.md` may still contain Claude-specific context and historical notes, but the canonical WOM knowledge should be maintained under `docs/`.
 
 ---
 
@@ -120,7 +141,7 @@ Physical Layer  ←→  Planning Layer  ←→  Management Layer
 (実ノード/地図)      (SCTree + PSI)       (KPI / PPC / P&L)
 ```
 
-サプライチェーンは InBound（調達・製造側）と OutBound（在庫・販売側）に分かれ、`supply_point` ノードで橋渡しされます。詳細な設計思想・データモデル・既知の実装上の注意点は、リポジトリ直下の **`CLAUDE.md`** にまとめています。元々はAIとの協働開発（Claude Code / Claude Agent SDK）向けの引き継ぎ文書として書き始めたものですが、人がWOMの内部構造を理解する際のリファレンスとしても、そのまま使えます。
+サプライチェーンは InBound（調達・製造側）と OutBound（在庫・販売側）に分かれ、`supply_point` ノードで橋渡しされます。設計思想・データモデル・既知の実装上の注意点は、AI-neutralな知識基盤として **`AGENTS.md`** と **`docs/`** 配下に整理しています。`CLAUDE.md` はClaude Code向けの文脈や過去の開発履歴を含む補助ファイルとして扱い、WOMの正本となる知識は `docs/` に蓄積します。
 
 ---
 
@@ -155,4 +176,4 @@ MIT License
 
 ## 開発の背景
 
-WOMは、著者（大杉泰司）とClaude（Anthropic）との継続的な「vibe coding」セッションを通じて開発されています。1人のドメインエキスパートが、AIとの対話だけでここまでの規模・機能を持つシミュレーションツールを拡張し続けられる、という開発プロセスそのものも、このプロジェクトが示している価値の一つです。
+WOMは、著者（大杉泰司）とAIとの継続的な「vibe coding」セッションを通じて開発されています。初期の設計・実装文脈はClaude Code向けの `CLAUDE.md` に多く蓄積されましたが、v1r1m5以降は `AGENTS.md` と `docs/` 配下にAI-neutralな開発知識を整理しています。1人のドメインエキスパートが、複数のAI開発支援環境と協働しながら、サプライチェーン・シミュレーションツールを継続的に拡張できることも、このプロジェクトが示している価値の一つです。
