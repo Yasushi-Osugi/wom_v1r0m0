@@ -1,0 +1,49 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+Apparel_Import_S1,"Apparel_Import_S1 (Pre-Spring / 初春物, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S1,"Apparel_Import_S1 (Pre-Spring / 初春物, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S1,"Apparel_Import_S1 (Pre-Spring / 初春物, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S2,"Apparel_Import_S2 (Spring / 春物, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S2,"Apparel_Import_S2 (Spring / 春物, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S2,"Apparel_Import_S2 (Spring / 春物, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S3,"Apparel_Import_S3 (Early Summer / 初夏物, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S3,"Apparel_Import_S3 (Early Summer / 初夏物, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S3,"Apparel_Import_S3 (Early Summer / 初夏物, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S4,"Apparel_Import_S4 (High Summer / 盛夏物, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S4,"Apparel_Import_S4 (High Summer / 盛夏物, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S4,"Apparel_Import_S4 (High Summer / 盛夏物, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S5,"Apparel_Import_S5 (Early Fall / 初秋物, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S5,"Apparel_Import_S5 (Early Fall / 初秋物, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S5,"Apparel_Import_S5 (Early Fall / 初秋物, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S6,"Apparel_Import_S6 (Fall Coats / 秋物・コート, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S6,"Apparel_Import_S6 (Fall Coats / 秋物・コート, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S6,"Apparel_Import_S6 (Fall Coats / 秋物・コート, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S7,"Apparel_Import_S7 (Early Winter / 初冬物, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S7,"Apparel_Import_S7 (Early Winter / 初冬物, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S7,"Apparel_Import_S7 (Early Winter / 初冬物, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Import_S8,"Apparel_Import_S8 (Winter Holiday / 真冬・ホリデー, US Market)",TX,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S8,"Apparel_Import_S8 (Winter Holiday / 真冬・ホリデー, US Market)",CA,EA,19.0,3,12,100,0,8,True,49.0,4,90
+Apparel_Import_S8,"Apparel_Import_S8 (Winter Holiday / 真冬・ホリデー, US Market)",NY,EA,19.0,3,14,100,0,8,True,49.0,4,90
+Apparel_Local_S1,"Apparel_Local_S1 (Pre-Spring / 初春物, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S1,"Apparel_Local_S1 (Pre-Spring / 初春物, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S1,"Apparel_Local_S1 (Pre-Spring / 初春物, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S2,"Apparel_Local_S2 (Spring / 春物, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S2,"Apparel_Local_S2 (Spring / 春物, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S2,"Apparel_Local_S2 (Spring / 春物, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S3,"Apparel_Local_S3 (Early Summer / 初夏物, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S3,"Apparel_Local_S3 (Early Summer / 初夏物, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S3,"Apparel_Local_S3 (Early Summer / 初夏物, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S4,"Apparel_Local_S4 (High Summer / 盛夏物, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S4,"Apparel_Local_S4 (High Summer / 盛夏物, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S4,"Apparel_Local_S4 (High Summer / 盛夏物, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S5,"Apparel_Local_S5 (Early Fall / 初秋物, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S5,"Apparel_Local_S5 (Early Fall / 初秋物, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S5,"Apparel_Local_S5 (Early Fall / 初秋物, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S6,"Apparel_Local_S6 (Fall Coats / 秋物・コート, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S6,"Apparel_Local_S6 (Fall Coats / 秋物・コート, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S6,"Apparel_Local_S6 (Fall Coats / 秋物・コート, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S7,"Apparel_Local_S7 (Early Winter / 初冬物, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S7,"Apparel_Local_S7 (Early Winter / 初冬物, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S7,"Apparel_Local_S7 (Early Winter / 初冬物, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S8,"Apparel_Local_S8 (Winter Holiday / 真冬・ホリデー, US Market)",TX,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S8,"Apparel_Local_S8 (Winter Holiday / 真冬・ホリデー, US Market)",CA,EA,17.0,3,3,100,0,8,True,49.0,4,90
+Apparel_Local_S8,"Apparel_Local_S8 (Winter Holiday / 真冬・ホリデー, US Market)",NY,EA,17.0,3,3,100,0,8,True,49.0,4,90

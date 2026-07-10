@@ -1,0 +1,17 @@
+edge_id,product_id,cost_type,basis,rate,fixed_amount,currency
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S1,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S2,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S3,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S4,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S5,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S6,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S7,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Import_CN->DC_Import_Buffer,Apparel_Import_S8,logistics_cost,per_lot,0.0,4.8,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S1,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S2,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S3,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S4,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S5,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S6,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S7,logistics_cost,per_lot,0.0,7.0,USD
+Factory_Local_ES->DC_Local_US,Apparel_Local_S8,logistics_cost,per_lot,0.0,7.0,USD

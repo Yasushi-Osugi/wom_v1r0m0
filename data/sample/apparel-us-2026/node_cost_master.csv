@@ -1,0 +1,113 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+Apparel_Import_S1,Fabric_CN,7.47,6.5,生地 USD/着 (Pre-Spring / 初春物)
+Apparel_Import_S1,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Pre-Spring / 初春物)
+Apparel_Import_S1,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S1,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Pre-Spring / 初春物)
+Apparel_Import_S1,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Pre-Spring / 初春物）
+Apparel_Import_S1,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Pre-Spring / 初春物）
+Apparel_Import_S1,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Pre-Spring / 初春物）
+Apparel_Import_S2,Fabric_CN,7.47,6.5,生地 USD/着 (Spring / 春物)
+Apparel_Import_S2,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Spring / 春物)
+Apparel_Import_S2,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S2,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Spring / 春物)
+Apparel_Import_S2,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Spring / 春物）
+Apparel_Import_S2,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Spring / 春物）
+Apparel_Import_S2,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Spring / 春物）
+Apparel_Import_S3,Fabric_CN,7.47,6.5,生地 USD/着 (Early Summer / 初夏物)
+Apparel_Import_S3,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Early Summer / 初夏物)
+Apparel_Import_S3,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S3,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Early Summer / 初夏物)
+Apparel_Import_S3,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Early Summer / 初夏物）
+Apparel_Import_S3,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Early Summer / 初夏物）
+Apparel_Import_S3,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Early Summer / 初夏物）
+Apparel_Import_S4,Fabric_CN,7.47,6.5,生地 USD/着 (High Summer / 盛夏物)
+Apparel_Import_S4,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (High Summer / 盛夏物)
+Apparel_Import_S4,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S4,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (High Summer / 盛夏物)
+Apparel_Import_S4,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、High Summer / 盛夏物）
+Apparel_Import_S4,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、High Summer / 盛夏物）
+Apparel_Import_S4,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、High Summer / 盛夏物）
+Apparel_Import_S5,Fabric_CN,7.47,6.5,生地 USD/着 (Early Fall / 初秋物)
+Apparel_Import_S5,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Early Fall / 初秋物)
+Apparel_Import_S5,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S5,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Early Fall / 初秋物)
+Apparel_Import_S5,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Early Fall / 初秋物）
+Apparel_Import_S5,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Early Fall / 初秋物）
+Apparel_Import_S5,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Early Fall / 初秋物）
+Apparel_Import_S6,Fabric_CN,7.47,6.5,生地 USD/着 (Fall Coats / 秋物・コート)
+Apparel_Import_S6,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Fall Coats / 秋物・コート)
+Apparel_Import_S6,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S6,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Fall Coats / 秋物・コート)
+Apparel_Import_S6,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Fall Coats / 秋物・コート）
+Apparel_Import_S6,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Fall Coats / 秋物・コート）
+Apparel_Import_S6,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Fall Coats / 秋物・コート）
+Apparel_Import_S7,Fabric_CN,7.47,6.5,生地 USD/着 (Early Winter / 初冬物)
+Apparel_Import_S7,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Early Winter / 初冬物)
+Apparel_Import_S7,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S7,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Early Winter / 初冬物)
+Apparel_Import_S7,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Early Winter / 初冬物）
+Apparel_Import_S7,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Early Winter / 初冬物）
+Apparel_Import_S7,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Early Winter / 初冬物）
+Apparel_Import_S8,Fabric_CN,7.47,6.5,生地 USD/着 (Winter Holiday / 真冬・ホリデー)
+Apparel_Import_S8,Factory_Import_CN,20.9,19.0,CIF価格（生地込み） (Winter Holiday / 真冬・ホリデー)
+Apparel_Import_S8,SP_Apparel_Import,19.0,19.0,Supply Point pass-through
+Apparel_Import_S8,DC_Import_Buffer,31.46,28.6,輸入バッファDC 関税(20%)+輸送費込み (Winter Holiday / 真冬・ホリデー)
+Apparel_Import_S8,Sales_US_TX_I,49.0,14.3,TX店舗販売価格（輸入品、Winter Holiday / 真冬・ホリデー）
+Apparel_Import_S8,Sales_US_CA_I,49.0,14.3,CA店舗販売価格（輸入品、Winter Holiday / 真冬・ホリデー）
+Apparel_Import_S8,Sales_US_NY_I,49.0,14.6,NY店舗販売価格（輸入品、Winter Holiday / 真冬・ホリデー）
+Apparel_Local_S1,Fabric_ES,8.05,7.0,生地 USD/着 (Pre-Spring / 初春物)
+Apparel_Local_S1,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Pre-Spring / 初春物)
+Apparel_Local_S1,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S1,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Pre-Spring / 初春物)
+Apparel_Local_S1,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Pre-Spring / 初春物）
+Apparel_Local_S1,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Pre-Spring / 初春物）
+Apparel_Local_S1,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Pre-Spring / 初春物）
+Apparel_Local_S2,Fabric_ES,8.05,7.0,生地 USD/着 (Spring / 春物)
+Apparel_Local_S2,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Spring / 春物)
+Apparel_Local_S2,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S2,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Spring / 春物)
+Apparel_Local_S2,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Spring / 春物）
+Apparel_Local_S2,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Spring / 春物）
+Apparel_Local_S2,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Spring / 春物）
+Apparel_Local_S3,Fabric_ES,8.05,7.0,生地 USD/着 (Early Summer / 初夏物)
+Apparel_Local_S3,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Early Summer / 初夏物)
+Apparel_Local_S3,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S3,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Early Summer / 初夏物)
+Apparel_Local_S3,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Early Summer / 初夏物）
+Apparel_Local_S3,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Early Summer / 初夏物）
+Apparel_Local_S3,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Early Summer / 初夏物）
+Apparel_Local_S4,Fabric_ES,8.05,7.0,生地 USD/着 (High Summer / 盛夏物)
+Apparel_Local_S4,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (High Summer / 盛夏物)
+Apparel_Local_S4,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S4,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (High Summer / 盛夏物)
+Apparel_Local_S4,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、High Summer / 盛夏物）
+Apparel_Local_S4,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、High Summer / 盛夏物）
+Apparel_Local_S4,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、High Summer / 盛夏物）
+Apparel_Local_S5,Fabric_ES,8.05,7.0,生地 USD/着 (Early Fall / 初秋物)
+Apparel_Local_S5,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Early Fall / 初秋物)
+Apparel_Local_S5,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S5,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Early Fall / 初秋物)
+Apparel_Local_S5,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Early Fall / 初秋物）
+Apparel_Local_S5,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Early Fall / 初秋物）
+Apparel_Local_S5,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Early Fall / 初秋物）
+Apparel_Local_S6,Fabric_ES,8.05,7.0,生地 USD/着 (Fall Coats / 秋物・コート)
+Apparel_Local_S6,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Fall Coats / 秋物・コート)
+Apparel_Local_S6,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S6,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Fall Coats / 秋物・コート)
+Apparel_Local_S6,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Fall Coats / 秋物・コート）
+Apparel_Local_S6,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Fall Coats / 秋物・コート）
+Apparel_Local_S6,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Fall Coats / 秋物・コート）
+Apparel_Local_S7,Fabric_ES,8.05,7.0,生地 USD/着 (Early Winter / 初冬物)
+Apparel_Local_S7,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Early Winter / 初冬物)
+Apparel_Local_S7,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S7,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Early Winter / 初冬物)
+Apparel_Local_S7,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Early Winter / 初冬物）
+Apparel_Local_S7,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Early Winter / 初冬物）
+Apparel_Local_S7,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Early Winter / 初冬物）
+Apparel_Local_S8,Fabric_ES,8.05,7.0,生地 USD/着 (Winter Holiday / 真冬・ホリデー)
+Apparel_Local_S8,Factory_Local_ES,20.57,18.7,工場出荷価格（生地+加工費+マージン、cost_plus方式） (Winter Holiday / 真冬・ホリデー)
+Apparel_Local_S8,SP_Apparel_Local,18.7,18.7,Supply Point pass-through
+Apparel_Local_S8,DC_Local_US,32.45,29.5,航空輸送受入バッファDC 関税(15%)+輸送費込み (Winter Holiday / 真冬・ホリデー)
+Apparel_Local_S8,Sales_US_TX_L,49.0,14.8,TX店舗販売価格（直営店、Winter Holiday / 真冬・ホリデー）
+Apparel_Local_S8,Sales_US_CA_L,49.0,14.8,CA店舗販売価格（直営店、Winter Holiday / 真冬・ホリデー）
+Apparel_Local_S8,Sales_US_NY_L,49.0,15.1,NY店舗販売価格（直営店、Winter Holiday / 真冬・ホリデー）
