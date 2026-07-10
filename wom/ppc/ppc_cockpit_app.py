@@ -128,13 +128,18 @@ def _draw_kpi_text(ax, kpi: dict, rec_filtered: pd.DataFrame, cur: str) -> None:
     ax.set_facecolor(C_PANEL_BG)
     ax.axis("off")
 
-    total_rev    = rec_filtered["market_revenue_base"].sum()
-    total_cost   = rec_filtered["forward_cost_base"].sum()
+    # rec_filtered's *_base columns are PER-UNIT amounts; "qty" (added to
+    # ppc_lot_reconciliation.csv alongside the qty-aggregation fix) carries
+    # the real physical quantity of each aggregated weekly lot-record, so
+    # true absolute totals require multiplying by it. Falls back to 1 if
+    # the qty column is missing (older output/ppc/ from before this fix).
+    _qty = rec_filtered["qty"] if "qty" in rec_filtered.columns else 1
+    total_rev    = (rec_filtered["market_revenue_base"] * _qty).sum()
+    total_cost   = (rec_filtered["forward_cost_base"] * _qty).sum()
     gross_profit = total_rev - total_cost
     gross_margin = gross_profit / total_rev if total_rev > 0 else 0.0
     n_lots       = len(rec_filtered.dropna(subset=["forward_cost_base"]))
-    tariff       = (rec_filtered["tariff_in_base"].sum()
-                    + rec_filtered["tariff_out_base"].sum())
+    tariff       = ((rec_filtered["tariff_in_base"] + rec_filtered["tariff_out_base"]) * _qty).sum()
 
     lines = [
         ("PPC KPI Summary", 0.95, 13, C_HEADER, "bold"),
@@ -151,8 +156,9 @@ def _draw_kpi_text(ax, kpi: dict, rec_filtered: pd.DataFrame, cur: str) -> None:
 
     # Dynamic channel revenue breakdown (top 4 channels)
     if "channel_node" in rec_filtered.columns:
+        _rev_totaled = rec_filtered["market_revenue_base"] * _qty
         ch_rev = (
-            rec_filtered.groupby("channel_node")["market_revenue_base"]
+            _rev_totaled.groupby(rec_filtered["channel_node"])
             .sum().sort_values(ascending=False)
         )
         y_pos = 0.20
@@ -193,19 +199,24 @@ def _draw_profit_zone(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
         "OPERATION_NODE_COST_BASE":  "DAD/Operation",
         "OUTBOUND_CHANNEL_PROFIT":   "Channel (All)",
     }
-    ev_f = ev_filtered.dropna(subset=["profit_zone"])
+    ev_f = ev_filtered.dropna(subset=["profit_zone"]).copy()
+    # ev_f["amount_base"] is PER-UNIT (see ppc_models.PPCEvent docstring);
+    # ev_f["qty"] carries the real quantity of the underlying aggregated
+    # weekly lot-record. Multiply to get an absolute-currency total.
+    _ev_qty = ev_f["qty"] if "qty" in ev_f.columns else 1
+    ev_f["_amount_total"] = ev_f["amount_base"] * _ev_qty
 
     def _zone_sum(zone, is_rev):
         mask = ev_f["profit_zone"] == zone
         if is_rev:
-            return ev_f.loc[mask & (ev_f["ppc_event_type"] == "market_revenue"), "amount_base"].sum()
-        return ev_f.loc[mask & (ev_f["ppc_event_type"].isin(COST_TYPES)), "amount_base"].sum()
+            return ev_f.loc[mask & (ev_f["ppc_event_type"] == "market_revenue"), "_amount_total"].sum()
+        return ev_f.loc[mask & (ev_f["ppc_event_type"].isin(COST_TYPES)), "_amount_total"].sum()
 
     costs    = [_zone_sum(z, False) / 1e6 for z in zone_order]
     revenues = [_zone_sum(z, True)  / 1e6 for z in zone_order]
     tariffs  = [
         ev_f.loc[(ev_f["profit_zone"] == z) & (ev_f["ppc_event_type"] == "tariff_cost"),
-                 "amount_base"].sum() / 1e6
+                 "_amount_total"].sum() / 1e6
         for z in zone_order
     ]
 
@@ -347,8 +358,11 @@ def _draw_fwd_bwd(ax, rec: pd.DataFrame, periods: list, cur: str) -> None:
         ax.set_title("Forward vs Backward vs Revenue", fontsize=9, fontweight="bold", color=C_HEADER)
         return
 
+    # Rank channels by real total revenue (market_revenue_base is per-unit;
+    # weight by qty so a channel with fewer, larger lots isn't under-ranked).
+    _rank_qty = rec["qty"] if "qty" in rec.columns else 1
     top_channels = (
-        rec.groupby("channel_node")["market_revenue_base"].sum()
+        (rec["market_revenue_base"] * _rank_qty).groupby(rec["channel_node"]).sum()
         .sort_values(ascending=False).index.tolist()
     )
     if not top_channels:

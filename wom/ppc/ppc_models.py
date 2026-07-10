@@ -62,6 +62,19 @@ class PPCEvent:
     A single financial event in the PPC Simulation Engine.
 
     All amounts are in both local currency and base currency (JPY by default).
+
+    IMPORTANT convention (added when the qty-aggregation bug was fixed):
+    amount_local / amount_base / amount_per_unit_base are all PER-UNIT
+    amounts (the master-rate value for one physical unit, converted to base
+    currency). qty carries the real physical quantity represented by the
+    underlying aggregated weekly PSI record (one accumulator/event set can
+    represent many units — see ppc_psi_bridge.psi_to_sales_records). Do NOT
+    multiply amount_base by qty when reasoning about a single event's cost
+    propagation (tariff %, margin checks, backward_allowable, etc. all
+    correctly operate on a per-unit basis). Only multiply by qty when
+    producing an absolute-currency TOTAL for reporting — this is done
+    centrally in ppc_kpi.py's build_* functions, which is the single place
+    responsible for converting per-unit amounts into real totals.
     """
     event_id:            str
     week:                str         # ISO week, e.g. "2026-W01"
@@ -69,13 +82,13 @@ class PPCEvent:
     node_id:             str
     edge_id:             str         # "" if pure node event
     product_id:          str
-    qty:                 int         # always 1 per lot in WOM
+    qty:                 int         # real physical quantity of this lot-record (see LotCostAccumulator.qty)
     ppc_event_type:      str         # see module docstring
-    amount_local:        float       # amount in local (transaction) currency
+    amount_local:        float       # PER-UNIT amount in local (transaction) currency
     currency:            str         # local currency code
     fx_rate:             float       # local -> base_currency conversion rate
-    amount_base:         float       # amount in base currency
-    amount_per_unit_base: float      # amount_base / qty
+    amount_base:         float       # PER-UNIT amount in base currency (multiply by qty for a total; see class docstring)
+    amount_per_unit_base: float      # same as amount_base (kept for backward-compat field naming)
     source_rule:         str         # which master rule triggered this event
     direction:           str         # "forward" | "backward" | "revenue"
     profit_zone:         str         # OUTBOUND_CHANNEL_PROFIT / MOM_PLANT_PROFIT / etc.
@@ -116,10 +129,33 @@ class LotCostAccumulator:
     product_id:         str
     channel_node:       str         # leaf_out node_id (destination channel)
 
+    # Real physical quantity represented by this lot-record. WOM's PSI bridge
+    # (ppc_psi_bridge.py, psi_to_sales_records) aggregates one weekly
+    # (product, channel, week) row per accumulator, so a single "lot" here
+    # can represent many physical units (e.g. a week's worth of shipments).
+    # All per-lot cost/revenue rates in the master CSVs (ppc_supplier_cost.csv,
+    # ppc_market_price.csv, ppc_node_cost_rule.csv basis="qty", etc.) are
+    # per-UNIT rates, so downstream KPI aggregation (ppc_kpi.py) must multiply
+    # by qty to get true totals. Defaults to 1.0 for backward compatibility
+    # with any caller that does not set it explicitly.
+    qty:                float = 1.0
+
     # Forward costs (in base currency)
     supplier_cost_base:     float = 0.0
     conversion_cost_base:   float = 0.0
-    logistics_in_base:      float = 0.0   # inbound logistics (Supplier->MOM edge)
+    logistics_in_base:      float = 0.0   # inbound logistics (Supplier->MOM edge only)
+    # MOM->first_DAD freight (e.g. ocean/air freight from factory to the
+    # importing DC). Kept SEPARATE from logistics_in_base (added 2026-07-10):
+    # under FOB-style terms this cost is borne by the buyer/DAD side, not by
+    # MOM, so it must NOT be counted against MOM's own margin in
+    # ppc_reconcile.py's MOM_PROFIT_TOO_LOW check. Previously this was
+    # (incorrectly) added into logistics_in_base by ppc_tariff.py, which
+    # caused MOM_PROFIT_TOO_LOW to fire on every lot as soon as any
+    # MOM->DAD freight cost was configured (found while verifying
+    # apparel-us-2026 Phase 2). Still included in total_forward_cost_base()
+    # so overall cost totals are unaffected -- only the MOM-profit
+    # attribution changes.
+    mom_to_dad_freight_base: float = 0.0
     tariff_in_base:         float = 0.0   # import duty CN->JP
     insurance_in_base:      float = 0.0   # insurance on CN->JP edge
     logistics_out_base:     float = 0.0   # outbound logistics (DAD->Channel edge)
@@ -144,6 +180,7 @@ class LotCostAccumulator:
             self.supplier_cost_base
             + self.conversion_cost_base
             + self.logistics_in_base
+            + self.mom_to_dad_freight_base
             + self.tariff_in_base
             + self.insurance_in_base
             + self.logistics_out_base

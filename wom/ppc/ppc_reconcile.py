@@ -157,9 +157,14 @@ def run_reconciliation(
                 fired.append("TARIFF_SHOCK")
 
         # ── Check 5: Landed cost exceeds market price ──────────────────
+        # NOTE (2026-07-10 fix): landed cost must include MOM->DAD freight
+        # (mom_to_dad_freight_base), which used to be merged into
+        # logistics_in_base before the MOM_PROFIT_TOO_LOW fix separated them.
+        # Omitting it here would understate landed cost after that fix.
         landed_cost = (
             acc.transfer_price_base
             + acc.logistics_in_base
+            + acc.mom_to_dad_freight_base
             + acc.insurance_in_base
             + acc.tariff_in_base
         )
@@ -186,6 +191,14 @@ def run_reconciliation(
             "week":                     acc.week,
             "channel_node":             acc.channel_node,
             "product_id":               acc.product_id,
+            # NOTE: all *_base fields above/below are PER-UNIT amounts (see
+            # ppc_models.PPCEvent docstring). qty carries the real physical
+            # quantity of the underlying aggregated weekly PSI record, so
+            # any consumer building an absolute-currency TOTAL (e.g. the
+            # PPC Cockpit's "PPC KPI Summary" panel) must multiply by qty.
+            # Reconciliation thresholds above intentionally stay per-unit
+            # (margin % and ratio checks are scale-invariant).
+            "qty":                      acc.qty,
             "forward_cost_base":        forward_cost,
             "backward_allowable_base":  backward_allow,
             "gap_base":                 gap,

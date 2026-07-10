@@ -129,7 +129,7 @@ def run_tariff_and_landed_cost(
             events.append(PPCEvent(
                 event_id=f"TAR-{next(_ctr):06d}",
                 week=week, lot_id=acc.lot_id, node_id=first_dad,
-                edge_id=inbound_edge, product_id=product, qty=1,
+                edge_id=inbound_edge, product_id=product, qty=int(round(acc.qty)),
                 ppc_event_type="tariff_cost",
                 amount_local=tariff_local, currency=tp_currency,
                 fx_rate=t_fx_rate, amount_base=tariff_base,
@@ -140,6 +140,14 @@ def run_tariff_and_landed_cost(
             ))
 
         # a-2) Inbound logistics + insurance (MOM->first_DAD)
+        # NOTE (2026-07-10 fix): logistics_cost here is MOM->DAD freight
+        # (e.g. ocean/air freight), a cost borne by the buyer/DAD side under
+        # FOB-style terms -- it goes to acc.mom_to_dad_freight_base, NOT
+        # acc.logistics_in_base (which is reserved for Supplier->MOM inbound
+        # logistics, see ppc_forward.py Step 1b). Mixing the two previously
+        # caused ppc_reconcile.py's MOM_PROFIT_TOO_LOW check to incorrectly
+        # subtract MOM->DAD freight from MOM's own margin. insurance_cost
+        # correctly routes to the (previously unused) insurance_in_base field.
         for _, row in rules.get_edge_costs(inbound_edge, product).iterrows():
             ct = str(row["cost_type"])
             if ct not in ("logistics_cost", "insurance_cost"):
@@ -153,11 +161,14 @@ def run_tariff_and_landed_cost(
             if e_local == 0:
                 continue
             e_fx_rate, e_base = fx.convert(e_local, e_currency, week)
-            acc.logistics_in_base += e_base
+            if ct == "insurance_cost":
+                acc.insurance_in_base += e_base
+            else:
+                acc.mom_to_dad_freight_base += e_base
             events.append(PPCEvent(
                 event_id=f"TAR-{next(_ctr):06d}",
                 week=week, lot_id=acc.lot_id, node_id=first_dad,
-                edge_id=inbound_edge, product_id=product, qty=1,
+                edge_id=inbound_edge, product_id=product, qty=int(round(acc.qty)),
                 ppc_event_type=ct, amount_local=e_local, currency=e_currency,
                 fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
                 source_rule="ppc_edge_cost_rule.csv", direction="forward",
@@ -168,12 +179,13 @@ def run_tariff_and_landed_cost(
         # a-3) Landed cost informational event (at first_dad)
         landed_base = (
             acc.transfer_price_base + acc.logistics_in_base
+            + acc.mom_to_dad_freight_base
             + acc.insurance_in_base + acc.tariff_in_base
         )
         events.append(PPCEvent(
             event_id=f"TAR-{next(_ctr):06d}",
             week=week, lot_id=acc.lot_id, node_id=first_dad,
-            edge_id=inbound_edge, product_id=product, qty=1,
+            edge_id=inbound_edge, product_id=product, qty=int(round(acc.qty)),
             ppc_event_type="landed_cost_total",
             amount_local=landed_base, currency=fx.base_currency, fx_rate=1.0,
             amount_base=landed_base, amount_per_unit_base=landed_base,
@@ -214,7 +226,7 @@ def run_tariff_and_landed_cost(
                 events.append(PPCEvent(
                     event_id=f"DAD-{next(_ctr):06d}",
                     week=week, lot_id=acc.lot_id, node_id=d,
-                    edge_id="", product_id=product, qty=1,
+                    edge_id="", product_id=product, qty=int(round(acc.qty)),
                     ppc_event_type=ct, amount_local=n_local, currency=n_currency,
                     fx_rate=n_fx_rate, amount_base=n_base, amount_per_unit_base=n_base,
                     source_rule="ppc_node_cost_rule.csv", direction="forward",
@@ -240,7 +252,7 @@ def run_tariff_and_landed_cost(
                     events.append(PPCEvent(
                         event_id=f"DAD-{next(_ctr):06d}",
                         week=week, lot_id=acc.lot_id, node_id=next_dad,
-                        edge_id=inter_edge, product_id=product, qty=1,
+                        edge_id=inter_edge, product_id=product, qty=int(round(acc.qty)),
                         ppc_event_type=ct, amount_local=e_local, currency=e_currency,
                         fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
                         source_rule="ppc_edge_cost_rule.csv", direction="forward",
@@ -261,7 +273,7 @@ def run_tariff_and_landed_cost(
             events.append(PPCEvent(
                 event_id=f"OUT-{next(_ctr):06d}",
                 week=week, lot_id=acc.lot_id, node_id=channel,
-                edge_id=outbound_edge, product_id=product, qty=1,
+                edge_id=outbound_edge, product_id=product, qty=int(round(acc.qty)),
                 ppc_event_type=ct, amount_local=e_local, currency=e_currency,
                 fx_rate=e_fx_rate, amount_base=e_base, amount_per_unit_base=e_base,
                 source_rule="ppc_edge_cost_rule.csv", direction="forward",
@@ -280,7 +292,7 @@ def run_tariff_and_landed_cost(
             events.append(PPCEvent(
                 event_id=f"OUT-{next(_ctr):06d}",
                 week=week, lot_id=acc.lot_id, node_id=channel,
-                edge_id=outbound_edge, product_id=product, qty=1,
+                edge_id=outbound_edge, product_id=product, qty=int(round(acc.qty)),
                 ppc_event_type="tariff_cost", amount_local=t_local, currency=t_currency,
                 fx_rate=t_fx_rate, amount_base=t_base, amount_per_unit_base=t_base,
                 source_rule="ppc_tariff_rule.csv", direction="forward",

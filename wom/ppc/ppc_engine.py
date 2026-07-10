@@ -159,11 +159,18 @@ class PPCSimulationEngine:
     def _build_accumulators(self) -> List[LotCostAccumulator]:
         accs = []
         for _, row in self.sales_records.iterrows():
+            # sales_records is built by ppc_psi_bridge.psi_to_sales_records(),
+            # which aggregates real weekly PSI quantity into a "qty" column
+            # (one row per product x channel x week). Carry it onto the
+            # accumulator so downstream KPI totals (ppc_kpi.py) can scale
+            # per-unit master rates by the real quantity instead of
+            # silently treating every aggregated row as exactly 1 unit.
             accs.append(LotCostAccumulator(
                 lot_id=str(row["lot_id"]),
                 week=str(row["week"]),
                 product_id=str(row["product_id"]),
                 channel_node=str(row["channel_node"]),
+                qty=float(row["qty"]) if "qty" in row and row["qty"] not in (None, "") else 1.0,
             ))
         return accs
 

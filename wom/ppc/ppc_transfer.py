@@ -101,7 +101,7 @@ def run_transfer_price_determination(
             node_id=m_node,
             edge_id="",
             product_id=product,
-            qty=1,
+            qty=int(round(acc.qty)),
             ppc_event_type="transfer_price_set",
             amount_local=acc.transfer_price_local,
             currency=tp_currency,

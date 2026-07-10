@@ -255,7 +255,7 @@ def run_backward_propagation(
             node_id=m_node,
             edge_id="",
             product_id=product,
-            qty=1,
+            qty=int(round(acc.qty)),
             ppc_event_type="backward_allowable",
             amount_local=allowable,
             currency=fx.base_currency,

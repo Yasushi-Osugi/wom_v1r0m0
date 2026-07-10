@@ -5192,6 +5192,29 @@ class WOMApp(tk.Tk):
             _ppc_data_dir = _model_ppc_dir
             print(f"[PPC B2] Using model-local PPC rules: {_ppc_data_dir}")
 
+        # base_currency: auto-detected from the model-local ppc_fx_rate.csv's
+        # own base_currency column, so each scenario can choose its reporting
+        # currency (e.g. apparel-us-2026 = USD) via data, not code.
+        # Falls back to "JPY" (previous hardcoded default) when the file is
+        # absent, empty, or ambiguous, preserving existing Cookie/EV/oil
+        # sample behavior unchanged.
+        _base_currency = "JPY"
+        try:
+            _fx_path = os.path.join(_ppc_data_dir, "ppc_fx_rate.csv")
+            if os.path.exists(_fx_path):
+                import pandas as _pd
+                _fx_df = _pd.read_csv(_fx_path, dtype=str)
+                _bc_values = _fx_df["base_currency"].dropna().unique()
+                if len(_bc_values) == 1:
+                    _base_currency = str(_bc_values[0])
+                elif len(_bc_values) > 1:
+                    print(
+                        f"[PPC B2] Multiple base_currency values in ppc_fx_rate.csv: "
+                        f"{list(_bc_values)}; using '{_base_currency}' fallback"
+                    )
+        except Exception as _exc:
+            print(f"[PPC B2] base_currency auto-detect failed: {_exc}; using '{_base_currency}' fallback")
+
         def _ppc_thread():
             try:
                 from wom.ppc.ppc_runner import run_ppc_from_psi
@@ -5200,7 +5223,7 @@ class WOMApp(tk.Tk):
                     weeks=weeks,
                     data_dir=_ppc_data_dir,
                     output_dir="output/ppc",
-                    base_currency="JPY",
+                    base_currency=_base_currency,
                     verbose=True,
                     use_node_name=(_ppc_data_dir != "data/ppc"),
                 )

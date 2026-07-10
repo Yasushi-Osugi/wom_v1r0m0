@@ -42,6 +42,12 @@ def build_node_week_summary(events: List[PPCEvent]) -> pd.DataFrame:
 
     Columns: node_id, week, revenue_base, cost_base, gross_profit_base,
              tariff_base, landed_cost_base
+
+    Note: ev.amount_base is a PER-UNIT amount (per_lot/per-unit master rate
+    converted to base currency); ev.qty carries the real physical quantity
+    represented by the underlying aggregated weekly PSI record (see
+    ppc_psi_bridge.psi_to_sales_records / ppc_engine._build_accumulators).
+    Multiplying by ev.qty here converts per-unit amounts into true totals.
     """
     rows = []
     for ev in events:
@@ -55,7 +61,7 @@ def build_node_week_summary(events: List[PPCEvent]) -> pd.DataFrame:
             "is_revenue":  ev.ppc_event_type in REVENUE_EVENT_TYPES,
             "is_cost":     ev.ppc_event_type in COST_EVENT_TYPES,
             "is_tariff":   ev.ppc_event_type == "tariff_cost",
-            "amount_base": ev.amount_base,
+            "amount_base": ev.amount_base * (ev.qty or 1),
         })
     if not rows:
         return pd.DataFrame(columns=[
@@ -93,7 +99,7 @@ def build_profit_zone_summary(events: List[PPCEvent]) -> pd.DataFrame:
             "is_cost":     ev.ppc_event_type in COST_EVENT_TYPES,
             "is_tariff":   ev.ppc_event_type == "tariff_cost",
             "is_mom_profit": ev.ppc_event_type == "mom_profit",
-            "amount_base": ev.amount_base,
+            "amount_base": ev.amount_base * (ev.qty or 1),
         })
     if not rows:
         return pd.DataFrame(columns=[
@@ -149,7 +155,7 @@ def build_node_pl_summary(events: List[PPCEvent]) -> pd.DataFrame:
             "is_revenue":  ev.ppc_event_type in REVENUE_EVENT_TYPES,
             "is_cost":     ev.ppc_event_type in COST_EVENT_TYPES,
             "is_tariff":   ev.ppc_event_type == "tariff_cost",
-            "amount_base": ev.amount_base,
+            "amount_base": ev.amount_base * (ev.qty or 1),
         })
     if not rows:
         return pd.DataFrame(columns=[
@@ -184,26 +190,32 @@ def build_kpi_summary(
     Top-level KPI dict.
 
     Keys:
-        base_currency, total_lots, total_revenue_base, total_cost_base,
-        gross_profit_base, gross_margin_pct, total_tariff_base,
-        mom_profit_base, channel_jp_revenue_base, channel_us_revenue_base,
-        trust_event_count, trust_event_types
+        base_currency, total_lots, total_qty_units, total_revenue_base,
+        total_cost_base, gross_profit_base, gross_margin_pct,
+        total_tariff_base, mom_profit_base, channel_jp_revenue_base,
+        channel_us_revenue_base, trust_event_count, trust_event_types
+
+    Note: LotCostAccumulator fields (market_revenue_base, total_forward_cost_base(),
+    etc.) hold PER-UNIT amounts; a.qty carries the real physical quantity of the
+    underlying aggregated weekly PSI record. Every total below is multiplied by
+    a.qty so that "total_lots" (count of accumulator/lot-records, e.g. distinct
+    weekly shipments) stays a separate, meaningful metric from the real unit count.
     """
-    total_revenue  = sum(a.market_revenue_base         for a in accumulators)
-    total_cost     = sum(a.total_forward_cost_base()   for a in accumulators)
-    total_tariff   = sum(a.tariff_in_base + a.tariff_out_base for a in accumulators)
+    total_revenue  = sum(a.market_revenue_base * a.qty         for a in accumulators)
+    total_cost     = sum(a.total_forward_cost_base() * a.qty   for a in accumulators)
+    total_tariff   = sum((a.tariff_in_base + a.tariff_out_base) * a.qty for a in accumulators)
     mom_supply_all = sum(
-        a.supplier_cost_base + a.conversion_cost_base + a.logistics_in_base
+        (a.supplier_cost_base + a.conversion_cost_base + a.logistics_in_base) * a.qty
         for a in accumulators
     )
-    mom_tp_all     = sum(a.transfer_price_base for a in accumulators)
+    mom_tp_all     = sum(a.transfer_price_base * a.qty for a in accumulators)
     mom_profit     = mom_tp_all - mom_supply_all
 
     jp_rev = sum(
-        a.market_revenue_base for a in accumulators if a.channel_node == "JP_Channel"
+        a.market_revenue_base * a.qty for a in accumulators if a.channel_node == "JP_Channel"
     )
     us_rev = sum(
-        a.market_revenue_base for a in accumulators if a.channel_node == "US_Channel"
+        a.market_revenue_base * a.qty for a in accumulators if a.channel_node == "US_Channel"
     )
 
     gross_profit = total_revenue - total_cost
@@ -214,6 +226,7 @@ def build_kpi_summary(
     return {
         "base_currency":            base_currency,
         "total_lots":               len(accumulators),
+        "total_qty_units":          sum(a.qty for a in accumulators),
         "total_revenue_base":       total_revenue,
         "total_cost_base":          total_cost,
         "gross_profit_base":        gross_profit,
