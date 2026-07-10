@@ -241,6 +241,32 @@ Canonical rule:
 Capacity effects should be visible in PSI, not hidden inside scenario-specific code.
 ```
 
+## Terminology note: MEO and CPU
+
+WOM uses a common lot-sizing concept to express the minimum unit of flow that the planning engine processes.
+
+```text
+CPU = Common Planning Unit
+MEO = Minimum Economic Object
+```
+
+CPU and MEO are synonyms referring to the same underlying concept: the minimum size of a processed flow unit in a WOM model.
+
+Design interpretation:
+
+- **CPU** is the term used when WOM models a specific company's supply chain (the typical case in current sample scenarios such as `rice-japan-2027-2028`, `Cookie-jp-2026`, `ev-thailand-2026`, `oil-global-2027`). In implementation terms, CPU corresponds to the `cpu_size` column in `sc_tree_master.csv`.
+- **MEO** is the term used when WOM modeling is extended beyond a single company's business activity to broader economic activity, including government agencies or other non-corporate actors. In that broader context, MEO defines the minimum unit and size of the processed flow being modeled.
+
+Canonical rule:
+
+```text
+CPU and MEO refer to the same lot-sizing concept at different modeling scopes.
+Use CPU for company-scoped supply chain models.
+Use MEO when the modeling scope extends to general economic activity beyond a single company.
+```
+
+No separate engine implementation is required to move between the two terms; the existing `cpu_size` field in `sc_tree_master.csv` remains the implementation-level representation regardless of which term is used in scenario documentation.
+
 ## Canonical concept 7: Decoupling and buffering stock
 
 WOM supports decoupling points and buffering stock.
@@ -516,6 +542,8 @@ These boundaries should be resolved by documentation, tests, and incremental ref
    - scenario assumption
    - article narrative
    - open research question
+
+8. Should `sc_tree_master.csv` introduce a distinct `meo_size` field for non-corporate / general economic activity scenarios, or should `cpu_size` remain the single implementation field for both CPU and MEO scopes?
 
 ## Maintenance rule
 
