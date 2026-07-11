@@ -103,6 +103,11 @@ def run_ppc_from_psi(
     # dad_nodes_chain: ordered list of all DAD nodes per product (MOM-side first).
     # None for rice / iphone_global (single-DAD chains).
     dad_nodes_chain = None
+    # mom_nodes_chain: InBound counterpart of dad_nodes_chain (Problem B fix,
+    # wom-v1r1m7-fix4all_case). Only populated by the GENERIC branch below;
+    # the named scenarios (rice/cookie/iphone_global) have no multi-tier
+    # InBound chains in their hardcoded sc_paths.
+    mom_nodes_chain = None
 
     if scenario == "rice":
         sc_paths      = build_rice_vs_paths()
@@ -142,22 +147,36 @@ def run_ppc_from_psi(
 
     else:
         # Generic: auto-detect mom/supplier/dad from SCTree structure.
-        # Collects ALL DAD nodes per product in OT preorder for multi-tier support.
+        # Collects ALL DAD nodes per product in OT preorder as a legacy
+        # per-product fallback (_dad_list_map), AND builds the preferred
+        # per-Lot chains (_dad_chain_by_channel / _mom_chain_by_leaf) by
+        # walking each leaf_out's / leaf_in's ACTUAL tree ancestry via
+        # sc_tree.walk_ancestor_chain. This replaces the old assumption that
+        # a single flat, preorder-collected list correctly represents "the"
+        # DAD/MOM chain for every Lot of a product_id -- an assumption that
+        # broke for products with multiple parallel branches (e.g.
+        # smartx-2027-2029's SmartXPro: 3 independent regional DAD nodes
+        # DC_AMER/DC_EMEA/DC_APAC under one supply_point, and 2 independent
+        # InBound MOM roots AssemblyCN/AssemblyIN). See Coding Request
+        # Letter smartx-2027-2029-fix-request-letter.md, Problems B and C+D.
         sc_paths = {}
         _mom_map: dict = {}
         _sup_list_map: dict = {}  # ALL leaf_in (Tier-1 supplier) nodes per product, OT preorder
         _dad_map: dict = {}       # first DAD per product (for tariff)
-        _dad_list_map: dict = {}  # all DADs per product in OT preorder
+        _dad_list_map: dict = {}  # all DADs per product in OT preorder (legacy fallback)
+        _dad_chain_by_channel: dict = {}  # (product_id, channel_node) -> mom-side-first DAD chain
+        _mom_chain_by_leaf: dict = {}     # (product_id, leaf_in_node) -> leaf-side-first intermediate MOM chain
 
         if sc_tree is not None:
             from wom.model.plan_node import (
-                NODE_TYPE_MOM, NODE_TYPE_LEAF_IN, NODE_TYPE_DAD
+                NODE_TYPE_MOM, NODE_TYPE_LEAF_IN, NODE_TYPE_DAD, NODE_TYPE_LEAF_OUT
             )
             for _prod in sc_tree.products:
                 if _prod not in known_products:
                     continue
                 _dad_list_map[_prod] = []
                 _sup_list_map[_prod] = []
+                _ot_root = sc_tree.get_ot_root(_prod)
                 for _nd in sc_tree.iter_all_nodes(_prod):
                     _nt = getattr(_nd, "node_type", "")
                     _nm = getattr(_nd, "node_name",
@@ -166,6 +185,14 @@ def run_ppc_from_psi(
                         _dad_list_map[_prod].append(_nm)  # ordered OT preorder
                         if _prod not in _dad_map:
                             _dad_map[_prod] = _nm  # first DAD (for tariff compat)
+                    elif _nt == NODE_TYPE_LEAF_OUT:
+                        # Per-Lot DAD chain: walk THIS channel's actual tree
+                        # ancestry back to the OT root (supply_point), rather
+                        # than reusing the one flat _dad_list_map chain
+                        # shared by every channel of the product_id.
+                        _ch = sc_tree.walk_ancestor_chain(_nd, NODE_TYPE_DAD, _ot_root)
+                        _ch.reverse()  # mom-side-first, matches legacy convention
+                        _dad_chain_by_channel[(_prod, _nm)] = _ch
                     elif _nt == NODE_TYPE_MOM and _prod not in _mom_map:
                         _mom_map[_prod] = _nm
                     elif _nt == NODE_TYPE_LEAF_IN:
@@ -174,9 +201,29 @@ def run_ppc_from_psi(
                         # the first one encountered. See ppc_forward.py's
                         # _resolve_node_list for how this list is consumed.
                         _sup_list_map[_prod].append(_nm)
+                        # Per-supplier InBound tier chain: intermediate
+                        # "mom"-type ancestors between this leaf_in and its
+                        # own terminal MOM root. No explicit stop_node is
+                        # needed -- walk_ancestor_chain auto-detects the root
+                        # (a node with no parent), so this resolves correctly
+                        # even while a product still has multiple InBound
+                        # roots (pre-SKU-split state).
+                        _mch = sc_tree.walk_ancestor_chain(_nd, NODE_TYPE_MOM, None)
+                        if _mch:
+                            _mom_chain_by_leaf[(_prod, _nm)] = _mch
 
-        # Build dad_nodes_chain for multi-tier DAD backward propagation
-        dad_nodes_chain = _dad_list_map if _dad_list_map else None
+        # dad_nodes_chain: per-Lot chains (checked first by ppc_tariff.py's
+        # _resolve_chain / ppc_backward.py's _resolve_node_list) merged with
+        # the legacy per-product flat list (fallback only; the two dicts'
+        # keys never collide since one uses str keys and the other
+        # (product_id, channel_node) tuple keys).
+        dad_nodes_chain = (
+            {**_dad_list_map, **_dad_chain_by_channel}
+            if (_dad_list_map or _dad_chain_by_channel) else None
+        )
+        # mom_nodes_chain: per-leaf_in InBound tier chains (brand new
+        # parameter, no legacy format to merge with -- see ppc_forward.py).
+        mom_nodes_chain = _mom_chain_by_leaf if _mom_chain_by_leaf else None
 
         if _mom_map:
             # Collapse to str when only one product
@@ -201,7 +248,8 @@ def run_ppc_from_psi(
                       f"mom={mom_node}  "
                       f"supplier={supplier_node}  "
                       f"dad={dad_node}  "
-                      f"dad_chain={dad_nodes_chain}")
+                      f"dad_chain_by_channel={_dad_chain_by_channel}  "
+                      f"mom_chain_by_leaf={_mom_chain_by_leaf}")
         else:
             # Final fallback: legacy iphone (JP_Channel / US_Channel)
             sc_paths      = build_iphone_vs_paths()
@@ -209,6 +257,7 @@ def run_ppc_from_psi(
             supplier_node = "Supplier_CN"
             dad_node      = "DAD_Japan"
             dad_nodes_chain = None
+            mom_nodes_chain = None
             if verbose:
                 print("[PPC Runner] Scenario: IPHONE (legacy)  "
                       f"mom={mom_node}  "
@@ -231,6 +280,7 @@ def run_ppc_from_psi(
         supplier_node=supplier_node,
         dad_node=dad_node,
         dad_nodes_chain=dad_nodes_chain,
+        mom_nodes_chain=mom_nodes_chain,
         verbose=False,
     )
     result = eng.run()

@@ -28,7 +28,9 @@ cost_phase tagging (Phase 3):
     ""       : landed_cost_total (informational summary event)
 
 mom_node and dad_node accept either str or dict[product_id -> node_id].
-dad_nodes_chain: list[str] or dict[product_id -> list[str]] (MOM-side first).
+dad_nodes_chain: list[str], dict[product_id -> list[str]] (legacy), or
+dict[(product_id, channel_node) -> list[str]] (preferred, per-Lot; see
+wom-v1r1m7-fix4all_case Coding Request Letter, Problem C+D). MOM-side first.
 """
 
 from __future__ import annotations
@@ -48,20 +50,42 @@ def _resolve_node(node: Union[str, Dict[str, str]], product_id: str) -> str:
 
 
 def _resolve_chain(
-    chain: Union[None, List[str], Dict[str, List[str]], str],
+    chain: Union[None, List[str], Dict[str, List[str]], Dict[Tuple[str, str], List[str]], str],
     product_id: str,
+    channel_node: str,
     fallback_dad: str,
 ) -> List[str]:
-    """Resolve dad_nodes_chain to ordered list; fall back to single dad_node."""
-    if chain is None:
-        return [fallback_dad]
-    if isinstance(chain, list):
-        return chain if chain else [fallback_dad]
+    """Resolve dad_nodes_chain to ordered list; fall back to single dad_node.
+
+    Accepts (checked in this order):
+      dict[(product_id, channel_node) -> list]  -- new, per-Lot chain built
+        by walking the Lot's actual leaf_out ancestry (see
+        wom/model/sc_tree.py's walk_ancestor_chain and Coding Request
+        Letter smartx-2027-2029-fix-request-letter.md, Problem C+D).
+        Checked first when present, since a given product_id may have
+        several parallel DAD branches (e.g. smartx-2027-2029's
+        DC_AMER/DC_EMEA/DC_APAC) that must not be conflated into one
+        chain shared by every channel.
+      dict[product_id -> list]                   -- legacy, per-product flat
+        chain (still used by the "cookie"/"iphone_global" named scenarios
+        in wom/ppc/ppc_engine.py, which only ever have a single DAD branch
+        per product_id so the distinction is moot for them).
+      list[str] / str / None                     -- legacy, single value
+        shared by every product/channel.
+    """
     if isinstance(chain, dict):
+        key = (product_id, channel_node)
+        if key in chain:
+            val = chain[key]
+            return val if val else [fallback_dad]
         val = chain.get(product_id, [])
         if isinstance(val, list):
             return val if val else [fallback_dad]
         return [val] if val else [fallback_dad]
+    if chain is None:
+        return [fallback_dad]
+    if isinstance(chain, list):
+        return chain if chain else [fallback_dad]
     return [chain] if chain else [fallback_dad]
 
 
@@ -94,7 +118,7 @@ def run_tariff_and_landed_cost(
 
         m_node = _resolve_node(mom_node, product)
         fallback = _resolve_node(dad_node, product)
-        chain = _resolve_chain(dad_nodes_chain, product, fallback)
+        chain = _resolve_chain(dad_nodes_chain, product, channel, fallback)
 
         first_dad = chain[0]
         last_dad  = chain[-1]

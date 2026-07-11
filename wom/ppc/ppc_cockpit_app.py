@@ -51,6 +51,31 @@ CHANNEL_COLORS = [
     "#4527A0", "#558B2F", "#AD1457", "#37474F",
 ]
 
+# The 5 PPC trust-event types (see wom/ppc/ppc_reconcile.py, run_reconciliation()).
+# Order here drives both the breakdown bar chart's row order and severity
+# color choice (dark red = most severe/direct, purple = market-comparison).
+TRUST_EVENT_TYPES = [
+    "NEGATIVE_MARGIN",
+    "CHANNEL_MARGIN_TOO_LOW",
+    "MOM_PROFIT_TOO_LOW",
+    "TARIFF_SHOCK",
+    "LANDED_COST_EXCEEDS_MARKET",
+]
+TRUST_EVENT_COLORS = {
+    "NEGATIVE_MARGIN":            "#B71C1C",
+    "CHANNEL_MARGIN_TOO_LOW":     "#E65100",
+    "MOM_PROFIT_TOO_LOW":         "#F9A825",
+    "TARIFF_SHOCK":               "#FF9800",
+    "LANDED_COST_EXCEEDS_MARKET": "#6A1B9A",
+}
+TRUST_EVENT_LABELS = {
+    "NEGATIVE_MARGIN":            "Negative Margin",
+    "CHANNEL_MARGIN_TOO_LOW":     "Channel Margin < 5%",
+    "MOM_PROFIT_TOO_LOW":         "MOM Profit < 0",
+    "TARIFF_SHOCK":               "Tariff Shock > 20%",
+    "LANDED_COST_EXCEEDS_MARKET": "Landed Cost > Market",
+}
+
 
 def _channel_short(ch: str) -> str:
     """'Retail_AMER' → 'AMER', 'JP_Channel' → 'JP'"""
@@ -58,7 +83,11 @@ def _channel_short(ch: str) -> str:
 
 
 def _fmt(v: float) -> str:
-    if abs(v) >= 1_000_000:
+    if abs(v) >= 1_000_000_000_000:
+        return f"{v/1_000_000_000_000:.2f}T"
+    elif abs(v) >= 1_000_000_000:
+        return f"{v/1_000_000_000:.2f}B"
+    elif abs(v) >= 1_000_000:
         return f"{v/1_000_000:.2f}M"
     elif abs(v) >= 1_000:
         return f"{v/1_000:.1f}K"
@@ -141,45 +170,77 @@ def _draw_kpi_text(ax, kpi: dict, rec_filtered: pd.DataFrame, cur: str) -> None:
     n_lots       = len(rec_filtered.dropna(subset=["forward_cost_base"]))
     tariff       = ((rec_filtered["tariff_in_base"] + rec_filtered["tariff_out_base"]) * _qty).sum()
 
+    # Value lines use a short right-aligned label (<=11 chars) + _fmt()'s
+    # compact K/M/B/T suffix so the panel stays readable even for cases
+    # with very large absolute currency values (see Open Question 6 in
+    # requests/smartx-2027-2029-fix-request-letter.md).
     lines = [
-        ("PPC KPI Summary", 0.95, 13, C_HEADER, "bold"),
-        (f"Base currency: {cur}", 0.86, 8, "#607D8B", "normal"),
-        (f"Lots: {n_lots}", 0.79, 8, "#607D8B", "normal"),
-        ("", 0.73, 9, "black", "normal"),
-        (f"Revenue       {_fmt(total_rev)} {cur}", 0.67, 10, C_REVENUE, "bold"),
-        (f"Total Cost    {_fmt(total_cost)} {cur}", 0.58, 10, C_COST, "bold"),
-        (f"Gross Profit  {_fmt(gross_profit)} {cur}", 0.49, 10, C_PROFIT, "bold"),
-        (f"Gross Margin  {gross_margin:.1%}", 0.41, 10, C_PROFIT, "bold"),
-        ("", 0.33, 9, "black", "normal"),
-        (f"Tariff Cost   {_fmt(tariff)} {cur}", 0.28, 9, C_TARIFF, "normal"),
+        ("PPC KPI Summary", 0.95, 11, C_HEADER, "bold"),
+        (f"Base currency: {cur}", 0.87, 7.5, "#607D8B", "normal"),
+        (f"Lots: {n_lots}", 0.80, 7.5, "#607D8B", "normal"),
+        ("", 0.74, 8, "black", "normal"),
+        (f"Revenue     {_fmt(total_rev)} {cur}", 0.68, 8.5, C_REVENUE, "bold"),
+        (f"Total Cost  {_fmt(total_cost)} {cur}", 0.60, 8.5, C_COST, "bold"),
+        (f"Gross Prft  {_fmt(gross_profit)} {cur}", 0.52, 8.5, C_PROFIT, "bold"),
+        (f"Gross Marg  {gross_margin:.1%}", 0.44, 8.5, C_PROFIT, "bold"),
+        ("", 0.37, 8, "black", "normal"),
+        (f"Tariff Cost {_fmt(tariff)} {cur}", 0.31, 8, C_TARIFF, "normal"),
     ]
 
-    # Dynamic channel revenue breakdown (top 4 channels)
+    # Dynamic channel revenue breakdown (top 3 channels -- capped at 3, not
+    # 4, so the block always clears the trust-event badge below it; SKU=All
+    # views with many channels were previously overlapping the badge).
+    MAX_CHANNELS = 3
     if "channel_node" in rec_filtered.columns:
         _rev_totaled = rec_filtered["market_revenue_base"] * _qty
         ch_rev = (
             _rev_totaled.groupby(rec_filtered["channel_node"])
             .sum().sort_values(ascending=False)
         )
-        y_pos = 0.20
-        lines += [("", 0.22, 9, "black", "normal")]
-        for i, (ch_name, ch_val) in enumerate(ch_rev.head(4).items()):
+        y_pos = 0.17
+        lines += [("", 0.22, 8, "black", "normal")]
+        for i, (ch_name, ch_val) in enumerate(ch_rev.head(MAX_CHANNELS).items()):
             color = CHANNEL_COLORS[i % len(CHANNEL_COLORS)]
             label = _channel_short(ch_name)
-            lines += [(f"{label:<10}  {_fmt(ch_val)} {cur}", y_pos, 8, color, "normal")]
-            y_pos -= 0.065
+            lines += [(f"{label:<7} {_fmt(ch_val)} {cur}", y_pos, 7, color, "normal")]
+            y_pos -= 0.05
 
+    # clip_on=True: text is confined to this subplot's own bounding box, so
+    # unusually long value strings are clipped rather than bleeding
+    # visually into the neighboring "Profit Zone Breakdown" panel.
     for text, y, fs, color, weight in lines:
-        ax.text(0.06, y, text, transform=ax.transAxes,
+        ax.text(0.04, y, text, transform=ax.transAxes,
                 fontsize=fs, color=color, fontweight=weight,
-                va="top", fontfamily="monospace")
+                va="top", fontfamily="monospace", clip_on=True)
 
-    trust = kpi.get("trust_event_count", 0)
+    # Badge sits well below the (fixed-length, MAX_CHANNELS-capped) text
+    # block above -- with MAX_CHANNELS=3 the lowest text line is at
+    # y=0.17-2*0.05=0.07, so y=-0.12 leaves a clear gap for the badge's
+    # own font+padding box, regardless of how many channels are shown.
+    #
+    # NOTE (2026-07-11 fix): previously this badge always showed
+    # kpi["trust_event_count"] -- a single number pre-computed over the
+    # FULL dataset (all weeks/SKUs/channels) at engine-run time, ignoring
+    # the sidebar's Start/End Week, SKU and Channel filters. That was
+    # inconsistent with every other figure in this same panel (Revenue,
+    # Total Cost, Gross Profit, Gross Margin, and the channel breakdown
+    # below), which are all computed from rec_filtered and DO respect the
+    # sidebar filters -- and inconsistent with the new Trust Event Type
+    # Breakdown panel (_draw_trust_breakdown), which also uses
+    # rec_filtered. Recomputing from rec_filtered here makes all three
+    # (badge / breakdown panel / underlying filtered data) agree.
+    if "trust_events_fired" in rec_filtered.columns:
+        trust = sum(_count_trust_events(rec_filtered).values())
+    else:
+        # Backward-compat fallback for older output/ppc/ dirs generated
+        # before trust_events_fired was added to ppc_lot_reconciliation.csv.
+        trust = kpi.get("trust_event_count", 0)
     badge_color = "#F44336" if trust > 0 else "#4CAF50"
     badge_text  = f"! {trust} trust event(s)" if trust > 0 else "OK  No trust events"
-    ax.text(0.5, -0.02, badge_text, transform=ax.transAxes,
-            fontsize=9, color="white", fontweight="bold", ha="center", va="bottom",
-            bbox=dict(boxstyle="round,pad=0.4", fc=badge_color, ec="none"))
+    ax.text(0.5, -0.12, badge_text, transform=ax.transAxes,
+            fontsize=7.5, color="white", fontweight="bold", ha="center", va="bottom",
+            bbox=dict(boxstyle="round,pad=0.35", fc=badge_color, ec="none"),
+            clip_on=False)
 
 
 def _draw_profit_zone(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
@@ -483,7 +544,7 @@ def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
             ("Logistics",  logistics,  "#FF7043", False),
             ("Tariff",     tariff,     C_TARIFF,  False),
             ("SGA",        sga,        "#AB47BC", False),
-            ("Marketing",  marketing,  "#EC407A", False),
+            ("Marketing",  marketing, "#EC407A", False),
         ]
         title = "Cost Waterfall — avg / lot"
 
@@ -544,6 +605,72 @@ def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
     ax.axhline(0, color="gray", linewidth=0.8)
     ax.grid(axis="y", alpha=0.3)
     ax.set_ylim(-revenue * 0.05, revenue * 1.08)
+
+
+def _count_trust_events(rec: pd.DataFrame) -> dict:
+    """
+    Tally lot_reconciliation's pipe-separated 'trust_events_fired' column
+    into per-type lot counts (a lot with 2 events fires contributes to 2
+    type counts). Returns a dict keyed by every TRUST_EVENT_TYPES entry
+    (0 if absent), so callers can rely on a stable key set.
+    """
+    counts = {t: 0 for t in TRUST_EVENT_TYPES}
+    if "trust_events_fired" not in rec.columns:
+        return counts
+    for s in rec["trust_events_fired"].dropna():
+        s = str(s).strip()
+        if not s:
+            continue
+        for t in s.split("|"):
+            t = t.strip()
+            if t in counts:
+                counts[t] += 1
+    return counts
+
+
+def _draw_trust_breakdown(ax, rec_filtered: pd.DataFrame) -> list:
+    """
+    Trust Event Type Breakdown — horizontal bar chart of lot counts per
+    trust-event type (5 types), for the currently-filtered
+    lot_reconciliation data.
+
+    Returns a list of (bar_patch, event_type, count) tuples so
+    PPCCockpitApp._on_canvas_click can hit-test a mouse click against a
+    specific bar and open the matching Lot/Node/Week drill-down window.
+    """
+    ax.set_facecolor(C_PANEL_BG)
+    counts = _count_trust_events(rec_filtered)
+    values = [counts[t] for t in TRUST_EVENT_TYPES]
+    colors = [TRUST_EVENT_COLORS[t] for t in TRUST_EVENT_TYPES]
+    labels = [TRUST_EVENT_LABELS[t] for t in TRUST_EVENT_TYPES]
+    total = sum(values)
+
+    y = np.arange(len(TRUST_EVENT_TYPES))
+    bars = ax.barh(y, values, color=colors, alpha=0.85, height=0.6)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("Lot count", fontsize=8)
+    ax.set_title(
+        f"Trust Event Type Breakdown  (total: {total} — click a bar to drill down)",
+        fontsize=10, fontweight="bold", color=C_HEADER,
+    )
+    ax.grid(axis="x", alpha=0.3)
+
+    max_v = max(values) if values else 0
+    for bar, v in zip(bars, values):
+        if v == 0:
+            continue
+        ax.text(bar.get_width() + max(max_v, 1) * 0.015,
+                 bar.get_y() + bar.get_height() / 2, str(v),
+                 va="center", fontsize=8, fontweight="bold", color=C_HEADER)
+
+    if total == 0:
+        ax.text(0.5, 0.5, "No trust events in current filter",
+                ha="center", va="center", transform=ax.transAxes,
+                fontsize=9, color="#78909C")
+
+    return list(zip(bars, TRUST_EVENT_TYPES, values))
 
 
 # ── Main App Class ────────────────────────────────────────────────────────────
@@ -665,9 +792,13 @@ class PPCCockpitApp(tk.Frame):
         chart_frame = tk.Frame(self, bg="white")
         chart_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self._fig = plt.Figure(figsize=(15, 10), facecolor="white")
+        self._fig = plt.Figure(figsize=(15, 12), facecolor="white")
         self._canvas = FigureCanvasTkAgg(self._fig, master=chart_frame)
         self._canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        # Trust Event Type Breakdown drill-down: click handling is bound
+        # once here; _on_canvas_click() hit-tests against self._trust_bar_info
+        # (rebuilt on every _redraw()) to find which bar/event-type was clicked.
+        self._canvas.mpl_connect("button_press_event", self._on_canvas_click)
 
         toolbar_frame = tk.Frame(chart_frame, bg="white")
         toolbar_frame.pack(side=tk.BOTTOM, fill=tk.X)
@@ -725,10 +856,13 @@ class PPCCockpitApp(tk.Frame):
         )
 
         self._fig.clear()
+        # 4th row added for the Trust Event Type Breakdown panel (full
+        # width, spans gs[3, :]); existing 3 rows shrunk slightly to fit
+        # within the same figure (figsize bumped 10→12in tall in _build_ui).
         gs = gridspec.GridSpec(
-            3, 3, figure=self._fig,
-            height_ratios=[0.37, 0.21, 0.42],
-            hspace=0.55, wspace=0.40,
+            4, 3, figure=self._fig,
+            height_ratios=[0.30, 0.17, 0.33, 0.15],
+            hspace=0.65, wspace=0.40,
         )
         ax1  = self._fig.add_subplot(gs[0, 0])
         ax2  = self._fig.add_subplot(gs[0, 1])
@@ -737,6 +871,7 @@ class PPCCockpitApp(tk.Frame):
         ax4  = self._fig.add_subplot(gs[2, 0])
         ax5  = self._fig.add_subplot(gs[2, 1])
         ax6  = self._fig.add_subplot(gs[2, 2])
+        ax_trust = self._fig.add_subplot(gs[3, :])  # trust breakdown — full width
 
         cur = self._cur
         _draw_kpi_text(ax1, self._kpi, rec_raw, cur)
@@ -747,6 +882,15 @@ class PPCCockpitApp(tk.Frame):
         _draw_margin_dist(ax5, rec_raw, selected_channels)
         _draw_fwd_bwd(ax6, rec, periods, cur)
 
+        # Trust Event Type Breakdown + drill-down: rec_raw is the
+        # currently-filtered (SKU/Channel/period), un-aggregated
+        # lot_reconciliation slice — same granularity as the badge/count
+        # shown in the KPI panel above. self._ax_trust / _trust_bar_info /
+        # _rec_raw_current are consumed by _on_canvas_click()/_show_drilldown().
+        self._ax_trust = ax_trust
+        self._trust_bar_info = _draw_trust_breakdown(ax_trust, rec_raw)
+        self._rec_raw_current = rec_raw
+
         sku_tag = self._sku_var.get()
         ch_tag  = self._channel_var.get()
         w_tag   = (f"{weeks[0]}~{weeks[-1]}" if weeks else "—")
@@ -756,6 +900,107 @@ class PPCCockpitApp(tk.Frame):
             fontsize=11, fontweight="bold", color=C_HEADER, y=0.99,
         )
         self._canvas.draw()
+
+    # ── Trust Event drill-down ───────────────────────────────────────────
+    def _on_canvas_click(self, event) -> None:
+        """
+        Click handler for the Trust Event Type Breakdown bar chart
+        (bound once in _build_ui via canvas.mpl_connect). Ignores clicks
+        outside that subplot; otherwise hit-tests against the bar patches
+        stored by the most recent _redraw() and opens the drill-down
+        window for the clicked type (no-op if that bar's count is 0).
+        """
+        ax_trust = getattr(self, "_ax_trust", None)
+        if ax_trust is None or event.inaxes is not ax_trust:
+            return
+        for patch, event_type, count in getattr(self, "_trust_bar_info", []):
+            contains, _ = patch.contains(event)
+            if contains:
+                if count > 0:
+                    self._show_drilldown(event_type, count)
+                return
+
+    def _show_drilldown(self, event_type: str, count: int) -> None:
+        """
+        Opens a Toplevel window listing every Lot/Node/Week row (from the
+        currently-filtered lot_reconciliation slice, self._rec_raw_current)
+        whose trust_events_fired contains `event_type`.
+        """
+        rec = getattr(self, "_rec_raw_current", None)
+        if rec is None or rec.empty or "trust_events_fired" not in rec.columns:
+            return
+        mask = rec["trust_events_fired"].fillna("").apply(
+            lambda s: event_type in [t.strip() for t in str(s).split("|")]
+        )
+        sub = rec[mask].copy()
+        if sub.empty:
+            return
+        sub = sub.sort_values(["week", "channel_node", "lot_id"])
+
+        label = TRUST_EVENT_LABELS.get(event_type, event_type)
+        win = tk.Toplevel(self)
+        win.title(f"Trust Event Drill-down: {label} ({len(sub)} lots)")
+        win.geometry("1000x480")
+        win.configure(bg=C_SIDEBAR)
+
+        tk.Label(
+            win,
+            text=f"{label}  —  {len(sub)} lot(s)   "
+                 f"[SKU: {self._sku_var.get()}  Channel: {self._channel_var.get()}  "
+                 f"Period: {self._start_var.get()}~{self._end_var.get()}]",
+            font=("Helvetica", 10, "bold"), bg=C_SIDEBAR, fg=C_HEADER,
+        ).pack(anchor="w", padx=10, pady=(10, 6))
+
+        tree_frame = tk.Frame(win, bg=C_SIDEBAR)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+
+        columns = ("lot_id", "week", "channel_node", "product_id",
+                   "gross_profit_base", "gross_margin_pct",
+                   "forward_cost_base", "market_revenue_base",
+                   "trust_events_fired")
+        headers = {
+            "lot_id": "Lot ID", "week": "Week", "channel_node": "Node",
+            "product_id": "Product", "gross_profit_base": f"Gross Profit/u ({self._cur})",
+            "gross_margin_pct": "Margin %",
+            "forward_cost_base": f"Fwd Cost/u ({self._cur})",
+            "market_revenue_base": f"Mkt Rev/u ({self._cur})",
+            "trust_events_fired": "Events Fired",
+        }
+        widths = {
+            "lot_id": 110, "week": 90, "channel_node": 150, "product_id": 110,
+            "gross_profit_base": 130, "gross_margin_pct": 90,
+            "forward_cost_base": 120, "market_revenue_base": 120,
+            "trust_events_fired": 220,
+        }
+
+        tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=16)
+        for col in columns:
+            tree.heading(col, text=headers[col])
+            tree.column(col, width=widths[col], anchor="center")
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        for _, row in sub.iterrows():
+            margin = row.get("gross_margin_pct")
+            margin_str = f"{margin:.1%}" if pd.notna(margin) else ""
+            tree.insert("", tk.END, values=(
+                row.get("lot_id", ""),
+                row.get("week", ""),
+                row.get("channel_node", ""),
+                row.get("product_id", ""),
+                f"{row.get('gross_profit_base', 0):,.2f}",
+                margin_str,
+                f"{row.get('forward_cost_base', 0):,.2f}",
+                f"{row.get('market_revenue_base', 0):,.2f}",
+                row.get("trust_events_fired", ""),
+            ))
+
+        tk.Button(win, text="Close", font=("Helvetica", 9),
+                  bg="#455A64", fg="white", activebackground="#546E7A",
+                  activeforeground="white", relief=tk.FLAT, padx=10, pady=4,
+                  command=win.destroy).pack(pady=(0, 10))
 
     def _save_png(self) -> None:
         from tkinter import filedialog

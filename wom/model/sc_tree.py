@@ -171,6 +171,68 @@ class SCTree:
         for prod_nm in self.products:
             yield from self.iter_all_nodes(prod_nm)
 
+    @staticmethod
+    def walk_ancestor_chain(
+        start_node: PlanNode,
+        node_type_filter: str,
+        stop_node: Optional[PlanNode] = None,
+    ) -> List[str]:
+        """
+        Walk start_node.parent upward until stop_node (exclusive), collecting
+        node_name of every ancestor whose node_type == node_type_filter.
+
+        Returns the chain in start_node-side-first order (nearest ancestor
+        first). Callers that need mom-side-first order (e.g. OutBound DAD
+        chains, to match ppc_tariff.py's existing "MOM-side first, channel
+        -side last" convention) must reverse the result themselves.
+
+        This replaces the old product_id-level flat chain lists (built by a
+        single preorder sweep over the whole tree, see
+        wom/ppc/ppc_runner.py's GENERIC scenario detection prior to the
+        wom-v1r1m7-fix4all_case fix), which conflated parallel branches
+        (e.g. multiple independent regional DAD nodes fed by the same
+        supply_point) into one fake sequential chain. Because a Lot's
+        channel_node / leaf_in is already fixed by the time PPC runs (see
+        Coding Request Letter smartx-2027-2029-fix-request-letter.md,
+        section 4-5), the chain should always be resolved dynamically from
+        that specific node's real tree ancestry, not precomputed once per
+        product_id.
+
+        Used for two symmetric purposes:
+          - OutBound (dad chain):  start_node=leaf_out, node_type_filter=
+            NODE_TYPE_DAD, stop_node=supply_point (OT root). Reverse the
+            result for ppc_tariff.py / ppc_backward.py.
+          - InBound (mom chain):   start_node=leaf_in, node_type_filter=
+            NODE_TYPE_MOM, stop_node=None. The terminal MOM (IN root) is
+            detected automatically (a node with no parent) and excluded
+            from the returned chain -- it is handled separately by the
+            caller's existing single-node logic (e.g. ppc_forward.py's
+            Step 1c for m_node's own costs). This lets the same call work
+            correctly even when a product still has multiple InBound
+            roots (multi-MOM, pre-SKU-split state): each leaf_in's walk
+            naturally terminates at ITS OWN root, without the caller
+            having to know in advance which root that is.
+
+        Returns an empty list if no matching ancestor exists before
+        stop_node (or the tree root) is reached -- this is the expected
+        result for the common single-tier case (e.g. Apparel/EV/Oil's
+        single DAD, or a product with no intermediate InBound tiers), and
+        callers must fall back to their existing single-node legacy
+        behavior in that case (unchanged from before this fix).
+        """
+        chain: List[str] = []
+        cur = start_node.parent
+        while cur is not None and cur is not stop_node:
+            if stop_node is None and cur.parent is None:
+                # Reached the tree root (e.g. terminal MOM / IN root) without
+                # an explicit stop_node -- exclude it, caller handles it
+                # separately.
+                break
+            if cur.node_type == node_type_filter:
+                chain.append(cur.node_name)
+            cur = cur.parent
+        return chain
+
     def summary(self) -> str:
         lines = [
             f"SCTree  weeks={self.num_weeks()}  "

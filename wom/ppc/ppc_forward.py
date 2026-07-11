@@ -19,7 +19,7 @@ dict[product_id -> node_id] for multi-product models.
 from __future__ import annotations
 
 import itertools
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from .ppc_models import LotCostAccumulator, PPCEvent
 from .ppc_fx import FXConverter
@@ -64,6 +64,7 @@ def run_forward_propagation(
     sc_paths: Dict[str, List[Tuple[str, str, str]]],
     mom_node: Union[str, Dict[str, str]] = "MOM_China",
     supplier_node: Union[str, List[str], Dict[str, str], Dict[str, List[str]]] = "Supplier_CN",
+    mom_nodes_chain: Optional[Dict[Tuple[str, str], List[str]]] = None,
 ) -> List[PPCEvent]:
     """
     Step 1: Forward cost accumulation from Supplier(s) -> MOM.
@@ -83,6 +84,23 @@ def run_forward_propagation(
                     node contributes its own supplier_cost event (so per-node
                     P&L can attribute cost to each Tier-1 supplier correctly)
                     and all of them are summed into acc.supplier_cost_base.
+    mom_nodes_chain : dict[(product_id, leaf_in_node) -> list[str]], optional.
+                    Ordered, leaf-side-first list of intermediate "mom"-type
+                    ancestor nodes between a given leaf_in supplier and the
+                    terminal mom_node (see wom/model/sc_tree.py's
+                    walk_ancestor_chain, and Coding Request Letter
+                    smartx-2027-2029-fix-request-letter.md Problem B).
+                    Missing/empty entries fall back to the original
+                    single-hop supplier_node->mom_node behavior, so this
+                    parameter is fully backward-compatible: every existing
+                    single-tier InBound scenario produces events identical
+                    to before this parameter was introduced.
+                    Each intermediate tier node contributes ONLY its own
+                    ppc_node_cost_rule.csv entries (conversion_cost /
+                    logistics_cost) -- never a ppc_supplier_cost.csv entry
+                    (reserved for leaf_in nodes), keeping the accounting
+                    rule uniform across every "mom"-type node regardless of
+                    tier depth, including the terminal mom_node (Step 1c).
 
     Returns
     -------
@@ -127,35 +145,94 @@ def run_forward_propagation(
                 cost_phase="EXW",
             ))
 
-            # ── Step 1b: Inbound edge (this Supplier -> MOM) logistics ──
-            inbound_edge = f"{s_node}->{m_node}"
-            for _, row in rules.get_edge_costs(inbound_edge, product).iterrows():
-                if row["cost_type"] == "logistics_cost":
-                    e_amount_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
-                    e_currency = str(row["currency"])
-                    if e_amount_local == 0:
-                        continue
-                    e_fx_rate, e_amount_base = fx.convert(e_amount_local, e_currency, week)
-                    acc.logistics_in_base += e_amount_base
-                    events.append(PPCEvent(
-                        event_id=f"FWD-{next(_event_counter):06d}",
-                        week=week,
-                        lot_id=acc.lot_id,
-                        node_id=m_node,
-                        edge_id=inbound_edge,
-                        product_id=product,
-                        qty=int(round(acc.qty)),
-                        ppc_event_type="logistics_cost",
-                        amount_local=e_amount_local,
-                        currency=e_currency,
-                        fx_rate=e_fx_rate,
-                        amount_base=e_amount_base,
-                        amount_per_unit_base=e_amount_base,
-                        source_rule="ppc_edge_cost_rule.csv",
-                        direction="forward",
-                        profit_zone=rules.get_profit_zone(m_node, product),
-                        cost_phase="FOB",
-                    ))
+            # ── Step 1b: Walk the InBound tier chain from this Supplier to MOM ──
+            # tier_path = [intermediate mom-type ancestors..., m_node], leaf
+            # -side-first. When mom_nodes_chain has no entry for (product,
+            # s_node) -- the common single-tier case -- tier_path == [m_node]
+            # and this loop reduces to exactly the original single-hop
+            # s_node->m_node edge lookup (byte-identical events to before
+            # this fix).
+            tier_chain: List[str] = []
+            if mom_nodes_chain is not None:
+                tier_chain = mom_nodes_chain.get((product, s_node), [])
+            tier_path = tier_chain + [m_node]
+
+            hop_from = s_node
+            for tier_node in tier_path:
+                inbound_edge = f"{hop_from}->{tier_node}"
+                for _, row in rules.get_edge_costs(inbound_edge, product).iterrows():
+                    if row["cost_type"] == "logistics_cost":
+                        e_amount_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
+                        e_currency = str(row["currency"])
+                        if e_amount_local == 0:
+                            continue
+                        e_fx_rate, e_amount_base = fx.convert(e_amount_local, e_currency, week)
+                        acc.logistics_in_base += e_amount_base
+                        events.append(PPCEvent(
+                            event_id=f"FWD-{next(_event_counter):06d}",
+                            week=week,
+                            lot_id=acc.lot_id,
+                            node_id=tier_node,
+                            edge_id=inbound_edge,
+                            product_id=product,
+                            qty=int(round(acc.qty)),
+                            ppc_event_type="logistics_cost",
+                            amount_local=e_amount_local,
+                            currency=e_currency,
+                            fx_rate=e_fx_rate,
+                            amount_base=e_amount_base,
+                            amount_per_unit_base=e_amount_base,
+                            source_rule="ppc_edge_cost_rule.csv",
+                            direction="forward",
+                            profit_zone=rules.get_profit_zone(tier_node, product),
+                            cost_phase="FOB",
+                        ))
+
+                # Intermediate tier's own node costs (conversion_cost /
+                # logistics_cost from ppc_node_cost_rule.csv only -- see
+                # docstring). The terminal m_node is deliberately skipped
+                # here to avoid double-counting: its own node costs are
+                # applied once, below, by the existing Step 1c block.
+                if tier_node != m_node:
+                    tier_zone = rules.get_profit_zone(tier_node, product)
+                    for _, row in rules.get_node_costs(tier_node, product).iterrows():
+                        cost_type = row["cost_type"]
+                        if cost_type not in ("conversion_cost", "logistics_cost"):
+                            continue
+                        c_local = float(row["rate"]) * 1 + float(row["fixed_amount"])
+                        c_currency = str(row["currency"])
+                        if c_local == 0:
+                            continue
+                        c_fx_rate, c_base = fx.convert(c_local, c_currency, week)
+                        if cost_type == "conversion_cost":
+                            acc.conversion_cost_base += c_base
+                            ev_type  = "conversion_cost"
+                            ev_phase = "MOM"
+                        else:
+                            acc.logistics_in_base += c_base
+                            ev_type  = "logistics_cost"
+                            ev_phase = "FOB"
+                        events.append(PPCEvent(
+                            event_id=f"FWD-{next(_event_counter):06d}",
+                            week=week,
+                            lot_id=acc.lot_id,
+                            node_id=tier_node,
+                            edge_id="",
+                            product_id=product,
+                            qty=int(round(acc.qty)),
+                            ppc_event_type=ev_type,
+                            amount_local=c_local,
+                            currency=c_currency,
+                            fx_rate=c_fx_rate,
+                            amount_base=c_base,
+                            amount_per_unit_base=c_base,
+                            source_rule="ppc_node_cost_rule.csv",
+                            direction="forward",
+                            profit_zone=tier_zone,
+                            cost_phase=ev_phase,
+                        ))
+
+                hop_from = tier_node
 
         # ── Step 1c: MOM node costs (conversion + logistics) ─────────
         mom_profit_zone = rules.get_profit_zone(m_node, product)

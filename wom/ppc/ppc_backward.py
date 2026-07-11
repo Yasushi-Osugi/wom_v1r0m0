@@ -34,27 +34,35 @@ def _resolve_node(node: Union[str, Dict[str, str]], product_id: str) -> str:
 
 
 def _resolve_node_list(
-    chain: Union[None, List[str], Dict[str, List[str]], str, Dict[str, str]],
+    chain: Union[None, List[str], Dict[str, List[str]], Dict[Tuple[str, str], List[str]], str, Dict[str, str]],
     product_id: str,
+    channel_node: str,
 ) -> List[str]:
-    """Resolve dad_nodes_chain to an ordered list for a specific product.
+    """Resolve dad_nodes_chain to an ordered list for a specific product/channel.
 
-    Accepts:
+    Accepts (checked in this order):
+      dict[(product_id, channel_node) -> list]  -> preferred, per-Lot chain
+        (see wom/model/sc_tree.py's walk_ancestor_chain and Coding Request
+        Letter smartx-2027-2029-fix-request-letter.md, Problem C+D)
       None            -> []   (caller must fall back to single dad_node)
       list[str]       -> as-is
-      dict[str,list]  -> chain[product_id]
+      dict[str,list]  -> chain[product_id]   (legacy, per-product flat)
       str             -> [str]   (single-node legacy)
       dict[str,str]   -> [chain[product_id]]  (single-node legacy dict)
     """
-    if chain is None:
-        return []
-    if isinstance(chain, list):
-        return chain
     if isinstance(chain, dict):
+        key = (product_id, channel_node)
+        if key in chain:
+            val = chain[key]
+            return val if isinstance(val, list) else ([val] if val else [])
         val = chain.get(product_id, [])
         if isinstance(val, list):
             return val
         return [val] if val else []
+    if chain is None:
+        return []
+    if isinstance(chain, list):
+        return chain
     return [chain] if chain else []
 
 
@@ -178,7 +186,7 @@ def run_backward_propagation(
         tp_currency = str(tp_rule["currency"]) if tp_rule is not None else "USD"
 
         # Build ordered DAD chain (MOM-side first, channel-side last)
-        chain = _resolve_node_list(dad_nodes_chain, product)
+        chain = _resolve_node_list(dad_nodes_chain, product, channel)
         if not chain:
             chain = [_resolve_node(dad_node, product)]  # legacy single-DAD
 

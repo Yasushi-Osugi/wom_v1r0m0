@@ -60,6 +60,7 @@ class PPCSimulationEngine:
         supplier_node: Union[str, Dict[str, str]] = "Supplier_CN",
         dad_node: Union[str, Dict[str, str]] = "DAD_Japan",
         dad_nodes_chain=None,
+        mom_nodes_chain=None,
         verbose: bool = False,
     ):
         self.sales_records  = sales_records
@@ -70,6 +71,11 @@ class PPCSimulationEngine:
         self.supplier_node  = supplier_node
         self.dad_node       = dad_node
         self.dad_nodes_chain = dad_nodes_chain
+        # mom_nodes_chain: dict[(product_id, leaf_in_node) -> list[str]],
+        # InBound counterpart of dad_nodes_chain (see wom/ppc/ppc_forward.py
+        # and Coding Request Letter smartx-2027-2029-fix-request-letter.md,
+        # Problem B). None / empty entries preserve pre-fix behavior.
+        self.mom_nodes_chain = mom_nodes_chain
         self.verbose        = verbose
 
         self._fx = FXConverter(rules.fx_rate, base_currency)
@@ -88,6 +94,7 @@ class PPCSimulationEngine:
         fwd_events = run_forward_propagation(
             accumulators, self.rules, self._fx, self.sc_paths,
             mom_node=self.mom_node, supplier_node=self.supplier_node,
+            mom_nodes_chain=self.mom_nodes_chain,
         )
         all_events.extend(fwd_events)
         if self.verbose:
@@ -286,6 +293,18 @@ _IPHONE_GLOBAL_CHANNELS = {
     "Retail_AMER_i15", "Retail_EMEA_i15", "Retail_APAC_i15",
     "Retail_AMER_i17", "Retail_EMEA_i17", "Retail_APAC_i17",
 }
+# Products that identify iPhone Global model (2026-07-11 fix, Problem E /
+# wom-v1r1m7-fix4all_case Coding Request Letter smartx-2027-2029-fix-request-
+# letter.md): channel-name overlap alone is NOT sufficient to detect this
+# scenario -- smartx-2027-2029's SmartXPro happens to reuse the exact same
+# "Retail_AMER"/"Retail_EMEA"/"Retail_APAC" leaf_out node names, which
+# previously caused it to be misdetected as "iphone_global" (routing it into
+# the hardcoded Foxconn_CN/SP_iPhone16 paths, which don't exist for
+# SmartXPro/SmartX/SmartXNext, silently producing $0 cost / 100% margin and
+# never reaching the GENERIC branch where Problems A/B/C+D are fixed).
+# Requiring BOTH product_id AND channel overlap disambiguates this while
+# leaving the real legacy iphone_global sample data's detection unchanged.
+_IPHONE_GLOBAL_PRODUCTS = {"iPhone16", "iPhone15", "iPhone17"}
 # Products / channels that identify the Cookie JP scenario
 _COOKIE_PRODUCTS  = {"Cookie_Import", "Cookie_Local"}
 _COOKIE_CHANNELS  = {"Retail_JP_CVS", "Retail_JP_SM", "Retail_JP_EC"}
@@ -336,7 +355,7 @@ def detect_scenario(sales_records) -> str:
     if products & _RICE_PRODUCTS:
         return "rice"
     channels = set(sales_records["channel_node"].unique())
-    if channels & _IPHONE_GLOBAL_CHANNELS:
+    if (products & _IPHONE_GLOBAL_PRODUCTS) and (channels & _IPHONE_GLOBAL_CHANNELS):
         return "iphone_global"
     if (products & _COOKIE_PRODUCTS) or (channels & _COOKIE_CHANNELS):
         return "cookie"
