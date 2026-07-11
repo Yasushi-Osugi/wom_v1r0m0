@@ -92,12 +92,18 @@ SEASONS = [
 BRANDS = [
     {
         "key": "Import",
-        "prefix": "Apparel_Import",
+        # NOTE (2026-07-11 rename): brand SKU/bridge-node names changed from
+        # Apparel_Import/SP_Apparel_Import to Apparel_Outsourced/
+        # SP_Apparel_Outsourced (clearer, non-Incoterm-confusing terminology
+        # for readers of the note article). Node names below (factory/fabric/
+        # dc, "Import"-suffixed) were intentionally left unchanged -- only the
+        # brand-level SKU prefix and HQ bridge node were renamed.
+        "prefix": "Apparel_Outsourced",
         "suffix": "I",                     # sales node suffix: Sales_US_TX_I
         "factory": "Factory_Import_CN",
         "fabric": "Fabric_CN",
         "dc": "DC_Import_Buffer",
-        "sp": "SP_Apparel_Import",
+        "sp": "SP_Apparel_Outsourced",
         "factory_country": "CN",
         "hs_code": 6109100000,
         # Lead times (weeks)
@@ -136,12 +142,15 @@ BRANDS = [
     },
     {
         "key": "Local",
-        "prefix": "Apparel_Local",
+        # NOTE (2026-07-11 rename): renamed from Apparel_Local/SP_Apparel_Local
+        # to Apparel_Integrated/SP_Apparel_Integrated (see matching note on the
+        # "Import" brand dict above).
+        "prefix": "Apparel_Integrated",
         "suffix": "L",                     # sales node suffix: Sales_US_TX_L
         "factory": "Factory_Local_ES",
         "fabric": "Fabric_ES",
         "dc": "DC_Local_US",
-        "sp": "SP_Apparel_Local",
+        "sp": "SP_Apparel_Integrated",
         "factory_country": "ES",
         "hs_code": 6109100000,
         # Lead times (weeks) -- short and stable: vertically-integrated
