@@ -1,7 +1,7 @@
 scenario,src_region,dst_region,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
 Base,CN,US,0.147,1.0,USD,USD,4.8,2025年1月時点の平均関税(14.7%)
 TariffShock2025,CN,US,0.2,1.0,USD,USD,4.8,2025年後半〜2026年: 中国向け関税20%
-TariffRelief2026,CN,US,0.2,1.0,USD,USD,4.8,恒久的に切り上がった床（部分緙和後も高止まり）
+TariffRelief2026,CN,US,0.167,1.0,USD,USD,4.8,IEEPA相互関税分(+3.3pt)は失効も、2025年に恒久化されたSection301追加関税(+2.0pt)は存続し16.7%で高止まり
 Base,ES,US,0.1,1.0,USD,USD,7.0,2025年時点のEU向け平均関税相当(参考値)
 TariffShock2025,ES,US,0.2,1.0,USD,USD,7.0,2025年後半〜2026年2月: IEEPA相互関税適用時のピーク水準
 TariffRelief2026,ES,US,0.15,1.0,USD,USD,7.0,2026年7月1日発効のEU-US通商合意による包括上限15%
