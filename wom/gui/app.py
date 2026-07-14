@@ -909,6 +909,14 @@ class ManagementCockpitPanel(tk.Frame):
             gp   = float(row.get("gross_profit_base", 0) or 0)
             gm   = float(row.get("gross_margin_pct", 0) or 0)
             tar  = float(row.get("tariff_base", 0) or 0)
+            # rev == 0 means this node never recognizes market_revenue --
+            # only the terminal channel/leaf_out node does (see
+            # ppc_profit_zone.py, market_revenue is always emitted at
+            # acc.channel_node). For upstream/pass-through nodes,
+            # gross_margin_pct is a "0.0 / 0 -> 0.0" guard placeholder,
+            # not a real zero margin, so show "--" (N/A) instead of a
+            # misleading "0.0%" (2026-07-14 GUI review finding).
+            gm_display = "--" if rev == 0 else f"{gm*100:.1f}%"
             tags = ("NEG",) if gp < 0 else ()
             self._node_pl_tree.insert("", "end", tags=tags, values=[
                 row.get("node_id", ""),
@@ -916,7 +924,7 @@ class ManagementCockpitPanel(tk.Frame):
                 f"{rev:,.0f}",
                 f"{cost:,.0f}",
                 f"{gp:,.0f}",
-                f"{gm*100:.1f}%",
+                gm_display,
                 f"{tar:,.0f}",
             ])
 
@@ -1732,16 +1740,21 @@ class SCNetworkPanel(tk.Frame):
                      font=("Segoe UI", 11)).pack(expand=True)
             return
 
-        # PanedWindow — left: network, right: charts
-        paned = tk.PanedWindow(self, orient="horizontal", bg=BG_DARK,
+        # PanedWindow — stacked top-to-bottom (2026-07-14 layout revision,
+        # GUI review finding): network graph / PSI graph / Revenue graph all
+        # share the SAME full width instead of squeezing the network graph
+        # into a half-width left pane. Top: network graph. Bottom: the PSI
+        # Chart tab (which already stacks PSI over Cost/Revenue vertically)
+        # plus the PSI List tab.
+        paned = tk.PanedWindow(self, orient="vertical", bg=BG_DARK,
                                sashwidth=5, sashrelief="flat")
         paned.pack(fill="both", expand=True)
 
-        # ── Left: NetworkX graph ─────────────────────────────────────
+        # ── Top: NetworkX graph (full width) ────────────────────────────
         lf = tk.Frame(paned, bg=BG_DARK)
-        paned.add(lf, minsize=380)
+        paned.add(lf, minsize=260)
 
-        self._net_fig = Figure(figsize=(5, 7), dpi=90, facecolor=BG_DARK)
+        self._net_fig = Figure(figsize=(9, 4), dpi=90, facecolor=BG_DARK)
         self._net_canvas = FigureCanvasTkAgg(self._net_fig, master=lf)
         self._net_canvas.get_tk_widget().pack(fill="both", expand=True)
         self._net_canvas.mpl_connect("button_press_event", self._on_node_click)
@@ -1786,22 +1799,23 @@ class SCNetworkPanel(tk.Frame):
                  bg=BG_MID, fg=FG_ACC,
                  font=("Segoe UI", 8, "italic")).pack(side="left", padx=10)
 
-        # ── Right: sub-notebook (PSI Chart | PSI List) ─────────────
+        # ── Bottom: sub-notebook (PSI Chart | PSI List), full width ──────
         rf = tk.Frame(paned, bg=BG_DARK)
         paned.add(rf, minsize=380)
 
         right_nb = ttk.Notebook(rf)
         right_nb.pack(fill="both", expand=True)
 
-        # Tab 1 – PSI Chart (existing matplotlib charts)
+        # Tab 1 – PSI Chart (existing matplotlib charts, PSI stacked over
+        # Cost/Revenue -- middle/bottom rows of the 3-row layout)
         chart_frame = tk.Frame(right_nb, bg=BG_DARK)
         right_nb.add(chart_frame, text="  PSI Chart  ")
 
-        self._psi_fig = Figure(figsize=(5, 3.5), dpi=90, facecolor=BG_DARK)
+        self._psi_fig = Figure(figsize=(9, 3), dpi=90, facecolor=BG_DARK)
         self._psi_canvas = FigureCanvasTkAgg(self._psi_fig, master=chart_frame)
         self._psi_canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        self._cost_fig = Figure(figsize=(5, 3.5), dpi=90, facecolor=BG_DARK)
+        self._cost_fig = Figure(figsize=(9, 3), dpi=90, facecolor=BG_DARK)
         self._cost_canvas = FigureCanvasTkAgg(self._cost_fig, master=chart_frame)
         self._cost_canvas.get_tk_widget().pack(fill="both", expand=True)
 
@@ -2680,19 +2694,53 @@ class SCNetworkPanel(tk.Frame):
         non_sp_nodes = [n for n in G.nodes
                         if G.nodes[n].get("node_type") != "supply_point"]
 
-        # Normal nodes
-        nc_normal, ns_normal = [], []
+        # Split non-SP nodes into "stocker" (buffering_stock_flag=1 /
+        # is_decoupling, e.g. FG_WH_*) vs normal nodes. Buffer-holding
+        # decoupling nodes render with an inverted-triangle "stocker"
+        # marker (classic Industrial Engineering symbol for an inventory
+        # buffer), so users can see at a glance where PULL-side CO is
+        # absorbed instead of accumulating (2026-07-14 GUI review finding
+        # -- addresses the "PUSH/decoupling state isn't visualized" known
+        # limitation for buffering_stock_flag=1 nodes; InBound Step 8
+        # push_config.csv decoupling nodes are not yet covered here).
+        stocker_nodes, normal_nodes = [], []
         for nid in non_sp_nodes:
+            nobj = G.nodes[nid].get("node_obj")
+            if nobj is not None and getattr(nobj, "is_decoupling", False):
+                stocker_nodes.append(nid)
+            else:
+                normal_nodes.append(nid)
+
+        # Normal nodes (circular marker)
+        nc_normal, ns_normal = [], []
+        for nid in normal_nodes:
             nt = G.nodes[nid].get("node_type", "virtual")
             hl = (nid == highlight)
             nc_normal.append(node_colour(nt, hl))
             ns_normal.append(node_size(nt, hl))
 
-        if non_sp_nodes:
+        if normal_nodes:
             nx.draw_networkx_nodes(G, pos, ax=ax,
-                                   nodelist=non_sp_nodes,
+                                   nodelist=normal_nodes,
                                    node_color=nc_normal,
                                    node_size=ns_normal,
+                                   alpha=0.92)
+
+        # Stocker nodes (inverted-triangle marker = buffering stock)
+        nc_stocker, ns_stocker = [], []
+        for nid in stocker_nodes:
+            nt = G.nodes[nid].get("node_type", "virtual")
+            hl = (nid == highlight)
+            nc_stocker.append(node_colour(nt, hl))
+            ns_stocker.append(node_size(nt, hl))
+
+        if stocker_nodes:
+            nx.draw_networkx_nodes(G, pos, ax=ax,
+                                   nodelist=stocker_nodes,
+                                   node_color=nc_stocker,
+                                   node_size=ns_stocker,
+                                   node_shape="v",
+                                   edgecolors="#FFFFFF", linewidths=1.3,
                                    alpha=0.92)
 
         # SP node — small + semi-transparent
@@ -2753,6 +2801,9 @@ class SCNetworkPanel(tk.Frame):
             Patch(facecolor=NODE_COLOUR["leaf_out"], label="Leaf-Out  [OutBound]"),
             Patch(facecolor=NODE_COLOUR["virtual"],  label="Virtual office"),
             Patch(facecolor="#FFFF00",               label="Selected"),
+            Line2D([0], [0], marker="v", linestyle="None",
+                   markerfacecolor=NODE_COLOUR["dad"], markeredgecolor="#FFFFFF",
+                   markersize=9, label="Buffering Stock (decoupling)"),
         ]
         # Lane colour entries (one per MOM)
         for mid, clr in mom_clr.items():
@@ -3209,11 +3260,20 @@ class WorldMapPanel(tk.Frame):
                             pass
 
         # Draw node markers (filtered set only)
+        #
+        # 2026-07-14 GUI review finding: removing the label entirely (first
+        # attempt) made nodes impossible to identify without clicking every
+        # pin -- too aggressive. Reverted per user feedback: show the bare
+        # node_name only (no icon prefix, no description) as a short,
+        # single-line label -- this keeps most overlap cases readable while
+        # still trimming label width versus the original "icon + name"
+        # text. Full detail (type/lat/lon/SKU/region/description) remains
+        # a click away via _on_marker_click / the Node Info panel.
         for node in nodes_to_draw:
             ntype  = str(node.get("node_type", ""))
             style  = _MAP_NODE_STYLE.get(ntype, ("#607D8B", "#455A64", "📍"))
             cc, co, icon = style
-            label  = f"{icon} {node.get('node_name', node.get('node_id', ''))}"
+            label  = str(node.get("node_name", node.get("node_id", "")))
             try:
                 marker = self._map_widget.set_marker(
                     float(node["lat"]), float(node["lon"]),
