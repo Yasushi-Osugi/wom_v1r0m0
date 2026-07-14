@@ -61,11 +61,24 @@ Mode 4 - LT-shifted demand  (push_lead_time_weeks > 0):
       - EOL stop  : demand[w+LT] = 0 -> production = 0, LT weeks before
                     last demand week -> buffer depletes to 0 at lifecycle end
 
+    IMPORTANT (2028-07-13, per user correction on WOM's core Lot_ID
+    principle): Lot_IDs are minted exactly ONCE, up front, at initial
+    planning (assign_demand_lots_from_dict) -- never fabricated mid-plan.
+    Mode 4's leaf-in assignment therefore does NOT mint new Lot_IDs; it
+    re-times the EXISTING Lot_IDs already sitting at
+    demand_ref_node.psi4demand[w+LT][S] (see setup(), the
+    is_lt_shifted_mode() branch). Modes 1-3 remain anonymous PUSH-to-stock
+    schedules (no single future demand event to anchor to) and still mint
+    fresh Lot_IDs via LotIDGenerator -- see the KNOWN LIMITATION note in
+    setup() for the downstream-matching caveat this implies for those modes.
+
 Region-proportional lot assignment
 ------------------------------------
 PUSH lots must carry region tags to route correctly through SP -> DAD in
 ForwardPlanner._propagate_to_child. Distribution uses TOTAL regional demand
 ratio (sum across all weeks) so every production week is tagged correctly.
+(Modes 1-3 only -- Mode 4 lots already carry their original region tag,
+inherited from the reused Lot_ID.)
 """
 
 from __future__ import annotations
@@ -225,14 +238,6 @@ class PushProductionPlanner:
             _up.plan_mode = PUSH_SUB_MODE
             _up = _up.parent
 
-        # 3. Compute push quantities
-        push_qtys = self._compute_push_quantities(
-            decoupling_node, config, n_weeks, demand_ref_node
-        )
-
-        # 4. Regional distribution
-        region_totals = self._compute_region_totals(prod_nm, n_weeks)
-
         # 5. Leaf-in assignment
         leaf_in_nodes = [
             node for node in decoupling_node.walk_preorder()
@@ -246,6 +251,72 @@ class PushProductionPlanner:
 
         sku_id   = config.effective_sku()
         n_leaves = len(leaf_in_nodes)
+
+        if config.is_lt_shifted_mode():
+            # Mode 4 -- Lot_ID-identity-preserving re-timing.
+            #
+            # WOM principle (2028-07-13, per user correction): Lot_IDs are
+            # minted exactly ONCE, up front, at initial planning
+            # (assign_demand_lots_from_dict) -- never fabricated mid-plan.
+            # The original _lt_shifted_schedule()/_generate_regional_lots()
+            # combination violated this: it read
+            # demand_ref_node.psi4demand[w+LT][S] only to COUNT how many
+            # lots were needed, discarded that list, and then minted
+            # brand-new Lot_IDs (via LotIDGenerator) carrying the
+            # PRODUCTION week instead of the original DEMAND week.
+            # Downstream OutBound PULL nodes (SP/DAD/leaf_out) still hold
+            # the ORIGINAL demand-anchored Lot_IDs and match supply by
+            # strict Lot_ID identity (_match_by_identity in
+            # forward_planner.py) -- so the freshly-minted lots could never
+            # satisfy them, and OutBound Carry-Over grew without bound even
+            # though InBound Carry-Over was fixed and aggregate volumes
+            # balanced (see data/sample/apparel-global-2028-2029/verify/
+            # README.md for the full diagnosis).
+            #
+            # Fix: re-time the EXISTING Lot_IDs instead of creating new
+            # ones. leaf_in's P at week w becomes the exact same Lot_ID
+            # list already sitting at demand_ref_node.psi4demand[w+LT][S]
+            # -- i.e. "produce these specific lots earlier," not "produce
+            # some other lots of the same quantity."
+            ref = demand_ref_node if demand_ref_node is not None else decoupling_node
+            lt_weeks = config.push_lead_time_weeks
+            for w in range(n_weeks):
+                future_w = w + lt_weeks
+                lots = list(ref.psi4demand[future_w][S]) if future_w < n_weeks else []
+                if not lots:
+                    continue
+                wk_label = self.sc_tree.week_labels[w]
+
+                # Distribute the EXISTING lots across leaf_in nodes as
+                # contiguous slices -- identity is preserved throughout,
+                # no LotIDGenerator call for this mode.
+                base, remainder = divmod(len(lots), n_leaves)
+                idx = 0
+                for leaf_idx, leaf_node in enumerate(leaf_in_nodes):
+                    take = base + (1 if leaf_idx < remainder else 0)
+                    if take <= 0:
+                        continue
+                    leaf_lots = lots[idx: idx + take]
+                    idx += take
+                    leaf_node.psi4supply[w][P] = list(leaf_lots)
+                    result.record(leaf_node.node_id, wk_label, len(leaf_lots))
+            return result
+
+        # Modes 1-3 (fixed / replenishment / time-phased): these are
+        # anonymous PUSH-to-stock schedules with no single future demand
+        # event to anchor to, so they still mint fresh Lot_IDs via
+        # LotIDGenerator. KNOWN LIMITATION (2028-07-13): if the decoupling
+        # node bridges (directly or via push_sub pass-through) into an
+        # OutBound chain that does Lot_ID-identity PULL matching, these
+        # modes will hit the same downstream-matching gap Mode 4 had --
+        # not fixed in this pass; see verify/README.md.
+        # 3. Compute push quantities
+        push_qtys = self._compute_push_quantities(
+            decoupling_node, config, n_weeks, demand_ref_node
+        )
+
+        # 4. Regional distribution
+        region_totals = self._compute_region_totals(prod_nm, n_weeks)
 
         for w in range(n_weeks):
             total_qty = push_qtys[w]
@@ -317,29 +388,16 @@ class PushProductionPlanner:
         n_weeks:         int,
     ) -> List[int]:
         """
-        Mode 4 — LT-shifted demand schedule.
+        Mode 4 — LT-shifted demand schedule (QUANTITY-ONLY variant).
+
+        Retained for backward compatibility / result.mode reporting and
+        any external caller that only needs the count. NOT used by
+        setup()'s actual leaf-in assignment anymore for Mode 4 -- see the
+        is_lt_shifted_mode() branch in setup(), which reuses the EXISTING
+        Lot_ID list directly instead of just this count (2028-07-13 fix).
 
         push[w] = len(demand_ref_node.psi4demand[w + lt_weeks][S])
         When w + lt_weeks >= n_weeks: push[w] = 0  (natural EOL stop).
-
-        With demand_ref_node = Buffer_Wafer_TW (decoupling node itself) and
-        lt_weeks = 26, the full DBR buffer lifecycle emerges automatically:
-
-          Pre-build phase  (demand[w]=0, demand[w+26]>0):
-            SiliconWafer_TW produces 26 weeks before TSMC_TW needs it.
-            Buffer accumulates: I[w] += push[w]  (差分が積み上がる ✓)
-
-          Steady phase  (demand[w] == demand[w+26] == staircase):
-            Production = staircase = consumption -> buffer flat.
-
-          Staircase transition  (demand[w+26] < demand[w]):
-            Production steps DOWN 26 weeks before consumption steps down.
-            Buffer absorbs the gap: I depletes by (demand[w] - push[w])/week
-            over the 26-week transition window.
-
-          EOL stop  (demand[w+26] = 0, demand[w] > 0):
-            Push = 0 for the final 26 weeks while consumption continues.
-            Buffer depletes to 0 at exactly the last demand week.
         """
         schedule: List[int] = []
         for w in range(n_weeks):

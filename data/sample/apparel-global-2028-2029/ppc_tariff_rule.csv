@@ -1,0 +1,5 @@
+edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
+DC_US_Offshore->Retail_US_Offshore,BD,US,Apparel_Offshore,6109100000,0.165,transfer_price
+DC_JP_Offshore->Retail_JP_Offshore,BD,JP,Apparel_Offshore,6109100000,0.02,transfer_price
+DC_US_Vertical->Retail_US_Vertical,PT,US,Apparel_Vertical,6109100000,0.12,transfer_price
+DC_JP_Vertical->Retail_JP_Vertical,PT,JP,Apparel_Vertical,6109100000,0.01,transfer_price

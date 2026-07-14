@@ -1,0 +1,21 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+Apparel_Offshore,Fabric_CN,5.75,5.0,原料生地
+Apparel_Offshore,Dyeing_BD,8.25,7.5,染色後累積コスト
+Apparel_Offshore,Trim_VN,10.23,9.3,トリム後累積コスト
+Apparel_Offshore,Garment_BD,21.54,19.58,工場出荷価格（cost_plus、マージン込み）
+Apparel_Offshore,SP_Apparel_Offshore,19.58,19.58,Supply Point pass-through
+Apparel_Offshore,FG_WH_BD,22.03,20.98,完成品地域倉庫 保管・ハンドリング込み
+Apparel_Offshore,DC_US_Offshore,35.21,32.01,US向けDC 関税(16.5%)+国際輸送費込み
+Apparel_Offshore,Retail_US_Offshore,52.0,32.91,US店舗・EC 販売原価
+Apparel_Offshore,DC_JP_Offshore,29.56,26.87,JP向けDC 関税(2.0%)+国際輸送費込み
+Apparel_Offshore,Retail_JP_Offshore,52.0,27.77,JP店舗・EC 販売原価
+Apparel_Vertical,Fabric_ES,8.62,7.5,原料生地
+Apparel_Vertical,Dyeing_PT,10.45,9.5,染色後累積コスト
+Apparel_Vertical,Trim_MA,12.1,11.0,トリム後累積コスト
+Apparel_Vertical,Garment_PT,27.1,24.64,工場出荷価格（cost_plus、マージン込み）
+Apparel_Vertical,SP_Apparel_Vertical,24.64,24.64,Supply Point pass-through
+Apparel_Vertical,FG_WH_PT,27.45,26.14,完成品地域倉庫 保管・ハンドリング込み
+Apparel_Vertical,DC_US_Vertical,43.89,39.9,US向けDC 関税(12.0%)+国際輸送費込み
+Apparel_Vertical,Retail_US_Vertical,62.0,40.8,US店舗・EC 販売原価
+Apparel_Vertical,DC_JP_Vertical,44.21,40.19,JP向けDC 関税(1.0%)+国際輸送費込み
+Apparel_Vertical,Retail_JP_Vertical,62.0,41.09,JP店舗・EC 販売原価

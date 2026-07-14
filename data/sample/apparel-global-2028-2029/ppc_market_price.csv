@@ -1,0 +1,5 @@
+market_node,product_id,week,market_price,currency
+Retail_US_Offshore,Apparel_Offshore,2028-W01,52.0,USD
+Retail_JP_Offshore,Apparel_Offshore,2028-W01,7900.0,JPY
+Retail_US_Vertical,Apparel_Vertical,2028-W01,62.0,USD
+Retail_JP_Vertical,Apparel_Vertical,2028-W01,9300.0,JPY

@@ -156,6 +156,23 @@ class LotCostAccumulator:
     # so overall cost totals are unaffected -- only the MOM-profit
     # attribution changes.
     mom_to_dad_freight_base: float = 0.0
+    # Freight on inter-DAD edges (chain[i]->chain[i+1] for i>=1, e.g. a
+    # regional FG warehouse -> market-specific DC leg in a multi-tier
+    # OutBound DAD chain). Kept SEPARATE from logistics_in_base for the
+    # SAME reason as mom_to_dad_freight_base above (added 2028-07-13,
+    # apparel-global-2028-2029 verification): ppc_tariff.py's inter-DAD
+    # walk (Step 3, section b/c) previously added this straight into
+    # logistics_in_base, which ppc_reconcile.py's MOM_PROFIT_TOO_LOW check
+    # and ppc_profit_zone.py's MOM-profit event both read as "MOM's own
+    # inbound supply cost" -- so any inter-DAD freight silently inflated
+    # mom_supply_cost and fired MOM_PROFIT_TOO_LOW on every lot, even
+    # though the freight has nothing to do with MOM's own margin (it is a
+    # downstream, market-side distribution cost). This never surfaced on
+    # any earlier case because none of them had a 2+-tier DAD chain (the
+    # inter-DAD loop was dead code for a single-DAD topology). Still
+    # included in total_forward_cost_base() / landed cost, so overall
+    # totals are unaffected -- only the MOM-profit attribution changes.
+    inter_dad_freight_base: float = 0.0
     tariff_in_base:         float = 0.0   # import duty CN->JP
     insurance_in_base:      float = 0.0   # insurance on CN->JP edge
     logistics_out_base:     float = 0.0   # outbound logistics (DAD->Channel edge)
@@ -181,6 +198,7 @@ class LotCostAccumulator:
             + self.conversion_cost_base
             + self.logistics_in_base
             + self.mom_to_dad_freight_base
+            + self.inter_dad_freight_base
             + self.tariff_in_base
             + self.insurance_in_base
             + self.logistics_out_base

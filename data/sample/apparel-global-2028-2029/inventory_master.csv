@@ -1,0 +1,5 @@
+sku_id,region,on_hand_qty,on_order_qty,week
+Apparel_Offshore,US,270,135,2028-W01
+Apparel_Offshore,JP,144,72,2028-W01
+Apparel_Vertical,US,270,135,2028-W01
+Apparel_Vertical,JP,144,72,2028-W01

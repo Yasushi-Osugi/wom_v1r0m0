@@ -1,0 +1,5 @@
+sku_id,leaf_node_name,mom_node_id,priority
+Apparel_Offshore,Retail_US_Offshore,IN:mom:Garment_BD:Apparel_Offshore,1
+Apparel_Offshore,Retail_JP_Offshore,IN:mom:Garment_BD:Apparel_Offshore,1
+Apparel_Vertical,Retail_US_Vertical,IN:mom:Garment_PT:Apparel_Vertical,1
+Apparel_Vertical,Retail_JP_Vertical,IN:mom:Garment_PT:Apparel_Vertical,1

@@ -1,0 +1,17 @@
+edge_id,product_id,cost_type,basis,rate,fixed_amount,currency
+Fabric_CN->Dyeing_BD,Apparel_Offshore,logistics_cost,per_lot,0.0,0.3,USD
+Dyeing_BD->Trim_VN,Apparel_Offshore,logistics_cost,per_lot,0.0,0.5,USD
+Trim_VN->Garment_BD,Apparel_Offshore,logistics_cost,per_lot,0.0,0.4,USD
+Garment_BD->FG_WH_BD,Apparel_Offshore,logistics_cost,per_lot,0.0,0.4,USD
+FG_WH_BD->DC_US_Offshore,Apparel_Offshore,logistics_cost,per_lot,0.0,5.5,USD
+DC_US_Offshore->Retail_US_Offshore,Apparel_Offshore,logistics_cost,per_lot,0.0,0.9,USD
+FG_WH_BD->DC_JP_Offshore,Apparel_Offshore,logistics_cost,per_lot,0.0,3.5,USD
+DC_JP_Offshore->Retail_JP_Offshore,Apparel_Offshore,logistics_cost,per_lot,0.0,0.9,USD
+Fabric_ES->Dyeing_PT,Apparel_Vertical,logistics_cost,per_lot,0.0,0.3,USD
+Dyeing_PT->Trim_MA,Apparel_Vertical,logistics_cost,per_lot,0.0,0.5,USD
+Trim_MA->Garment_PT,Apparel_Vertical,logistics_cost,per_lot,0.0,0.4,USD
+Garment_PT->FG_WH_PT,Apparel_Vertical,logistics_cost,per_lot,0.0,0.3,USD
+FG_WH_PT->DC_US_Vertical,Apparel_Vertical,logistics_cost,per_lot,0.0,8.0,USD
+DC_US_Vertical->Retail_US_Vertical,Apparel_Vertical,logistics_cost,per_lot,0.0,0.9,USD
+FG_WH_PT->DC_JP_Vertical,Apparel_Vertical,logistics_cost,per_lot,0.0,11.0,USD
+DC_JP_Vertical->Retail_JP_Vertical,Apparel_Vertical,logistics_cost,per_lot,0.0,0.9,USD

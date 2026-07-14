@@ -1,0 +1,7 @@
+profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
+OUTBOUND_CHANNEL_PROFIT,Apparel_Offshore,channel_margin,market_price,0.35,0
+MOM_PLANT_PROFIT,Apparel_Offshore,mom_margin,transfer_price,0.08,0
+SUPPLIER_COST_BASE,Apparel_Offshore,supplier_cost,transfer_price,1.0,0
+OUTBOUND_CHANNEL_PROFIT,Apparel_Vertical,channel_margin,market_price,0.42,0
+MOM_PLANT_PROFIT,Apparel_Vertical,mom_margin,transfer_price,0.1,0
+SUPPLIER_COST_BASE,Apparel_Vertical,supplier_cost,transfer_price,1.0,0

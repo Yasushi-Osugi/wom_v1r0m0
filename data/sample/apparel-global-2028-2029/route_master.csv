@@ -1,0 +1,5 @@
+sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
+Apparel_Offshore,US,BD,US,6109100000,finished_goods,0
+Apparel_Offshore,JP,BD,JP,6109100000,finished_goods,0
+Apparel_Vertical,US,PT,US,6109100000,finished_goods,0
+Apparel_Vertical,JP,PT,JP,6109100000,finished_goods,0

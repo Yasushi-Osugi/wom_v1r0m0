@@ -1,0 +1,13 @@
+scenario,src_region,dst_region,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
+Base,BD,US,0.165,1.0,USD,USD,5.5,Bangladeshは対米GSP適用外(繊維・アパレル)のため実勢平均関税水準
+TariffEscalation2028,BD,US,0.22,1.0,USD,USD,5.5,保護主義的な追加関税シナリオ(仮想)
+TariffRelief2029,BD,US,0.18,1.0,USD,USD,5.5,部分緩和シナリオ、恒久分は残存(仮想)
+Base,BD,JP,0.02,1.0,USD,USD,3.5,日本のLDC(後発開発途上国)特恵関税によりBangladesh産はほぼ無税
+TariffEscalation2028,BD,JP,0.04,1.0,USD,USD,3.5,特恵見直しシナリオ(仮想)
+TariffRelief2029,BD,JP,0.02,1.0,USD,USD,3.5,特恵維持シナリオ
+Base,PT,US,0.12,1.0,USD,USD,8.0,EU-US通商関係、現行の実勢平均関税水準(仮想)
+TariffEscalation2028,PT,US,0.18,1.0,USD,USD,8.0,保護主義的な追加関税シナリオ(仮想)
+TariffRelief2029,PT,US,0.14,1.0,USD,USD,8.0,新通商合意による部分緩和シナリオ(仮想)
+Base,PT,JP,0.01,1.0,USD,USD,11.0,EU-日EPAによりEU産アパレルの大半は関税撤廃済み(仮想水準)
+TariffEscalation2028,PT,JP,0.02,1.0,USD,USD,11.0,見直しシナリオ(仮想)
+TariffRelief2029,PT,JP,0.01,1.0,USD,USD,11.0,EPA維持シナリオ

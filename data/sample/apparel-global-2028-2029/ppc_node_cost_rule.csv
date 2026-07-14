@@ -1,0 +1,17 @@
+node_id,product_id,cost_type,basis,rate,fixed_amount,currency,note
+Dyeing_BD,Apparel_Offshore,conversion_cost,per_lot,0.0,2.5,USD,染色加工費（中間MOM）
+Trim_VN,Apparel_Offshore,conversion_cost,per_lot,0.0,1.8,USD,トリム加工費（中間MOM）
+Garment_BD,Apparel_Offshore,conversion_cost,per_lot,0.0,8.5,USD,最終縫製加工費（終端MOM）
+FG_WH_BD,Apparel_Offshore,warehouse_cost,per_lot,0.0,1.0,USD,完成品地域倉庫 運営費
+DC_US_Offshore,Apparel_Offshore,warehouse_cost,per_lot,0.0,1.5,USD,US向けDC 運営・ハンドリング費
+DC_US_Offshore,Apparel_Offshore,sga_cost,per_lot,0.0,0.8,USD,US向けDC SGA配賦
+DC_JP_Offshore,Apparel_Offshore,warehouse_cost,per_lot,0.0,1.3,USD,JP向けDC 運営・ハンドリング費
+DC_JP_Offshore,Apparel_Offshore,sga_cost,per_lot,0.0,0.7,USD,JP向けDC SGA配賦
+Dyeing_PT,Apparel_Vertical,conversion_cost,per_lot,0.0,2.0,USD,染色加工費（中間MOM）
+Trim_MA,Apparel_Vertical,conversion_cost,per_lot,0.0,1.5,USD,トリム加工費（中間MOM）
+Garment_PT,Apparel_Vertical,conversion_cost,per_lot,0.0,11.0,USD,最終縫製加工費（終端MOM）
+FG_WH_PT,Apparel_Vertical,warehouse_cost,per_lot,0.0,1.2,USD,完成品地域倉庫 運営費
+DC_US_Vertical,Apparel_Vertical,warehouse_cost,per_lot,0.0,1.8,USD,US向けDC 運営・ハンドリング費
+DC_US_Vertical,Apparel_Vertical,sga_cost,per_lot,0.0,1.0,USD,US向けDC SGA配賦
+DC_JP_Vertical,Apparel_Vertical,warehouse_cost,per_lot,0.0,1.8,USD,JP向けDC 運営・ハンドリング費
+DC_JP_Vertical,Apparel_Vertical,sga_cost,per_lot,0.0,1.0,USD,JP向けDC SGA配賦

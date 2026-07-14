@@ -272,7 +272,14 @@ def run_tariff_and_landed_cost(
                     if e_local == 0:
                         continue
                     e_fx_rate, e_base = fx.convert(e_local, e_currency, week)
-                    acc.logistics_in_base += e_base
+                    # NOTE (2028-07-13 fix, apparel-global-2028-2029): routed to
+                    # inter_dad_freight_base, NOT logistics_in_base -- see
+                    # LotCostAccumulator.inter_dad_freight_base docstring
+                    # (ppc_models.py) for why. This mirrors the mom_to_dad_
+                    # freight_base fix above (section a-2) for the same class
+                    # of bug, now hit by the inter-DAD leg of a 2+-tier DAD
+                    # chain instead of the mom->first_DAD leg.
+                    acc.inter_dad_freight_base += e_base
                     events.append(PPCEvent(
                         event_id=f"DAD-{next(_ctr):06d}",
                         week=week, lot_id=acc.lot_id, node_id=next_dad,

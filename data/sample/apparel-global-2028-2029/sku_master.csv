@@ -1,0 +1,5 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+Apparel_Offshore,Apparel_Offshore (US Market),US,EA,19.58,3,20,100,0,8,True,52.0,4,90
+Apparel_Offshore,Apparel_Offshore (JP Market),JP,EA,19.58,3,18,100,0,8,True,52.0,4,90
+Apparel_Vertical,Apparel_Vertical (US Market),US,EA,24.64,3,8,100,0,8,True,62.0,4,90
+Apparel_Vertical,Apparel_Vertical (JP Market),JP,EA,24.64,3,8,100,0,8,True,62.0,4,90

@@ -5158,25 +5158,32 @@ class WOMApp(tk.Tk):
         """
         B2: Trigger PPC simulation from PSI output in a background thread.
 
-        Reads weeks from the planning config widget, runs run_ppc_from_psi(),
-        then refreshes the PPC tab on the main thread.
-        """
-        import re as _re
-        import datetime as _dt
+        Uses sc_tree.week_labels (the exact week list Planning just used),
+        runs run_ppc_from_psi(), then refreshes the PPC tab on the main
+        thread.
 
-        # Reconstruct weeks list (same logic as _planning_thread)
-        try:
-            n_weeks = int(self._e_weeks.get() or 26)
-            start   = self._e_start.get() or "2026-W01"
-            m = _re.match(r"(\d{4})-W(\d+)", start)
-            yr, wk = (int(m.group(1)), int(m.group(2))) if m else (2026, 1)
-            weeks, d = [], _dt.date.fromisocalendar(yr, wk, 1)
-            for _ in range(n_weeks):
-                yr2, wk2, _ = d.isocalendar()
-                weeks.append(f"{yr2}-W{wk2:02d}")
-                d += _dt.timedelta(weeks=1)
-        except Exception as _exc:
-            print(f"[PPC B2] week-list rebuild failed: {_exc}")
+        NOTE (2028-07-13 fix, found while verifying apparel-global-2028-2029):
+        this used to reconstruct the week list from the Planning config
+        widgets (self._e_start / self._e_weeks) instead of reading it off
+        the sc_tree that was just planned. Those widgets are plain text
+        entries the user edits by hand (or an "auto-detect from
+        demand_forecast.csv" button elsewhere populates) -- if they still
+        held a stale value from a PREVIOUSLY loaded case (e.g. "2026-W01"
+        / 26 weeks left over from apparel-us-2026) when a new model with a
+        different date range (e.g. apparel-global-2028-2029's 2028-2029)
+        was loaded and planned, PPC would silently run against a week
+        range that shares no overlap with the actual PSI data just
+        computed -- producing 0 lots / 0 revenue with no error, since
+        run_ppc_from_psi() just finds no matching records rather than
+        raising. sc_tree.week_labels is the single source of truth for
+        "which weeks did Planning actually just run" and was already
+        available here (it's the same sc_tree used for the KPI panels
+        immediately above), so there is no reason to re-derive it from a
+        separate, independently-editable widget.
+        """
+        weeks = list(sc_tree.week_labels)
+        if not weeks:
+            print("[PPC B2] sc_tree.week_labels is empty; aborting PPC run")
             return
 
         self._status_var.set(

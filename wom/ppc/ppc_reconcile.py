@@ -161,10 +161,16 @@ def run_reconciliation(
         # (mom_to_dad_freight_base), which used to be merged into
         # logistics_in_base before the MOM_PROFIT_TOO_LOW fix separated them.
         # Omitting it here would understate landed cost after that fix.
+        # NOTE (2028-07-13 fix): same reasoning extends to inter_dad_freight_base
+        # (freight on chain[i]->chain[i+1] edges in a 2+-tier DAD chain, e.g.
+        # apparel-global-2028-2029's FG_WH->DC_market leg) -- it's real landed
+        # cost that must count here, even though it's deliberately excluded
+        # from mom_supply_cost above (Check 3).
         landed_cost = (
             acc.transfer_price_base
             + acc.logistics_in_base
             + acc.mom_to_dad_freight_base
+            + acc.inter_dad_freight_base
             + acc.insurance_in_base
             + acc.tariff_in_base
         )
