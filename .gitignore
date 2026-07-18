@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 output/
 .pytest_cache/
+pytest-cache-files-*/
 *.egg-info/
 .DS_Store
 data/sample/*_BK*/
@@ -13,3 +14,7 @@ data/worldmap_cache.db
 /*.jpg
 /*.jpeg
 /*.png
+
+# keep these explicitly, even though they match the patterns above
+!/WOM_*.docx
+!/Oil_Global_SC_design_draft.md
