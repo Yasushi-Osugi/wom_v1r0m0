@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software or the case study data, please cite it using the metadata below."
+title: "WOM: Weekly Operation Model"
+abstract: >-
+  WOM (Weekly Operation Model) is a Python-based global supply chain
+  planning and simulation system, developed using a Vibe Modeling
+  approach in dialogue with AI. It combines a lot-based weekly PSI
+  (quantity) model with a Cost/Profit Structure Ratio (financial) model,
+  bridging weekly operational execution with management decision-making.
+  This repository includes industrial case studies across multiple
+  sectors (e.g. confectionery, electric vehicles, apparel, smartphones,
+  oil, rice, and other consumer/industrial goods) as reproducible
+  research artifacts.
+authors:
+  - family-names: "Ohsugi"
+    given-names: "Yasushi"
+    affiliation: "Independent"
+repository-code: "https://github.com/Yasushi-Osugi/wom_v1r0m0"
+url: "https://yasushi-osugi.github.io/wom_v1r0m0/"
+keywords:
+  - supply chain management
+  - simulation
+  - vibe modeling
+  - vibe coding
+  - model-driven engineering
+  - operations planning
+  - multi-industry case study
+license: "MIT"
+version: "v1r1m8"
+date-released: "2026-07-18"
