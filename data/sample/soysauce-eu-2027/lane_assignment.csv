@@ -1,0 +1,7 @@
+sku_id,leaf_node_name,mom_node_id,priority
+Soy_Sauce,Rest_US_West,IN:mom:Bottling_Noda:Soy_Sauce,1
+Soy_Sauce,Rest_US_East,IN:mom:Bottling_Noda:Soy_Sauce,1
+Soy_Sauce,Rest_JP,IN:mom:Bottling_Noda:Soy_Sauce,1
+Soy_Sauce,Rest_FR,IN:mom:Bottling_Noda:Soy_Sauce,1
+Soy_Sauce,Rest_BE,IN:mom:Bottling_Noda:Soy_Sauce,1
+Soy_Sauce,Rest_NL,IN:mom:Bottling_Noda:Soy_Sauce,1

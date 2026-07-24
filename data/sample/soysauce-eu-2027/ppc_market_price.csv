@@ -1,0 +1,7 @@
+market_node,product_id,week,market_price,currency
+Rest_US_West,Soy_Sauce,2027-W01,40.0,USD
+Rest_US_East,Soy_Sauce,2027-W01,40.0,USD
+Rest_JP,Soy_Sauce,2027-W01,3600.0,JPY
+Rest_FR,Soy_Sauce,2027-W01,38.0,EUR
+Rest_BE,Soy_Sauce,2027-W01,38.0,EUR
+Rest_NL,Soy_Sauce,2027-W01,38.0,EUR

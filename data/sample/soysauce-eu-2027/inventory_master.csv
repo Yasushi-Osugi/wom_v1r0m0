@@ -1,0 +1,7 @@
+sku_id,region,on_hand_qty,on_order_qty,week
+Soy_Sauce,US_W,700,350,2027-W01
+Soy_Sauce,US_E,700,350,2027-W01
+Soy_Sauce,JP,300,150,2027-W01
+Soy_Sauce,FR,0,0,2027-W01
+Soy_Sauce,BE,0,0,2027-W01
+Soy_Sauce,NL,0,0,2027-W01

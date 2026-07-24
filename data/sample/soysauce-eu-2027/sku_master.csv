@@ -1,0 +1,2 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+Soy_Sauce,Soy Sauce (1CS=12x1L),JP,CS,16.0,3,7,50,0,78,True,40.0,6,8

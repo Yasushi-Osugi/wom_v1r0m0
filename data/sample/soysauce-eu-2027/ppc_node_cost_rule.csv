@@ -1,0 +1,11 @@
+node_id,product_id,cost_type,basis,rate,fixed_amount,currency,note
+Brewing_Noda,Soy_Sauce,conversion_cost,per_lot,0.0,5.0,USD,醸造加工費
+Bottling_Noda,Soy_Sauce,conversion_cost,per_lot,0.0,5.0,USD,瓶詰加工費（終端MOM）
+FG_WH_Noda,Soy_Sauce,warehouse_cost,per_lot,0.0,0.5,USD,輸出前バッファ倉庫 運営費
+DC_US_SF,Soy_Sauce,warehouse_cost,per_lot,0.0,1.5,USD,西海岸DC 運営費
+DC_US_SF,Soy_Sauce,sga_cost,per_lot,0.0,0.8,USD,西海岸DC SGA配賦
+DC_US_NY,Soy_Sauce,warehouse_cost,per_lot,0.0,1.5,USD,東海岸DC 運営費
+DC_US_NY,Soy_Sauce,sga_cost,per_lot,0.0,0.8,USD,東海岸DC SGA配賦
+DC_JP,Soy_Sauce,warehouse_cost,per_lot,0.0,1.0,USD,国内DC 運営費
+DC_EU_RTM,Soy_Sauce,warehouse_cost,per_lot,0.0,1.5,USD,欧州DC 運営費
+DC_EU_RTM,Soy_Sauce,sga_cost,per_lot,0.0,0.8,USD,欧州DC SGA配賦

@@ -1,0 +1,16 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+Soy_Sauce,Materials_JP,6.6,6.0,素材原価（大豆・小麦・塩）
+Soy_Sauce,Brewing_Noda,12.1,11.0,醸造後 累積コスト
+Soy_Sauce,Bottling_Noda,17.6,16.0,瓶詰・工場出荷（cost_plus10%）
+Soy_Sauce,SP_Soy,17.6,16.0,Supply Point pass-through
+Soy_Sauce,FG_WH_Noda,18.1,16.5,輸出前バッファ倉庫 込み
+Soy_Sauce,DC_US_SF,26.4,24.2,西海岸DC 関税12.5%+海上運賃込み
+Soy_Sauce,Rest_US_West,40.0,26.2,西海岸レストラン 販売原価
+Soy_Sauce,DC_US_NY,26.9,24.7,東海岸DC 関税12.5%+海上運賃込み
+Soy_Sauce,Rest_US_East,40.0,26.7,東海岸レストラン 販売原価
+Soy_Sauce,DC_JP,19.1,17.5,国内DC
+Soy_Sauce,Rest_JP,19.0,18.5,国内レストラン 販売原価
+Soy_Sauce,DC_EU_RTM,28.6,26.4,欧州DC 関税8%+海上運賃込み
+Soy_Sauce,Rest_FR,41.0,27.9,仏レストラン 販売原価
+Soy_Sauce,Rest_BE,41.0,27.9,白レストラン 販売原価
+Soy_Sauce,Rest_NL,41.0,27.9,蘭レストラン 販売原価

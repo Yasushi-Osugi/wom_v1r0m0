@@ -1,0 +1,4 @@
+profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
+OUTBOUND_CHANNEL_PROFIT,Soy_Sauce,channel_margin,market_price,0.3,0
+MOM_PLANT_PROFIT,Soy_Sauce,mom_margin,transfer_price,0.1,0
+SUPPLIER_COST_BASE,Soy_Sauce,supplier_cost,transfer_price,1.0,0
