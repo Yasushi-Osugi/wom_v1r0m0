@@ -1037,6 +1037,23 @@ class ManagementCockpitPanel(tk.Frame):
             self._lc_narrative.configure(state="disabled")
             return
 
+        # Phase 2 増分2 (v1r2m0): overlay ledger-sourced Landed Cost values so
+        # the Base scenario's landed margin matches the PPC cockpit / P&L
+        # Summary (no reconciliation gap), and the tariff sweep is lot-precise
+        # rather than money-blended (see _ledger_lc_overrides). Freight is left
+        # to the money engine (constant across the sweep, informational; it is
+        # already embedded in the ledger cost cascade).
+        _lc_ov = self._ledger_lc_overrides(sku)
+        if _lc_ov:
+            lc_df = lc_df.copy()
+            for _i, _r in lc_df.iterrows():
+                _o = _lc_ov.get(str(_r.get("lc_scenario", "")))
+                if not _o:
+                    continue
+                for _k, _v in _o.items():
+                    if _k in lc_df.columns:
+                        lc_df.at[_i, _k] = _v
+
         for _, row in lc_df.iterrows():
             delta = float(row.get("margin_impact_pp", 0) or 0)
             tag   = "HIGH" if delta < -0.02 else ("MEDIUM" if delta < 0 else "OK")
@@ -1059,6 +1076,97 @@ class ManagementCockpitPanel(tk.Frame):
             narrative = "（Landed Cost 分析完了）"
         self._lc_narrative.insert("end", narrative)
         self._lc_narrative.configure(state="disabled")
+
+    def _ledger_lc_overrides(self, sku):
+        """Phase 2 増分2 (v1r2m0): re-derive the Landed Cost table's
+        Revenue / Customs Duty / Landed GM% / ΔMargin / Tariff% from the
+        single PPC event ledger (ppc_node_pl_summary.csv), so the Base
+        scenario's landed margin equals the PPC cockpit and the P&L Summary
+        (closes the reconciliation gap), and the tariff sweep
+        (Base/Tariff10/Tariff0) is lot-precise instead of money-blended.
+
+        Each scenario's tariff is obtained by scaling every channel's
+        Base-scenario tariff (from the ledger) by rate(scenario)/rate(Base)
+        for that channel's destination country — exact while the tariff basis
+        (transfer price) is unchanged across the sweep, which it is. Freight is
+        left to the existing engine (constant across the sweep, informational;
+        already embedded in the ledger cost cascade).
+
+        Returns {lc_scenario_name: {revenue, customs_duty,
+        landed_gross_margin, margin_impact_pp, tariff_burden_pct}} or None
+        (caller then keeps the money-engine values).
+        """
+        base_dir  = getattr(self, "_node_pl_output_dir", "output/ppc")
+        pl_path   = os.path.join(base_dir, "ppc_node_pl_summary.csv")
+        lc_scens  = getattr(self._mgr, "lc_scens",  None) if self._mgr else None
+        model_dir = getattr(self._mgr, "model_dir", "")   if self._mgr else ""
+        if not (os.path.exists(pl_path) and lc_scens and model_dir):
+            return None
+        try:
+            df = pd.read_csv(pl_path)
+            if sku and sku != "All" and "product_id" in df.columns:
+                df = df[df["product_id"] == sku]
+            if df.empty:
+                return None
+            pz_path = os.path.join(model_dir, "ppc_node_profit_zone.csv")
+            if not os.path.exists(pz_path):
+                return None
+            pz = pd.read_csv(pz_path)
+            node_country = {str(r["node_id"]): str(r.get("country", "") or "").strip()
+                            for _, r in pz.iterrows()}
+
+            total_cost   = float(df["cost_base"].sum())
+            total_tariff = float(df["tariff_base"].sum())
+            chan = df[df["revenue_base"] > 0]              # leaf_out channels
+            revenue = float(chan["revenue_base"].sum())
+            if revenue <= 0:
+                return None
+            chan_tariff = []                               # (country, base tariff)
+            for _, r in chan.iterrows():
+                c = node_country.get(str(r["node_id"]), "")
+                if not c:
+                    return None                            # incomplete map -> bail
+                chan_tariff.append((c, float(r.get("tariff_base", 0) or 0)))
+
+            def country_rate(scen):
+                m = {}
+                sc = lc_scens.get(scen)
+                if sc:
+                    for p in sc.profiles:
+                        m[str(p.dst_region)] = float(p.tariff_rate)
+                return m
+
+            base_name = "Base" if "Base" in lc_scens else next(iter(lc_scens))
+            base_rate = country_rate(base_name)
+
+            def scen_tariff(scen):
+                rate = country_rate(scen)
+                tot = 0.0
+                for c, t in chan_tariff:
+                    rb = base_rate.get(c, 0.0)
+                    rs = rate.get(c, rb)
+                    tot += t * (rs / rb) if rb > 0 else t
+                return tot
+
+            out, gm = {}, {}
+            for scen in lc_scens:
+                st = scen_tariff(scen)
+                landed_cogs = total_cost - total_tariff + st
+                g = (revenue - landed_cogs) / revenue if revenue else 0.0
+                gm[scen] = g
+                out[scen] = {
+                    "revenue":             revenue,
+                    "customs_duty":        st,
+                    "landed_gross_margin": g,
+                    "tariff_burden_pct":   (st / revenue) if revenue else 0.0,
+                }
+            base_g = gm.get(base_name, 0.0)
+            for scen in out:
+                out[scen]["margin_impact_pp"] = gm[scen] - base_g
+            return out
+        except Exception as exc:
+            print(f"[Management] ledger Landed Cost override error: {exc}")
+            return None
 
     def _ledger_pl_for_sku(self, sku):
         """Phase 2 (v1r2m0): single-source P&L top-line from the PPC event
@@ -5228,6 +5336,10 @@ class WOMApp(tk.Tk):
             # Kept so the Management tab's SKU filter can recompute
             # per-SKU Strategic KPI without re-running Planning.
             self._mgr.sc_tree = sc_tree
+            # Phase 2 増分2 (v1r2m0): expose the model folder so the Management
+            # tab can read ppc_node_profit_zone.csv (node -> country) for the
+            # ledger-sourced Landed Cost tariff sweep.
+            self._mgr.model_dir = getattr(self, "_model_dir", "")
 
             # Reload all KPI panels
             self._chart_panel.load_sc_tree(sc_tree)
