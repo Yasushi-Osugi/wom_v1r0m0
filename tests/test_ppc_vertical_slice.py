@@ -289,6 +289,12 @@ class TestT4_LandedCost:
         expected = (
             acc.transfer_price_base
             + acc.logistics_in_base
+            # MOM->first_DAD (e.g. CN->JP ocean) freight was split out of
+            # logistics_in_base on 2026-07-10 but is still part of the
+            # landed_cost_total event (see ppc_tariff.py a-3). This test's
+            # expected sum was not updated at that time; add it here so the
+            # stale expectation matches the engine (engine unchanged).
+            + acc.mom_to_dad_freight_base
             + acc.insurance_in_base
             + acc.tariff_in_base
         )
