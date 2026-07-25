@@ -1307,6 +1307,17 @@ class ManagementCockpitPanel(tk.Frame):
                     if s in kpi[Cols.SCENARIO].values else 0 for s in scenarios]
         rev_vals = [float(kpi.loc[kpi[Cols.SCENARIO] == s, Cols.REVENUE].iloc[0])
                     if s in kpi[Cols.SCENARIO].values else 0 for s in scenarios]
+        gm_vals  = [float(kpi.loc[kpi[Cols.SCENARIO] == s, Cols.GROSS_MARGIN].iloc[0])
+                    if s in kpi[Cols.SCENARIO].values else 0 for s in scenarios]
+        # Phase 2 (v1r2m0): single-source Revenue/GP/GM from the PPC ledger so
+        # this chart matches the P&L Summary / PPC cockpit (the money summary is
+        # a coarse aggregate; same overlay as _refresh_pl_table).
+        _led = self._ledger_pl_for_sku(self._current_sku())
+        if _led is not None:
+            _lrev, _lcogs, _lgp, _lgm = _led
+            rev_vals = [_lrev for _ in scenarios]
+            gp_vals  = [_lgp  for _ in scenarios]
+            gm_vals  = [_lgm  for _ in scenarios]
         x = range(len(scenarios))
         ax2.bar(x, rev_vals, color=colours, alpha=0.35, label="Revenue")
         ax2.bar(x, gp_vals,  color=colours, alpha=0.85, label="Gross Profit")
@@ -1318,9 +1329,7 @@ class ManagementCockpitPanel(tk.Frame):
         for spine in ax2.spines.values():
             spine.set_edgecolor(BG_LIGHT)
         # Margin % annotations
-        for xi, (s, gm_val) in enumerate(zip(scenarios,
-                [float(kpi.loc[kpi[Cols.SCENARIO] == s, Cols.GROSS_MARGIN].iloc[0])
-                 if s in kpi[Cols.SCENARIO].values else 0 for s in scenarios])):
+        for xi, gm_val in enumerate(gm_vals):
             ax2.text(xi, gp_vals[xi] * 1.02, f"{gm_val*100:.1f}%",
                      ha="center", va="bottom", color=FG_WHITE, fontsize=8)
         self._gp_canvas.draw()
