@@ -1016,4 +1016,38 @@ Landed Cost の Base/Tariff10/Tariff0 比較を、上記 per-channel 再スケ�
 - `82a1128`：soysauce-us/eu 21CSV 初版
 - `d381511`：Phase1（gen_tariff_edges）+ Phase2増分1（P&L Summary 台帳ソース）+ sku_master 6region 修正
 - `0ada4ca`：Phase2増分2（Landed Cost 台帳ソース、lot精度スイープ）
-- テスト修正（stale landed_cost_components）は別コミット
+- `d470872`：テスト修正（stale landed_cost_components）
+- `46a2c5d`：docs（Request Letter §10/§11・本CLAUDE.md v1r2m0 節）
+- `8c27dd5`：soysauce-jpy-2027 FXケース + 通貨ラベル base_currency 追従（下記）
+- `edaef36`：GP-by-scenario チャート台帳ソース化 + US/EU を CCC+2週・JP¥320 に統一（下記）
+
+---
+
+## v1r2m0：円建て為替ケース（soysauce-jpy-2027）＋ 円安×原油の綱引き（完了、2026-07-25/26）
+
+デモを「USD関税（集中 vs 分散）＋ 円建てFX（円安×地政学）」の2部構成にするため、**JPY建ての為替シナリオケース**を新設。**エンジンコードは無変更、サンプルデータ＋GUI表示のみ**の変更。
+
+### soysauce-jpy-2027（base=JPY・円安・原油リンク）
+- `soysauce-eu-2027`（S2/全6市場）を copy して土台に。**base_currency は `ppc_fx_rate.csv` の base_currency 列から自動検出**される（`app.py` の `_run_ppc_from_planning`、5424行付近。FXConverter は `wom/ppc/ppc_fx.py`、`amount_local × rate = base`、rate＝base通貨/現地通貨1単位）。→ CSV を JPY にするだけでコード変更なしに円建てへ。
+- **円安 時系列**：`ppc_fx_rate.csv` を JPY/USD/EUR 行に。**2027=USD 150円**、**2028=200円**（W01–W04 ランプ）、EUR=USD×1.08 連動（162→216）。`get_market_price`/`get_supplier_cost` は latest-prior-week 参照（`ppc_rules.py` 156/172行）なので、値が変わる週だけ行を置けば時系列ステップになる。
+- **コストを原産で分離**（フル）：輸入原料（大豆・樹脂・包装材）＝`Materials_JP` USD 建て（円安で JPY 増）。国内加工（醸造/瓶詰 ¥750・国内倉庫/DC）＝JPY 建て（FX中立）。海外DC＝現地通貨（US=USD、EU=EUR）。node_cost は静的だが **event 週の FX で換算される**ので海外DCコストも円安で JPY 増になる。
+- **原油スパイク（ホルムズ）**：`ppc_supplier_cost.csv` の Materials_JP USD 原価を $6→$8（2028-W10）→$6.5（2028-W26、床が上がる）。円安期に重なり複合ショック。
+- **CCC +2週**：`sku_master.csv` を dso=8/dpo=6（買掛支払6週<売掛回収8週）。WOM の CCC = DIO+DSO−DPO ≒ DSO−DPO（DIO≈0）。
+- **JP国内価格の較正**：¥320/本＝¥3,840/ケース（全国平均¥311・定価¥350の実勢中間、大杉さん指定）。価格単位＝1ケース＝1L瓶×12本。
+
+### 実データの結果（demo-gold）
+- **円安は輸出を潤す**：US/EU の lot GM が 2027 28-30% → 2028 **33-34%** に改善（売上はUSD/EUR建てで円換算増、国内加工費は円建て固定）。
+- **同じ円安×原油が国内を沈める**：Rest_JP が 2027 **19.5%** → 円安のみ(2028-W09) **+7.7%** → **円安×原油の複合ピーク(2028-W10〜W25、16週) −2.7% 逆ザヤ** → ショック後 **+5.1%**（床が上がり戻らない）。
+- **WOM が該当16週を lot 単位 trust event で自動検知**（NEGATIVE_MARGIN／LANDED_COST_EXCEEDS_MARKET、`ppc_lot_reconciliation.csv` の `trust_events_fired`）。逆ザヤ16週＝原油スパイク窓に完全一致。「円安"単独"なら耐えるが、複合ショックが臨界を超え価格改定を迫られる」＝2022-24の実話と同型。
+- 為替2水準の見せ方は**別フォルダを増やさず時間軸で対比**（PPC コックピットの週フィルタで 2027=150円 vs 2028=200円）。
+
+### GUI 変更（`app.py` / `landed_cost.py`、表示のみ）
+- **GP-by-scenario チャートを台帳ソース化**：`_refresh_charts` の Revenue/GP/GM を `_ledger_pl_for_sku()` で上書き（P&L Summary と同じオーバーレイ）。従来 money 集計由来で 55% 等ズレていたのを台帳値（例 JPY 28.0%）に一致させた。
+- **通貨ラベルを base_currency 追従に**：`_base_ccy()` を新設（`ppc_kpi_summary.json` の base_currency → 記号）。Landed Cost テーブル・GPチャート軸・`build_lc_narrative`（`landed_cost.py` に `currency_symbol` 引数追加、既定"$"で後方互換）が JPY なら `¥` を出す。**表示のみ、金額計算は無変更**。
+- **US/EU ケースも統一**：`soysauce-us/eu-2027` を dso8/dpo6（CCC+2週）・JP ¥3,840（$25.6）に。→ B表 GM が US 25.9→**26.9%**、EU 26.2→**27.2%**（JP売上増で約+1pp）。実出力メモ v2・絵コンテ台本 v2 の数値も更新済み。
+
+### 確認状況・次のClaude君へ
+- 大杉さんが GUI 実機で全確認（jpy：GPチャート28.0%・Landed Cost¥表示・CCC+2・trust event 16週、us/eu：CCC+2・GM微増）。pytest **81件全緑**（`build_lc_narrative` の引数追加は後方互換）。
+- GitHub の**デフォルトブランチを `wom-v1r2m0` に変更済み**（2026-07-26、大杉さん）。
+- デモ制作用ドキュメント（`WOM_デモ動画_絵コンテ台本_v2_2部構成`、`WOM_醤油デモ_収録準備メモ_v2_実出力`／`_FX追補`）はリポジトリ対象外（大杉さんのローカル outputs）。
+- **未対応・次回候補**：(a) 真の「累積キャッシュ回収週」を PSI タイミング（生産週コスト vs 販売週売上）から別集計（発生主義の粗利では W01 から正で出ない）、(b) 運転資本（Inv/CCC/AR/AP）の台帳導出、(c) `edge_cost_master` の `trade_lane_master` 改称（Phase1で後方互換のため見送り）、(d) 英語版 経験論文（JIMA 研究速報／arXiv）の submit。
