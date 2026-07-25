@@ -378,8 +378,13 @@ def compare_lc_scenarios(
 # ──────────────────────────────────────────────────────────────────────
 
 def build_lc_narrative(comparison_df: pd.DataFrame,
-                       base_lc: str = "Base") -> str:
-    """Build Japanese executive summary of landed cost scenario comparison."""
+                       base_lc: str = "Base",
+                       currency_symbol: str = "$") -> str:
+    """Build Japanese executive summary of landed cost scenario comparison.
+
+    currency_symbol: prefix for money amounts so the narrative matches the
+    run's reporting currency (e.g. "¥" for a JPY-base model). Defaults to
+    "$" for backward compatibility with USD-base cases."""
     lines = ["【Landed Cost シナリオ分析サマリー】\n"]
 
     base_rows = comparison_df[comparison_df["lc_scenario"] == base_lc]
@@ -403,7 +408,7 @@ def build_lc_narrative(comparison_df: pd.DataFrame,
         lines.append(
             f"{icon} [{lc_scen}]  粗利率変化: {margin_chg:+.1f}pp  "
             f"| 関税負担: {duty_pct:.1f}%  "
-            f"| 関税額合計: ${scen_duty:,.0f}"
+            f"| 関税額合計: {currency_symbol}{scen_duty:,.0f}"
         )
 
     lines.append("\n（関税・為替シナリオは Planning Engine 実行後に更新されます）")

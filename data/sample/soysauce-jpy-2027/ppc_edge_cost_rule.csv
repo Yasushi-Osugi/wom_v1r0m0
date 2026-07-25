@@ -1,0 +1,14 @@
+edge_id,product_id,cost_type,basis,rate,fixed_amount,currency
+Materials_JP->Brewing_Noda,Soy_Sauce,logistics_cost,per_lot,0.0,0.3,USD
+Brewing_Noda->Bottling_Noda,Soy_Sauce,logistics_cost,per_lot,0.0,0.4,USD
+Bottling_Noda->FG_WH_Noda,Soy_Sauce,logistics_cost,per_lot,0.0,0.4,USD
+FG_WH_Noda->DC_US_SF,Soy_Sauce,logistics_cost,per_lot,0.0,4.0,USD
+FG_WH_Noda->DC_US_NY,Soy_Sauce,logistics_cost,per_lot,0.0,4.5,USD
+FG_WH_Noda->DC_JP,Soy_Sauce,logistics_cost,per_lot,0.0,1.0,USD
+FG_WH_Noda->DC_EU_RTM,Soy_Sauce,logistics_cost,per_lot,0.0,6.0,USD
+DC_US_SF->Rest_US_West,Soy_Sauce,logistics_cost,per_lot,0.0,2.0,USD
+DC_US_NY->Rest_US_East,Soy_Sauce,logistics_cost,per_lot,0.0,2.0,USD
+DC_JP->Rest_JP,Soy_Sauce,logistics_cost,per_lot,0.0,1.0,USD
+DC_EU_RTM->Rest_FR,Soy_Sauce,logistics_cost,per_lot,0.0,1.5,USD
+DC_EU_RTM->Rest_BE,Soy_Sauce,logistics_cost,per_lot,0.0,1.5,USD
+DC_EU_RTM->Rest_NL,Soy_Sauce,logistics_cost,per_lot,0.0,1.5,USD

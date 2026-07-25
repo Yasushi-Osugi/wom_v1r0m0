@@ -1,0 +1,16 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+Materials_JP,大豆・小麦・塩 調達（野田近郊）,sku_supplier,35.86,139.95,Soy_Sauce,JP,素材調達
+Brewing_Noda,醸造（諸味・火入れ）野田,mother_plant,35.95,139.87,Soy_Sauce,JP,醸造MOM
+Bottling_Noda,瓶詰・出荷（終端MOM）野田,mother_plant,36.01,139.82,Soy_Sauce,JP,瓶詰・完成品工場（終端MOM）
+SP_Soy,Supply Point（本部ブリッジ）,procurement,35.68,139.76,,JP,Supply Point bridge
+FG_WH_Noda,国内 輸出前バッファ倉庫,region_dc,35.90,139.96,,JP,輸出前バッファ倉庫
+DC_US_SF,米国西海岸DC(SF) 在庫バッファ,region_dc,37.77,-122.42,,US,西海岸DC
+Rest_US_West,西海岸レストラン（最終消費）,marketing,37.55,-122.25,,US,西海岸レストラン
+DC_US_NY,米国東海岸DC(NY) 在庫バッファ,region_dc,40.71,-74.01,,US,東海岸DC
+Rest_US_East,東海岸レストラン（最終消費）,marketing,40.90,-73.80,,US,東海岸レストラン
+DC_JP,国内DC,region_dc,35.63,139.60,,JP,国内DC
+Rest_JP,国内レストラン,marketing,35.74,139.74,,JP,国内レストラン
+DC_EU_RTM,欧州エントリDC(ロッテルダム) 在庫バッファ,region_dc,51.92,4.48,,NL,欧州DC
+Rest_FR,フランス レストラン,marketing,48.86,2.35,,FR,仏レストラン
+Rest_BE,ベルギー レストラン,marketing,50.85,4.35,,BE,白レストラン
+Rest_NL,オランダ レストラン,marketing,52.37,4.90,,NL,蘭レストラン

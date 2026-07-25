@@ -1,0 +1,4 @@
+supplier_node,product_id,week,purchase_price,currency
+Materials_JP,Soy_Sauce,2027-W01,6.0,USD
+Materials_JP,Soy_Sauce,2028-W10,8.0,USD
+Materials_JP,Soy_Sauce,2028-W26,6.5,USD

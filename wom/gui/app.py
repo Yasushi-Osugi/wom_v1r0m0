@@ -1054,15 +1054,16 @@ class ManagementCockpitPanel(tk.Frame):
                     if _k in lc_df.columns:
                         lc_df.at[_i, _k] = _v
 
+        _ccy_code, _sym = self._base_ccy()
         for _, row in lc_df.iterrows():
             delta = float(row.get("margin_impact_pp", 0) or 0)
             tag   = "HIGH" if delta < -0.02 else ("MEDIUM" if delta < 0 else "OK")
             self._lc_tree.insert("", "end", tags=(tag,), values=[
                 row.get("wom_scenario", ""),
                 row.get("lc_scenario",  ""),
-                f"${float(row.get('revenue', 0) or 0):,.0f}",
-                f"${float(row.get('customs_duty', 0) or 0):,.0f}",
-                f"${float(row.get('freight_total', 0) or 0):,.0f}",
+                f"{_sym}{float(row.get('revenue', 0) or 0):,.0f}",
+                f"{_sym}{float(row.get('customs_duty', 0) or 0):,.0f}",
+                f"{_sym}{float(row.get('freight_total', 0) or 0):,.0f}",
                 f"{float(row.get('landed_gross_margin', 0) or 0)*100:.1f}%",
                 f"{delta*100:+.1f}pp",
                 f"{float(row.get('tariff_burden_pct', 0) or 0)*100:.1f}%",
@@ -1071,11 +1072,31 @@ class ManagementCockpitPanel(tk.Frame):
         # Build narrative
         try:
             from wom.engine.landed_cost import build_lc_narrative
-            narrative = build_lc_narrative(lc_df)
+            narrative = build_lc_narrative(lc_df, currency_symbol=_sym)
         except Exception:
             narrative = "（Landed Cost 分析完了）"
         self._lc_narrative.insert("end", narrative)
         self._lc_narrative.configure(state="disabled")
+
+    def _base_ccy(self):
+        """Return (code, symbol) of the PPC ledger's base currency for display
+        (e.g. ("JPY","¥"), ("USD","$")). Read from ppc_kpi_summary.json's
+        base_currency so labels match the reporting currency of the run.
+        Falls back to ("USD","$") when unavailable."""
+        import json
+        base = getattr(self, "_node_pl_output_dir", "output/ppc")
+        try:
+            p = os.path.join(base, "ppc_kpi_summary.json")
+            if os.path.exists(p):
+                with open(p, encoding="utf-8") as f:
+                    code = str(json.load(f).get("base_currency", "") or "").strip()
+                if code:
+                    sym = {"JPY": "¥", "USD": "$", "EUR": "€",
+                           "GBP": "£", "CNY": "¥", "THB": "฿"}.get(code, code + " ")
+                    return code, sym
+        except Exception:
+            pass
+        return "USD", "$"
 
     def _ledger_lc_overrides(self, sku):
         """Phase 2 増分2 (v1r2m0): re-derive the Landed Cost table's
@@ -1291,7 +1312,7 @@ class ManagementCockpitPanel(tk.Frame):
         ax2.bar(x, gp_vals,  color=colours, alpha=0.85, label="Gross Profit")
         ax2.set_xticks(list(x))
         ax2.set_xticklabels(scenarios, color=FG_WHITE, fontsize=9)
-        ax2.set_ylabel("Value (USD)", color=FG_ACC, fontsize=8)
+        ax2.set_ylabel(f"Value ({self._base_ccy()[0]})", color=FG_ACC, fontsize=8)
         ax2.tick_params(colors=FG_WHITE, labelsize=8)
         ax2.legend(facecolor=BG_LIGHT, labelcolor=FG_WHITE, fontsize=8)
         for spine in ax2.spines.values():
