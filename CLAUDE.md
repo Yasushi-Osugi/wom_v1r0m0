@@ -980,3 +980,40 @@ Week t の ROE 分解：
 | ★★  | Fill Rate の週次 KPI タブ表示 | 販売機会損失率の定量化 |
 | ★★  | 棚卸資産回転日数の Management タブ追加 | 資産コスト → ROE 接続 |
 | ★   | 需要予測精度の週次トラッキング | 変化対応率の定量化 |
+
+---
+
+## v1r2m0：soysauce ケース ＋ 関税マスタ統一 Phase 1/2/3（完了、2026-07-25）
+
+branch `wom-v1r2m0`。デモ動画（経営者・コンサル向け、国産醤油の対米/対欧輸出）用の新ケースと、その構築中に大杉さんが発見した「Management と PPC で金額（Revenue/GM/Tariff）が一致しない」問題の解決。設計提案は `requests/tariff-lane-master-unification-request-letter.md`（§11 に実装結果と設計逸脱を記録）。
+
+### 新ケース：soysauce-us-2027（S1）/ soysauce-eu-2027（S2）
+- 二本木：`Materials_JP`(leaf_in) → `Brewing_Noda` → `Bottling_Noda`(終端mom) → `SP_Soy` → `FG_WH_Noda`(dad, ss=21) → {`DC_US_SF`/`DC_US_NY`/`DC_JP`/`DC_EU_RTM`}(dad) → `Rest_*`(leaf_out)。MOM＝千葉県野田（仮想座標）。海上LT：US 5/6週、EU 6週。1製品 `Soy_Sauce`、104週（2027-W01〜2028-W52）。
+- **S1（米国集中）= us フォルダ**：需要 JP300/US_W350/US_E350/EU0（312 lot-records）。**S2（欧州分散）= eu フォルダ**：JP300/US175×2/FR150/BE100/NL100（624 lot-records）。両フォルダは sc_tree 同一、`demand_forecast.csv` の配分だけが違う（case1 方式）。
+- **重要（GUI キャッシュ挙動）**：フォルダ切替のみ（`python -m main` 再起動なし）だと前フォルダの output/ppc が残り、Management に古い値が出る。ケースを替えたら必ず `python -m main` を再実行して初期化すること（大杉さんと確認済み）。
+- 匿名化：企業名を出さず「国産醤油」で統一。関税率・価格は例示（HS2103.10、対米 12.5%、対欧 8%）。sku_master は6 region 行（USD建て：US $40 / JP $24 / EU $41、unit_cost $16）。**当初 sku_master が JP 1行だけで US/EU 市場に価格が付かず US=EU 同値になるバグ**があり、6 region 行に拡張して解消。
+
+### Phase 1：関税マスタの canonical 化（`tools/gen_tariff_edges.py` 新設）
+- 関税は「HSコード（製品）× 原産国 × 仕向国 × scenario」で一意。`edge_cost_master.csv` に **`product_id` 列を追加**して canonical 化（`trade_lane_master.csv` への改称は後方互換のため見送り。product_id 空欄＝全product wildcard）。
+- `gen_tariff_edges.py`：`sc_tree_master` + `ppc_node_profit_zone`(node→country) + `route_master`(hs_code) + canonical `edge_cost_master`(scenario別) から、DC→leaf_out エッジ用の per-edge `ppc_tariff_rule.csv` を生成。`from_country`=終端MOMの国、`to_country`=市場国。`--check` で生成物と既存手作りファイルの一致を確認（US/EU とも **0 diffs**）。`ppc_tariff_rule.csv` は「生成物（正典は canonical）」の位置づけ（手編集しない）。
+- 使い方：`python -m tools.gen_tariff_edges --model-dir data/sample/soysauce-us-2027 [--scenario Base] [--check]`。
+
+### Phase 2：Management の金額を PPC 台帳から導出（`wom/gui/app.py`、GUI 層オーバーレイ方式）
+`money.py` を置換せず、**GUI 層（`ManagementCockpitPanel`）で台帳値をオーバーレイ**する方式に変更（money.py 無変更、後方互換）。単一 Lot_ID 台帳（`ppc_kpi_summary.json` / `ppc_node_pl_summary.csv`）を唯一の真実源にした。
+- `_ledger_pl_for_sku()`（増分1）：**P&L Summary** の Revenue/COGS/GP/GM を台帳から取得。sku=All は json、特定sku は `ppc_node_pl_summary.csv` を集計。運転資本（Inv/CCC/AR/AP）は貸借項目のため money 由来のまま据え置き（意図的）。→ GM が 55%（money誤り）から **US 25.9% / EU 26.2%** へ、PPC と一致。
+- `_ledger_lc_overrides()`（増分2）：**Landed Cost パネル** の Revenue/Customs/Landed GM%/ΔMargin/Tariff% を台帳から再導出。`ppc_node_profit_zone.csv`（node→country）と `mgr.lc_scens`（scenario別レート）を使い、チャネル別 `tariff_base` を `rate(scenario)/rate(Base)` で再スケール。Freight はスイープ不変の情報列として money 由来を据え置き（台帳 cost に内包済み＝二重計上回避）。ΔMargin の意味を「landed − gross(55%)」から「vs Base シナリオ」へ変更。
+- `mgr.model_dir` を planning 完了時にセット（`_ledger_lc_overrides` が profit_zone を読むため、app.py の planning-done パスに追加）。
+
+### Phase 3：関税感応度の lot 精度化（Phase 2 増分2 で同時達成）
+Landed Cost の Base/Tariff10/Tariff0 比較を、上記 per-channel 再スケール（tariff basis 一定＝厳密）で算出。blended 近似を廃止。US レーンのみスイープで変動、EU 8% は不変。US ケースは対米0%で Customs＝$0（欧州需要ゼロ）、EU ケースは対米0%でも EU 8%分 $51,693 が残る——「集中 vs 分散の関税耐性」を実データで可視化。実出力は `WOM_醤油デモ_収録準備メモ_v2_実出力`（B表）に反映済み。
+
+### 既知の陥穽・確認事項
+- **発生主義の粗利 ≠ 損益分岐週**：PPC は各ロット P&L（売上−全landedコスト）を販売週に発生主義で計上するため、累積粗利は W01 から正（GPベースの「黒字転換週」は常に W01）。デモ台本の「損益分岐週15/18週」は前倒し生産（`push_lead_time_weeks=7`）による在庫投資のキャッシュ回収の概念で、発生主義台帳には現れない。本モデルは CCC=−2.0週で前受け構造。→ 収録では「粗利率ギャップの週次アニメ」に振替（メモ v2 §C-2）。真の「累積キャッシュ回収週」を出すには PSI タイミング（生産週コスト vs 販売週売上）からの別集計が必要（次フェーズ候補）。
+- **既存テストの陳腐化修正**：`tests/test_ppc_vertical_slice.py::test_landed_cost_components` は本作業前から red だった（2026-07-10 の `mom_to_dad_freight_base` 分離時に、テスト期待値〔4項〕が `landed_cost_total` イベント〔`ppc_tariff.py` a-3、mom_to_dad_freight を含む5項〕に未追随。差=CN→JP海上運賃507.456）。**エンジンは正しく、テスト側の期待値に `+ acc.mom_to_dad_freight_base` を追加**して解消（エンジン無変更）。この修正で pytest **81件全緑**。
+- **未実施（当初案からの縮小）**：既存6ケースの一括再ラン・ヘッドレス検証スクリプト同梱は見送り（エンジン無変更＝サンプルデータ+GUIのみの変更で回帰リスク低と判断）。運転資本（Inv/CCC/AR/AP）の台帳導出、シナリオ別 PPC 再実行は今回スコープ外。
+
+### commit（wom-v1r2m0）
+- `82a1128`：soysauce-us/eu 21CSV 初版
+- `d381511`：Phase1（gen_tariff_edges）+ Phase2増分1（P&L Summary 台帳ソース）+ sku_master 6region 修正
+- `0ada4ca`：Phase2増分2（Landed Cost 台帳ソース、lot精度スイープ）
+- テスト修正（stale landed_cost_components）は別コミット

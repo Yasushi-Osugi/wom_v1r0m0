@@ -117,11 +117,31 @@ Tariff0,JP,US,Soy_Sauce,2103100000,0.0,transfer_price,4.5,1.0,対米 0%
 
 ```text
 [x] 起草（本レター）
-[ ] オーナーレビュー・承認（Phase 範囲の確定）
-[ ] Phase 1 実装（canonical trade_lane_master + per-edge 生成）
-[ ] Phase 1 検証（税額一致・既存テスト緑）
-[ ] Phase 2 実装（評価金額の台帳一本化）
-[ ] Phase 2 検証（Revenue/GM 一致）
-[ ] Phase 3 実装・検証（関税感応度 lot 精度化）
-[ ] オーナー commit / push
+[x] オーナーレビュー・承認（Phase 範囲の確定、branch wom-v1r2m0）
+[x] Phase 1 実装（canonical edge_cost_master + tools/gen_tariff_edges.py で per-edge 生成）
+[x] Phase 1 検証（生成物 == 手作り ppc_tariff_rule、--check 0 diffs、US/EU）
+[x] Phase 2 実装（Management P&L Summary + Landed Cost を PPC台帳から導出）
+[x] Phase 2 検証（Base の GM が PPC/P&L で一致：US 25.9% / EU 26.2%）
+[x] Phase 3 実装・検証（関税感応度 lot 精度化 = Phase2 増分2 の per-channel 再スケールで達成）
+[x] オーナー commit / push（d381511, 0ada4ca ＋ テスト修正）
 ```
+
+## 11. 実装結果（2026-07-25 完了、実装時の設計逸脱を含む）
+
+**Phase 1（マスタ統一）— 完了**
+- `edge_cost_master.csv` に `product_id` 列を追加して canonical 化（当初案の `trade_lane_master.csv` への改称は見送り。既存6ケースへの影響を避け、後方互換〔product_id 空欄＝全product wildcard〕を維持するため、ファイル名は据え置いた）。
+- `tools/gen_tariff_edges.py` を新設。`sc_tree_master` + `ppc_node_profit_zone`（node→country）+ `route_master`（hs_code）+ canonical `edge_cost_master`（scenario別）から per-edge `ppc_tariff_rule.csv` を生成。`--check` で生成物と既存手作りファイルの一致を確認（US/EU とも 0 diffs）。`ppc_tariff_rule.csv` は「生成物（正典は canonical）」の位置づけ。
+
+**Phase 2（金額一本化）— 完了（GUI 層でのオーバーレイ方式を採用）**
+- 当初案は `money.py` の `build_scenario_money_kpi` を台帳導出へ「置換」だったが、影響範囲が広いため **GUI 層（`ManagementCockpitPanel`）で台帳値をオーバーレイする方式**に変更（`money.py` 自体は無変更、後方互換）。
+  - `_ledger_pl_for_sku()`：P&L Summary の Revenue/COGS/GP/GM を `ppc_kpi_summary.json` / `ppc_node_pl_summary.csv` から取得。運転資本（Inv/CCC/AR/AP）は損益ではなく貸借項目のため money 由来のまま据え置き（意図的）。
+  - `_ledger_lc_overrides()`：Landed Cost パネルの Revenue/Customs/Landed GM%/ΔMargin/Tariff% を台帳から再導出。Freight はスイープ不変の情報列として money 由来を据え置き（台帳 cost に既に内包、二重計上回避）。
+- `money.py` の units 多重計上（leaf+DAD+FG_WH）は「是正」ではなく、金額を台帳ソースに切り替えることで**迂回**（money units への依存を断った）。
+
+**Phase 3（関税感応度の lot 精度化）— Phase 2 増分2 で同時達成**
+- Landed Cost の Base/10/0 比較を、チャネル別 `tariff_base`（台帳）を `rate(scenario)/rate(Base)` で再スケールして算出（tariff basis 一定＝厳密）。blended 近似を廃止。US レーンのみスイープで変動、EU 8% は不変。
+
+**検証状況**
+- soysauce-us（S1）/ soysauce-eu（S2）を GUI 実機確認：Management の P&L Summary・Node P&L・Landed Cost・PPC コックピットの GM が**全て一致**（突合ギャップ解消）。
+- 既存 pytest **81 件緑**。ただし `test_ppc_vertical_slice.py::test_landed_cost_components` は本作業前から陳腐化していた（2026-07-10 の `mom_to_dad_freight_base` 分離にテスト期待値が未追随）ため、期待値に当該 freight 項を追加してテスト側を実装に合わせた（エンジン無変更）。
+- 未実施（当初案からの縮小）：既存6ケースの一括再ラン・ヘッドレス検証スクリプトの同梱は今回見送り（エンジン無変更でサンプルデータ・GUI のみの変更のため、既存ケースへの回帰リスクは低いと判断）。
