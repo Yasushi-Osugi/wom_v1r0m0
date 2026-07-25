@@ -1051,3 +1051,21 @@ Landed Cost の Base/Tariff10/Tariff0 比較を、上記 per-channel 再スケ�
 - GitHub の**デフォルトブランチを `wom-v1r2m0` に変更済み**（2026-07-26、大杉さん）。
 - デモ制作用ドキュメント（`WOM_デモ動画_絵コンテ台本_v2_2部構成`、`WOM_醤油デモ_収録準備メモ_v2_実出力`／`_FX追補`）はリポジトリ対象外（大杉さんのローカル outputs）。
 - **未対応・次回候補**：(a) 真の「累積キャッシュ回収週」を PSI タイミング（生産週コスト vs 販売週売上）から別集計（発生主義の粗利では W01 から正で出ない）、(b) 運転資本（Inv/CCC/AR/AP）の台帳導出、(c) `edge_cost_master` の `trade_lane_master` 改称（Phase1で後方互換のため見送り）、(d) 英語版 経験論文（JIMA 研究速報／arXiv）の submit。
+
+### Landed Cost 台帳オーバーレイのバグ修正：DAD計上型の関税に対応（完了、2026-07-26）
+
+「過去6ケースは v1r2m0 で正しく動くか？」の確認中、大杉さんが **apparel-us-2026** を GUI で回したところ、Management の **Landed Cost が Base で 49.0%（P&L Summary は 43.3%）** と食い違い、Customs Duty が **$0** と表示されることを発見。
+
+**原因（`_ledger_lc_overrides`、Phase2 増分2＝commit `0ada4ca` で導入した取りこぼし）**：
+- 醤油は関税を **leaf_out チャネル**（`Rest_US_*`）に計上するが、アパレルは関税を **輸入DADノード**（`DC_Local_US`、tariff 37,985）に計上する。`ppc_node_pl_summary.csv` 上、チャネル行の `tariff_base` は 0。
+- 旧オーバーレイは「関税はチャネル行に乗る」前提で **チャネル行の tariff だけを集計** → `scen_tariff=0`（Customs $0）。さらに `landed_cogs = total_cost − total_tariff(DAD分含む) + scen_tariff(0)` としたため、**関税をコストから丸ごと消し去り、Landed GM が P&L(43.3%) + tariff/rev(5.7pp) = 49.0% に膨張**（landed が gross を上回るという非現実的結果）。
+
+**修正（`wom/gui/app.py` `_ledger_lc_overrides`）**：チャネル行だけでなく **全ノードの `tariff_base` を、`ppc_node_profit_zone.csv` の node→country で国別に集計**（`node_tariff`）。国が引けない行は再スケール係数1（関税額は据え置き）で **ドロップせず必ず計上**。→ アパレル Base が **Landed GM 43.3%（P&L と一致）・Customs $37,985**、スイープも TariffShock 37.5%($75,971)／TariffRelief 40.4%($56,978) と正しく動く。醤油はチャネル計上・DAD tariff=0 なので **node集計＝旧chan集計で不変**（jpy 28.0%／us 26.9%／eu 27.2% のまま）。pytest **81件全緑**。
+
+**設計上の限界（バグではない・将来 per-lane 化の余地）**：同一仕向国に**複数の輸入レーンが異なる関税率で存在**する場合（アパレルの CN→US と ES→US 等）、`country_rate` は `dst_region`(=国) キーの dict に集約されるため**同一国内で1レートに畳まれる**（後勝ち）。**Base の reconcile は厳密**（scen=totalで total_cost に戻るため）だが、Shock/Relief の額はその国の解決レートに依存する近似。厳密なレーン別スイープが要るなら `ppc_tariff_rule` のエッジ単位で再価格付けする拡張が必要（今回は Base 一致を優先し見送り）。
+
+**結論（「6ケースは動くか」への回答）**：**Planning・PPC・World Map・Network・P&L Summary は全ケース従来どおり正しく動作**（エンジン無変更）。本件は **Landed Cost パネルの表示のみ**の取りこぼしで、修正済み。DAD計上型の関税を持つ他ケース（Cookie / oil / EV 等）も同様に是正される見込み（未実機確認）。
+
+**bash の落とし穴（再確認）**：CLAUDE.md を Linux bash の `tail`/`wc` で読むと**切り捨てられた行数（今回 982 行）を返す**。実ファイル（約1070行）は必ず **Read tool（Windows側実ファイル）** で確認すること。
+
+**commit**：`fix(Management): Landed Cost ledger overlay aggregates tariff over ALL nodes by country`（app.py 1ファイル）。
