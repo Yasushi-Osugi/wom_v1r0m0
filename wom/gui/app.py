@@ -1142,12 +1142,19 @@ class ManagementCockpitPanel(tk.Frame):
             revenue = float(chan["revenue_base"].sum())
             if revenue <= 0:
                 return None
-            chan_tariff = []                               # (country, base tariff)
-            for _, r in chan.iterrows():
-                c = node_country.get(str(r["node_id"]), "")
-                if not c:
-                    return None                            # incomplete map -> bail
-                chan_tariff.append((c, float(r.get("tariff_base", 0) or 0)))
+            # Tariff may be attributed to the leaf_out channel (soysauce) OR to
+            # the import DAD node (apparel: DC_Local_US). Aggregate EVERY
+            # tariff-bearing row keyed by that node's country, so Customs is not
+            # undercounted when the tariff sits on a non-channel node. Rows whose
+            # country is unknown keep their tariff unchanged across the sweep
+            # (rate factor 1) instead of being dropped.
+            node_tariff = []                               # (country_or_"", base tariff)
+            for _, r in df.iterrows():
+                _t = r.get("tariff_base", 0)
+                _t = float(_t) if pd.notna(_t) else 0.0
+                if _t == 0:
+                    continue
+                node_tariff.append((node_country.get(str(r["node_id"]), ""), _t))
 
             def country_rate(scen):
                 m = {}
@@ -1163,7 +1170,7 @@ class ManagementCockpitPanel(tk.Frame):
             def scen_tariff(scen):
                 rate = country_rate(scen)
                 tot = 0.0
-                for c, t in chan_tariff:
+                for c, t in node_tariff:
                     rb = base_rate.get(c, 0.0)
                     rs = rate.get(c, rb)
                     tot += t * (rs / rb) if rb > 0 else t
