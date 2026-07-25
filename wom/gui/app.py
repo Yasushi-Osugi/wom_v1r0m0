@@ -1060,12 +1060,60 @@ class ManagementCockpitPanel(tk.Frame):
         self._lc_narrative.insert("end", narrative)
         self._lc_narrative.configure(state="disabled")
 
+    def _ledger_pl_for_sku(self, sku):
+        """Phase 2 (v1r2m0): single-source P&L top-line from the PPC event
+        ledger, so the Management P&L Summary matches the PPC cockpit
+        (no reconciliation gap). Returns (revenue, cogs, gross_profit,
+        gross_margin) in base currency, or None if the ledger output is
+        unavailable (falls back to the money engine).
+
+        sku == "All"/None -> ppc_kpi_summary.json totals;
+        a specific sku   -> aggregate ppc_node_pl_summary.csv for that product.
+        Working-capital metrics (Inv/CCC/AR/AP) still come from money.py.
+        """
+        import json
+        base = getattr(self, "_node_pl_output_dir", "output/ppc")
+        try:
+            if not sku or sku == "All":
+                p = os.path.join(base, "ppc_kpi_summary.json")
+                if not os.path.exists(p):
+                    return None
+                with open(p, encoding="utf-8") as f:
+                    k = json.load(f)
+                rev  = float(k.get("total_revenue_base", 0) or 0)
+                cogs = float(k.get("total_cost_base", 0) or 0)
+                gp   = float(k.get("gross_profit_base", rev - cogs) or 0)
+                gm   = float(k.get("gross_margin_pct", 0) or 0)
+                return (rev, cogs, gp, gm)
+            p = os.path.join(base, "ppc_node_pl_summary.csv")
+            if not os.path.exists(p):
+                return None
+            df = pd.read_csv(p)
+            if "product_id" in df.columns:
+                df = df[df["product_id"] == sku]
+            if df.empty:
+                return None
+            rev  = float(df["revenue_base"].sum())
+            cogs = float(df["cost_base"].sum())
+            gp   = rev - cogs
+            gm   = (gp / rev) if rev else 0.0
+            return (rev, cogs, gp, gm)
+        except Exception as exc:
+            print(f"[Management] ledger P&L load error: {exc}")
+            return None
+
     def _refresh_pl_table(self):
         if self._mgr is None:
             return
         kpi = self._get_filtered_kpi()
         if kpi is None:
             return
+        # Phase 2: P&L top-line (Revenue/COGS/GP/GM) is sourced from the single
+        # PPC event ledger; working capital stays from the money engine. PPC
+        # currently evaluates the planning result only, so the same ledger
+        # applies to the displayed (Planning) row(s). (Scenario-specific PPC
+        # re-runs are future work.)
+        _ledger = self._ledger_pl_for_sku(self._current_sku())
         self._pl_tree.delete(*self._pl_tree.get_children())
         for _, row in kpi.iterrows():
             rev  = float(row.get(Cols.REVENUE,      0) or 0)
@@ -1076,6 +1124,8 @@ class ManagementCockpitPanel(tk.Frame):
             ccc  = float(row.get(Cols.CCC_WKS,      0) or 0)
             ar   = float(row.get(Cols.AR_VALUE,     0) or 0)
             ap   = float(row.get(Cols.AP_VALUE,     0) or 0)
+            if _ledger is not None:
+                rev, cogs, gp, gm = _ledger   # Phase 2: single-source from PPC ledger
             scen = row.get(Cols.SCENARIO, "")
             self._pl_tree.insert("", "end", values=[
                 scen,
