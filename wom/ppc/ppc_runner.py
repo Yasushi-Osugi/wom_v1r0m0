@@ -33,6 +33,7 @@ def run_ppc_from_psi(
     base_currency: str = "JPY",
     verbose: bool = False,
     use_node_name: bool = False,
+    reporting_weeks: Optional[List[str]] = None,
 ) -> dict:
     """
     Run the full PPC Simulation pipeline using PSI leaf-out quantities.
@@ -281,6 +282,7 @@ def run_ppc_from_psi(
         dad_node=dad_node,
         dad_nodes_chain=dad_nodes_chain,
         mom_nodes_chain=mom_nodes_chain,
+        reporting_weeks=reporting_weeks,
         verbose=False,
     )
     result = eng.run()

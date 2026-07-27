@@ -61,6 +61,7 @@ class PPCSimulationEngine:
         dad_node: Union[str, Dict[str, str]] = "DAD_Japan",
         dad_nodes_chain=None,
         mom_nodes_chain=None,
+        reporting_weeks: Optional[List[str]] = None,
         verbose: bool = False,
     ):
         self.sales_records  = sales_records
@@ -76,6 +77,9 @@ class PPCSimulationEngine:
         # and Coding Request Letter smartx-2027-2029-fix-request-letter.md,
         # Problem B). None / empty entries preserve pre-fix behavior.
         self.mom_nodes_chain = mom_nodes_chain
+        self.reporting_weeks = (
+            set(reporting_weeks) if reporting_weeks is not None else None
+        )
         self.verbose        = verbose
 
         self._fx = FXConverter(rules.fx_rate, base_currency)
@@ -143,11 +147,30 @@ class PPCSimulationEngine:
         if self.verbose:
             print(f"[PPC Step 6] Reconciliation: {len(trust_events)} trust events")
 
-        # Step 7: KPI Summary
-        node_week_df = build_node_week_summary(all_events)
-        profit_zone_df = build_profit_zone_summary(all_events)
-        kpi = build_kpi_summary(accumulators, trust_events, self.base_currency)
-        node_pl_df = build_node_pl_summary(all_events)  # 拠点別P/L評価 (v1r0m5)
+        # Step 7: Standard business summaries. Valuation above deliberately
+        # uses the complete Planning Horizon; only presentation is restricted
+        # to the Reporting Horizon.
+        reporting_events = (
+            [event for event in all_events if event.week in self.reporting_weeks]
+            if self.reporting_weeks is not None else all_events
+        )
+        reporting_accumulators = (
+            [acc for acc in accumulators if acc.week in self.reporting_weeks]
+            if self.reporting_weeks is not None else accumulators
+        )
+        reporting_trust_events = (
+            [event for event in trust_events if event.week in self.reporting_weeks]
+            if self.reporting_weeks is not None else trust_events
+        )
+        if self.reporting_weeks is not None and not lot_df.empty:
+            lot_df = lot_df[lot_df["week"].isin(self.reporting_weeks)].copy()
+
+        node_week_df = build_node_week_summary(reporting_events)
+        profit_zone_df = build_profit_zone_summary(reporting_events)
+        kpi = build_kpi_summary(
+            reporting_accumulators, reporting_trust_events, self.base_currency
+        )
+        node_pl_df = build_node_pl_summary(reporting_events)
 
         self._result = PPCSimulationResult(
             base_currency=self.base_currency,
@@ -159,6 +182,10 @@ class PPCSimulationEngine:
             lot_reconciliation=lot_df,
             kpi_summary=kpi,
             node_pl_summary=node_pl_df,
+            reporting_week_labels=(
+                sorted(self.reporting_weeks)
+                if self.reporting_weeks is not None else None
+            ),
         )
         return self._result
 

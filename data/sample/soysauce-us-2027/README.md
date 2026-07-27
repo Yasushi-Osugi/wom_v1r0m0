@@ -22,6 +22,30 @@
 
 ## 実行・検証
 `python -m main` → Load Model Folder → soysauce-us-2027 → Run Planning。
+
+## Planning warm-up and reporting horizon
+
+`planning_horizon.csv` defines:
+
+```text
+Planning Horizon:  2026-W33 .. 2028-W52 (125 weeks)
+Warm-up Period:    2026-W33 .. 2026-W53
+Reporting Horizon: 2027-W01 .. 2028-W52 (104 weeks)
+```
+
+The warm-up gives raw materials, brewing, bottling, warehouse positioning,
+transport, and DC buffers time to operate before final demand begins at
+`2027-W01`. Demand is not moved into 2026. Capacity for every warm-up week is
+explicitly listed in `capacity_plan.csv`.
+
+Loading the model folder populates the existing Start Week and Weeks controls
+from `planning_horizon.csv`. A user edit to those controls takes precedence for
+planning. Models without this file retain demand-week AutoDetect, with reporting
+defaulting to the planning range.
+
+Network PSI, PSI List, and debugging retain the complete 125-week horizon.
+Standard charts, KPI/Management summaries, scenario comparisons, and exports
+use the 104-week reporting range.
 World Map / Network(バッファ在庫) / Management(損益分岐週) / PPC(利益ゾーン) を確認。
 S1/S2 × 関税3水準を回し、収録準備メモ B表の例示値を実出力へ差し替える。
 

@@ -59,6 +59,14 @@ Backward planning records past-due lots when lead-time offsets fall before the p
 
 `ForwardPlanner` is invoked after copy and optional push setup. It propagates supply from InBound through the bridge and OutBound side, and the surrounding docs/comments indicate that CO is generated in forward planning when demand cannot be fulfilled.
 
+Model folders may optionally provide `planning_horizon.csv`. The GUI loads its
+planning range into the existing Start Week / Weeks controls and retains its
+reporting range separately. Without the file, demand-week AutoDetect remains
+the fallback. `SCTree`, `PlanNode`, and canonical per-scenario DataFrames retain
+the full planning range. `ScenarioManager` keeps full results through `get()`
+and `planning_combined()`, while `combined()`, KPI summaries, scenario deltas,
+risk views, and standard exports apply the reporting-week selector.
+
 `capacity_sealer.py` applies capacity profiles to `PlanNode` instances and can build capacity-load reports after forward planning. `capacity_override.py` can override MOM capacity before planning. `holiday_calendar_plugin.py` can set supply closures and demand multipliers. `buffering_stock_optimizer.py` can replace manual OutBound decoupling flags after backward planning.
 
 The GUI Planning Engine path in `wom/gui/app.py` visibly orchestrates:

@@ -73,6 +73,17 @@ class WOMConfig:
         ScenarioSpec("Downside", 0.80, 1.00, "Demand -20%"),
     ])
     output_dir: str = "output"
+    reporting_start_week: Optional[str] = None
+    reporting_weeks: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        from wom.planning_horizon import PlanningHorizon
+        if self.reporting_start_week is None:
+            self.reporting_start_week = self.start_week
+        if self.reporting_weeks is None:
+            self.reporting_weeks = self.num_weeks
+        PlanningHorizon(self.start_week, self.num_weeks,
+                        self.reporting_start_week, self.reporting_weeks)
 
     # ------------------------------------------------------------------ #
     #  Derived helpers                                                     #
@@ -93,6 +104,11 @@ class WOMConfig:
         start = _iso_week_to_date(self.start_week)
         return [start + timedelta(weeks=i) for i in range(self.num_weeks)]
 
+    @property
+    def reporting_week_labels(self) -> List[str]:
+        from wom.planning_horizon import iso_weeks
+        return iso_weeks(self.reporting_start_week, self.reporting_weeks)
+
     def week_index(self, iso_week: str) -> Optional[int]:
         """Return 0-based index of *iso_week* in the horizon, or None."""
         try:
@@ -108,6 +124,8 @@ class WOMConfig:
         return {
             "start_week": self.start_week,
             "num_weeks": self.num_weeks,
+            "reporting_start_week": self.reporting_start_week,
+            "reporting_weeks": self.reporting_weeks,
             "safety_stock_weeks": self.safety_stock_weeks,
             "lead_time_weeks": self.lead_time_weeks,
             "order_multiple": self.order_multiple,
@@ -122,6 +140,7 @@ class WOMConfig:
 
     @classmethod
     def from_dict(cls, d: dict) -> "WOMConfig":
+        d = dict(d)
         scenarios = [ScenarioSpec(**s) for s in d.pop("scenarios", [])] or None
         obj = cls(**{k: v for k, v in d.items() if k != "scenarios"})
         if scenarios:

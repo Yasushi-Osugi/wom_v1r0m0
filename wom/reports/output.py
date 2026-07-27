@@ -56,7 +56,7 @@ def write_csv(mgr: ScenarioManager, output_dir: str) -> List[str]:
     # Per-scenario detail
     for s in mgr.scenarios():
         path = os.path.join(output_dir, f"wom_{s.lower()}_detail.csv")
-        mgr.get(s).to_csv(path, index=False)
+        mgr.reporting_get(s).to_csv(path, index=False)
         paths.append(path)
 
     # Combined
@@ -106,7 +106,7 @@ def write_excel(mgr: ScenarioManager, output_dir: str, filename: str = "wom_resu
         # Per-scenario detail sheets
         for s in mgr.scenarios():
             sheet = f"{s[:25]}"  # Excel sheet name limit
-            mgr.get(s).to_excel(writer, sheet_name=sheet, index=False)
+            mgr.reporting_get(s).to_excel(writer, sheet_name=sheet, index=False)
 
         # At-risk
         risk = mgr.at_risk_skus()

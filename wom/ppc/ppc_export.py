@@ -4,7 +4,7 @@ wom/ppc/ppc_export.py
 Export PPC Simulation results to CSV and JSON files.
 
 Output files:
-    ppc_event_ledger.csv        - all PPCEvents (full audit trail)
+    ppc_event_ledger.csv        - standard-period PPCEvents
     ppc_node_week_summary.csv   - aggregated by node+week
     ppc_profit_zone_summary.csv - aggregated by profit_zone
     ppc_lot_reconciliation.csv  - lot-level forward vs backward comparison
@@ -75,8 +75,12 @@ def export_results(result: PPCSimulationResult, output_dir: str) -> None:
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # ── ppc_event_ledger.csv ───────────────────────────────────────────
-    events_df = _events_to_df(result.ppc_events)
+    # ── ppc_event_ledger.csv (standard reporting period) ───────────────
+    events = result.ppc_events
+    if result.reporting_week_labels is not None:
+        reporting_set = set(result.reporting_week_labels)
+        events = [event for event in events if event.week in reporting_set]
+    events_df = _events_to_df(events)
     _safe_write_csv(events_df,
                     os.path.join(output_dir, "ppc_event_ledger.csv"))
 
@@ -96,7 +100,7 @@ def export_results(result: PPCSimulationResult, output_dir: str) -> None:
     _safe_write_json(result.kpi_summary,
                      os.path.join(output_dir, "ppc_kpi_summary.json"))
 
-    # ── ppc_node_pl_summary.csv (拠点別P/L評価, full-horizon per node) ──
+    # ── ppc_node_pl_summary.csv (拠点別P/L評価, reporting-period per node) ──
     node_pl_df = result.node_pl_summary
     if node_pl_df is None:
         node_pl_df = pd.DataFrame(columns=[

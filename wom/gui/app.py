@@ -4790,17 +4790,26 @@ class WOMApp(tk.Tk):
         if not dem_path or not os.path.exists(dem_path):
             return
         try:
-            dem_df = pd.read_csv(dem_path)
-            if "week" not in dem_df.columns:
+            from wom.planning_horizon import autodetect_horizon, load_planning_horizon
+            horizon_path = os.path.join(
+                os.path.dirname(dem_path), "planning_horizon.csv")
+            if os.path.exists(horizon_path):
+                horizon = load_planning_horizon(horizon_path)
+            else:
+                dem_df = pd.read_csv(dem_path)
+                if "week" not in dem_df.columns:
+                    return
+                horizon = autodetect_horizon(dem_df["week"].dropna())
+            if horizon is None:
                 return
-            weeks_sorted = sorted(dem_df["week"].dropna().unique().tolist())
-            if not weeks_sorted:
-                return
-            start_wk = weeks_sorted[0]
-            n_weeks  = len(weeks_sorted)
-            self._e_start.set(start_wk)
-            self._e_weeks.set(str(n_weeks))
-            print(f"[AutoDetect] period: {start_wk}  ×  {n_weeks} weeks")
+            self._e_start.set(horizon.planning_start_week)
+            self._e_weeks.set(str(horizon.planning_weeks))
+            self._reporting_start_week = horizon.reporting_start_week
+            self._reporting_weeks = horizon.reporting_weeks
+            print(
+                f"[PlanningHorizon] source={horizon.source} "
+                f"planning={horizon.planning_start_week} x{horizon.planning_weeks} "
+                f"reporting={horizon.reporting_start_week} x{horizon.reporting_weeks}")
         except Exception as exc:
             print(f"[AutoDetect] failed: {exc}")
 
@@ -4823,6 +4832,10 @@ class WOMApp(tk.Tk):
         return WOMConfig(
             start_week=self._e_start.get() or "2024-W01",
             num_weeks=int(self._e_weeks.get() or 26),
+            reporting_start_week=getattr(
+                self, "_reporting_start_week", self._e_start.get() or "2024-W01"),
+            reporting_weeks=getattr(
+                self, "_reporting_weeks", int(self._e_weeks.get() or 26)),
             safety_stock_weeks=float(self._e_ss.get() or 2.0),
             lead_time_weeks=int(self._e_lt.get() or 4),
             capacity_constrained=self._e_cap.get(),
@@ -5054,6 +5067,9 @@ class WOMApp(tk.Tk):
         # ── HookBus + active plugins ────────────────────────────────
         _bus = HookBus()
         _cfg = {"n_weeks": n_weeks, "start_week": start,
+                "reporting_start_week": getattr(
+                    self, "_reporting_start_week", start),
+                "reporting_weeks": getattr(self, "_reporting_weeks", n_weeks),
                 "cap_path":         self._f_cap.get()     if hasattr(self, "_f_cap")     else "",
                 "holiday_cal_path": self._f_holiday.get() if hasattr(self, "_f_holiday") else ""}
         for _plugin in getattr(self, "_active_plugins", []):
@@ -5313,6 +5329,10 @@ class WOMApp(tk.Tk):
             # Merge into existing ScenarioManager (or create one)
             if self._mgr is None:
                 self._mgr = ScenarioManager()
+            from wom.planning_horizon import iso_weeks
+            self._mgr.set_reporting_weeks(iso_weeks(
+                getattr(self, "_reporting_start_week", sc_tree.week_labels[0]),
+                getattr(self, "_reporting_weeks", len(sc_tree.week_labels))))
 
             # Remove stale Planning scenario if re-running
             self._mgr._results.pop(SCENARIO_PLANNING, None)
@@ -5446,10 +5466,20 @@ class WOMApp(tk.Tk):
         immediately above), so there is no reason to re-derive it from a
         separate, independently-editable widget.
         """
-        weeks = list(sc_tree.week_labels)
-        if not weeks:
+        planning_weeks = list(sc_tree.week_labels)
+        if not planning_weeks:
             print("[PPC B2] sc_tree.week_labels is empty; aborting PPC run")
             return
+        from wom.planning_horizon import ppc_horizons
+        planning_weeks, reporting_weeks = ppc_horizons(
+            sc_tree.week_labels,
+            getattr(self, "_reporting_start_week", planning_weeks[0]),
+            getattr(self, "_reporting_weeks", len(planning_weeks)))
+        print(
+            f"[PPC B2] planning horizon: {planning_weeks[0]}..{planning_weeks[-1]} "
+            f"({len(planning_weeks)} weeks); reporting horizon: "
+            f"{reporting_weeks[0]}..{reporting_weeks[-1]} "
+            f"({len(reporting_weeks)} weeks)")
 
         self._status_var.set(
             self._status_var.get() + "  |  💰 Running PPC …"
@@ -5492,7 +5522,8 @@ class WOMApp(tk.Tk):
                 from wom.ppc.ppc_runner import run_ppc_from_psi
                 kpi = run_ppc_from_psi(
                     sc_tree=sc_tree,
-                    weeks=weeks,
+                    weeks=planning_weeks,
+                    reporting_weeks=reporting_weeks,
                     data_dir=_ppc_data_dir,
                     output_dir="output/ppc",
                     base_currency=_base_currency,

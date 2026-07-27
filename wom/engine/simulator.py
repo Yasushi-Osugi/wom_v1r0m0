@@ -23,7 +23,8 @@ class WOMSimulator:
         self._demand_engine   = DemandEngine(config)
         self._capacity_engine = CapacityEngine(config)
         self._inv_simulator   = InventorySimulator(config)
-        self.scenario_manager = ScenarioManager()
+        self.scenario_manager = ScenarioManager(
+            reporting_weeks=config.reporting_week_labels)
         self._sku_params: dict = {}
 
     def load(self, inputs: WOMInputs) -> None:

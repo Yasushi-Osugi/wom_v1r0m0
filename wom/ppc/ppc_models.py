@@ -234,4 +234,5 @@ class PPCSimulationResult:
     profit_zone_summary:    "pd.DataFrame"   # type: ignore
     lot_reconciliation:     "pd.DataFrame"   # type: ignore
     kpi_summary:            Dict
-    node_pl_summary:        "pd.DataFrame" = None   # type: ignore  # 拠点別P/L評価 (full-horizon, per node x product)
+    node_pl_summary:        "pd.DataFrame" = None   # type: ignore  # standard-period, per node x product
+    reporting_week_labels:  Optional[List[str]] = None

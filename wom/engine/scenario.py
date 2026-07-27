@@ -8,8 +8,10 @@ from wom.data.schema import Cols
 
 
 class ScenarioManager:
-    def __init__(self):
+    def __init__(self, reporting_weeks=None):
         self._results: Dict[str, pd.DataFrame] = {}
+        self._reporting_weeks = (
+            set(reporting_weeks) if reporting_weeks is not None else None)
         # Money PSI (populated by WOMSimulator after run)
         self.weekly_money: Optional[pd.DataFrame] = None
         self.summary_money: Optional[pd.DataFrame] = None
@@ -30,8 +32,24 @@ class ScenarioManager:
     def get(self, scenario_name: str) -> pd.DataFrame:
         return self._results[scenario_name]
 
-    def combined(self) -> pd.DataFrame:
+    def set_reporting_weeks(self, weeks) -> None:
+        self._reporting_weeks = set(weeks) if weeks is not None else None
+
+    def reporting_get(self, scenario_name: str) -> pd.DataFrame:
+        df = self._results[scenario_name]
+        if self._reporting_weeks is None or Cols.WEEK not in df.columns:
+            return df
+        return df[df[Cols.WEEK].isin(self._reporting_weeks)].copy()
+
+    def planning_combined(self) -> pd.DataFrame:
+        """Return the canonical full-horizon internal result."""
         return pd.concat(list(self._results.values()), ignore_index=True)
+
+    def combined(self) -> pd.DataFrame:
+        """Return the standard business reporting-window result."""
+        return pd.concat(
+            [self.reporting_get(name) for name in self.scenarios()],
+            ignore_index=True)
 
     def kpi_summary(self, by=None) -> pd.DataFrame:
         if by is None:
@@ -77,8 +95,8 @@ class ScenarioManager:
                 Cols.STOCKOUT_QTY, Cols.FILL_RATE, Cols.INV_COVER_WKS,
             ]
         key_cols = [Cols.SKU_ID, Cols.REGION, Cols.WEEK]
-        base = self._results[base_name].set_index(key_cols)[kpi_cols]
-        comp = self._results[scenario_name].set_index(key_cols)[kpi_cols]
+        base = self.reporting_get(base_name).set_index(key_cols)[kpi_cols]
+        comp = self.reporting_get(scenario_name).set_index(key_cols)[kpi_cols]
         delta_abs = (comp - base).add_suffix("_delta")
         delta_pct = ((comp - base) / base.replace(0, float("nan"))).add_suffix("_pct_chg")
         return pd.concat([base, comp, delta_abs, delta_pct], axis=1).reset_index()
@@ -87,7 +105,7 @@ class ScenarioManager:
         scenarios = [scenario] if scenario else list(self._results.keys())
         frames = []
         for s in scenarios:
-            df = self._results[s]
+            df = self.reporting_get(s)
             risk = df[
                 (df[Cols.FILL_RATE] < fill_rate_threshold) |
                 ((df[Cols.INV_COVER_WKS] < cover_wks_threshold) & (df[Cols.DEMAND_FCST] > 0))

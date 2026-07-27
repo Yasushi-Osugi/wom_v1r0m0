@@ -73,6 +73,12 @@ The engine input is a `sales_records` DataFrame with visible columns `lot_id`, `
 
 `ppc_psi_bridge.py` converts post-forward-planning SCTree leaf-out supply quantities into PPC `sales_records`. By default it maps regions to `JP_Channel` or `US_Channel` where possible; with `use_node_name=True`, it uses leaf-out node names directly.
 
+The bridge is sales-record based. It reads weekly leaf-out supply quantities,
+but it does not carry receipt or production cost layers, opening-inventory
+valuation, or original Demand Anchored Lot IDs into PPC. Consequently, retaining
+planning warm-up sales events supports the existing PPC event valuation but must
+not be described as inventory-cost carry-forward.
+
 `ppc_runner.py` is the GUI/planning bridge. It loads rules, converts PSI to sales records, filters to PPC-known products/channels, falls back to sample sales if no compatible PSI records exist, detects scenario type, builds engine parameters, runs `PPCSimulationEngine`, and exports results.
 
 Scenario detection is implemented in `detect_scenario()` with visible branches for rice, iPhone global, cookie, and legacy iPhone. Generic mode in `ppc_runner.py` can infer MOM, supplier, DAD, and DAD chain from an SCTree when the scenario is not one of the named cases.

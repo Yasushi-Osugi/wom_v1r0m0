@@ -146,7 +146,17 @@ def psi_to_sales_records(
                 region = parts[2] if len(parts) >= 3 else "UNKNOWN"
                 channel_node = _region_to_channel(region, merged_map)
 
-            for w_idx, week_label in enumerate(weeks):
+            week_to_index = {
+                label: index
+                for index, label in enumerate(sc_tree.week_labels)
+            }
+            for week_label in weeks:
+                if week_label not in week_to_index:
+                    raise ValueError(
+                        f"PPC week {week_label!r} is not present in "
+                        "sc_tree.week_labels"
+                    )
+                w_idx = week_to_index[week_label]
                 qty = node.qty_supply(w_idx, S_BUCKET)
                 if qty == 0:
                     continue

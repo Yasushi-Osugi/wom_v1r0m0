@@ -51,6 +51,7 @@ if REPO_ROOT not in sys.path:
 from wom.ppc import PPCSimulationEngine, PPCRuleSet, build_iphone_vs_paths
 from wom.ppc.ppc_fx import FXConverter
 from wom.ppc.ppc_models import LotCostAccumulator
+from wom.ppc.ppc_export import export_results
 
 # ---------------------------------------------------------------------------
 # Path to sample data
@@ -98,6 +99,52 @@ def _run_engine(sales_df, rules, sc_paths, **kwargs) -> PPCSimulationEngine:
     )
     eng.run()
     return eng
+
+
+def test_reporting_horizon_filters_standard_outputs_after_full_valuation(
+    rules, sc_paths, tmp_path
+):
+    sales = _sales([
+        ("WARMUP", "2026-W33", "JP_Channel", "IPHONE"),
+        ("FIRST", "2027-W01", "JP_Channel", "IPHONE"),
+        ("LAST", "2028-W52", "JP_Channel", "IPHONE"),
+    ])
+    sales.loc[:, "qty"] = [7, 11, 13]
+    eng = _run_engine(
+        sales, rules, sc_paths,
+        reporting_weeks=["2027-W01", "2028-W52"],
+    )
+    result = eng._result
+
+    assert {acc.week for acc in result.lot_accumulators} == {
+        "2026-W33", "2027-W01", "2028-W52",
+    }
+    assert "2026-W33" in {event.week for event in result.ppc_events}
+    assert set(result.node_week_summary["week"]) == {"2027-W01", "2028-W52"}
+    assert set(result.lot_reconciliation["week"]) == {"2027-W01", "2028-W52"}
+    assert result.kpi_summary["total_qty_units"] == 24
+
+    export_results(result, str(tmp_path))
+    event_export = pd.read_csv(tmp_path / "ppc_event_ledger.csv")
+    node_week_export = pd.read_csv(tmp_path / "ppc_node_week_summary.csv")
+    reconciliation_export = pd.read_csv(tmp_path / "ppc_lot_reconciliation.csv")
+    for exported in (event_export, node_week_export, reconciliation_export):
+        assert exported["week"].min() == "2027-W01"
+        assert exported["week"].max() == "2028-W52"
+        assert not exported["week"].astype(str).str.startswith("2026").any()
+
+
+def test_legacy_engine_without_reporting_horizon_keeps_existing_period(
+    rules, sc_paths
+):
+    sales = _sales([
+        ("LEGACY-1", "2026-W01", "JP_Channel", "IPHONE"),
+        ("LEGACY-2", "2026-W02", "JP_Channel", "IPHONE"),
+    ])
+    eng = _run_engine(sales, rules, sc_paths)
+    assert set(eng._result.node_week_summary["week"]) == {
+        "2026-W01", "2026-W02",
+    }
 
 
 # ===========================================================================
