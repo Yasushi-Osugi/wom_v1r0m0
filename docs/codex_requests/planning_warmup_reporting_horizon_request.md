@@ -2,11 +2,44 @@
 
 - **Request file**: `docs/codex_requests/planning_warmup_reporting_horizon_request.md`
 - **Target repository**: `Yasushi-Osugi/wom_v1r0m0`
-- **Target branch**: `wom-v1r2m0`
-- **Base commit at request creation**: `2169bf6`
-- **Dependency**: Start from the branch state after `holiday_explicit_closure_engine_request.md` is completed and accepted.
-- **Request status**: Ready after dependency completion
-- **Owner policy**: Do not commit, push, merge, or create a release tag unless the repository owner explicitly instructs you to do so.
+- **Target branch**: `wom-v1r2m1`
+- **Implementation baseline commit**: `670c983` (`Implement explicit holiday closure semantics`)
+- **Dependency status**: `holiday_explicit_closure_engine_request.md` completed, accepted, committed, and pushed in `670c983`
+- **Verified baseline**: `python -m pytest -q` → `90 passed`; soy sauce GUI scenario verified with formal `supply_closure,value=0`
+- **Request status**: Ready for implementation
+- **Owner policy**: Do not commit, push, merge, create a pull request, or create a release tag unless the repository owner explicitly instructs you to do so.
+
+Before editing, verify:
+
+```text
+branch = wom-v1r2m1
+git status = clean
+commit 670c983 is an ancestor of HEAD
+```
+
+Recommended commands:
+
+```bat
+git branch --show-current
+git status
+git merge-base --is-ancestor 670c983 HEAD
+```
+
+Expected:
+
+```text
+branch = wom-v1r2m1
+working tree = clean
+git merge-base exit code = 0
+```
+
+Exit code `0` from `git merge-base --is-ancestor 670c983 HEAD` means that the accepted Holiday Explicit Closure implementation is contained in the current `HEAD` history.
+
+Codex must stop before implementation and report the mismatch if:
+
+- the branch is not `wom-v1r2m1`;
+- the working tree is not clean at implementation start;
+- commit `670c983` is not an ancestor of `HEAD`.
 
 ---
 
@@ -40,6 +73,8 @@ push_lead_time_weeks=7
 ```
 
 The solution is to calculate from an earlier Planning Start while keeping the business demand and standard reporting start at `2027-W01`.
+
+`Final Demand Start` is an observed property of `demand_forecast.csv`; do not add a redundant independently editable `final_demand_start_week` setting unless source inspection proves it is required.
 
 Formal target for the soy sauce scenario:
 
@@ -115,20 +150,22 @@ Do not assume all of these require changes. Identify the smallest coherent set.
 
 ## 3. Core Design Decisions
 
-### Decision A: Planning and demand starts are different concepts
+### Decision A: Planning, demand, and reporting boundaries are different concepts
 
-The following must be independently represented:
+The following must remain distinguishable:
 
 ```text
 Planning Start
     first week calculated by the engine
 
 Final Demand Start
-    first week with actual market demand
+    first week with actual market demand, derived from demand data
 
 Reporting Start
-    first week shown in standard business reporting
+    first week included in standard business reporting
 ```
+
+Only Planning and Reporting boundaries require explicit horizon configuration in this request. Final Demand Start remains data-derived.
 
 For the soy sauce model:
 
@@ -203,13 +240,44 @@ The interval crosses:
 2026-W53
 ```
 
-Use the repository's existing ISO-week utilities if available, or add a focused reusable helper with tests.
+The current `WOMConfig.weeks` path already uses ISO-calendar date arithmetic. Reuse or safely extend that canonical path; do not create a second week-arithmetic implementation.
+
+### Decision G: Preserve current WOMConfig compatibility
+
+The current public planning fields are:
+
+```text
+WOMConfig.start_week
+WOMConfig.num_weeks
+```
+
+Preserve them for existing callers and tests. They may remain the canonical Planning Horizon fields.
+
+Acceptable approaches include:
+
+```text
+start_week / num_weeks remain canonical
++ reporting_start_week / reporting_weeks are added
++ optional read-only aliases planning_start_week / planning_weeks
+```
+
+Do not broadly rename `start_week` or `num_weeks` across the repository merely to match request terminology.
 
 ---
 
 ## 4. Configuration Interface
 
 First inspect whether the repository already has a canonical model-level configuration file that can safely hold horizon settings.
+
+Current repository facts to preserve:
+
+```text
+WOMConfig already owns start_week and num_weeks
+WOMConfig already generates ISO week labels
+WOMConfig supports dictionary/JSON serialisation
+```
+
+This does not by itself prove that a model-folder JSON file is the canonical scenario interface. Inspect the actual model-folder loading path before choosing the storage format.
 
 ### Preferred rule
 
@@ -247,12 +315,20 @@ Avoid storing redundant conflicting values unless validation defines precedence.
 
 ### Loading precedence
 
-Use this precedence:
+Use this precedence for Planning Start/Weeks:
 
 ```text
-1. Current GUI entry values after a model is loaded
-2. Model-folder explicit horizon configuration
+1. Current GUI entry values at Run time
+2. Model-folder explicit horizon configuration loaded into the GUI
 3. Legacy demand AutoDetect fallback
+```
+
+Use this precedence for Reporting Start/Weeks:
+
+```text
+1. Dedicated GUI values, only if deliberately added
+2. Model-folder explicit horizon configuration
+3. Planning Start/Weeks as the legacy-compatible default
 ```
 
 Practical GUI behavior:
@@ -331,13 +407,22 @@ Do not introduce automatic backward capacity carry unless it is already the repo
 
 ### 5.4 Planning context
 
-Make both ranges available in the active planning context/config:
+Make both ranges available in the active planning context/config.
+
+The existing names may remain canonical:
 
 ```text
-planning_start_week
-planning_weeks
+start_week
+num_weeks
 reporting_start_week
 reporting_weeks
+```
+
+Optional semantic aliases are acceptable:
+
+```text
+planning_start_week -> start_week
+planning_weeks      -> num_weeks
 ```
 
 A derived helper is acceptable:
@@ -367,31 +452,34 @@ Do not permanently discard warm-up rows during conversion.
 
 ## 6. Reporting and Diagnostic Behavior
 
-### 6.1 Diagnostic views
+### 6.1 Engineering and diagnostic views
 
 The following should be able to show all 125 weeks:
 
 ```text
-node PSI chart
-PSI list
-debug output
+Network node PSI chart
+PSI List
+Debug output
 capacity diagnostics
 holiday diagnostics
 ```
 
-If the current PSI chart is the primary engineering diagnostic, keep its default full-horizon behavior.
+Keep the Network node PSI chart and PSI List on the full Planning Horizon by default. These are engineering views, even though they are displayed inside the GUI.
 
 ### 6.2 Standard business views
 
 The following should default to the Reporting Horizon:
 
 ```text
-standard KPI table
+Charts-tab business charts sourced from ScenarioManager/standard result data
+KPI Table
 Management views
 Scenario Delta
 standard PPC summary
 standard report/export totals
 ```
+
+Do not apply reporting filtering by destructively replacing the canonical full-horizon planning DataFrame. Prefer a shared reporting-window selector or filtered view at each business-output boundary.
 
 The reporting window for soy sauce is:
 
@@ -423,6 +511,8 @@ Where practical, include or preserve enough metadata to distinguish:
 planning_week
 reporting_included
 ```
+
+A central helper such as `is_reporting_week()` or `reporting_slice()` is preferred over repeating boundary arithmetic in GUI, Management, PPC, and exports.
 
 Do not require a broad event-ledger redesign in this request.
 
@@ -465,7 +555,7 @@ Add normal capacity rows for all warm-up weeks:
 
 Use the exact current column order and comments/style in `capacity_plan.csv`.
 
-### 7.4 Keep push configuration unchanged
+### 7.4 Keep push and holiday configuration unchanged
 
 Verify:
 
@@ -474,6 +564,14 @@ push_lead_time_weeks=7
 ```
 
 remains unchanged.
+
+Also preserve the accepted Holiday Explicit Closure behavior from commit `670c983`:
+
+```text
+supply_closure is explicit event state
+holiday_calendar.csv uses value=0
+cap_hard <= 0 remains unconstrained when no explicit closure exists
+```
 
 ### 7.5 Update scenario documentation
 
@@ -494,6 +592,31 @@ which charts include warm-up
 ```
 
 Do not turn the scenario README into a duplicate of the canonical design docs.
+
+---
+
+## 7.6 Required implementation sequence
+
+Implement and validate in this order:
+
+```text
+Phase A
+  horizon configuration + validation
+  full Planning Horizon week labels
+  zero-demand warm-up loading
+  finite warm-up capacity
+  full internal PSI retention
+
+Phase B
+  shared Reporting Horizon selector
+  standard business-view filtering
+  Management/PPC/export filtering
+  diagnostic full-horizon preservation
+```
+
+After Phase A, run the focused planning/capacity/push/holiday tests before changing reporting boundaries. This keeps engine-horizon faults separate from output-filtering faults.
+
+Do not commit between phases unless the repository owner explicitly requests it.
 
 ---
 
@@ -676,6 +799,21 @@ push_lead_time_weeks=7
 
 Run at least one existing sample model without explicit horizon config and confirm its period remains unchanged.
 
+### Test 13: Holiday closure regression
+
+Run:
+
+```text
+tests/test_holiday_explicit_closure.py
+```
+
+Expected:
+
+```text
+all accepted Holiday Explicit Closure tests continue to pass
+soy sauce holiday_calendar.csv remains value=0
+```
+
 ---
 
 ## 10. Manual Verification
@@ -760,6 +898,7 @@ At minimum:
 python -m pytest tests/test_planning_horizon.py -q
 python -m pytest tests/test_step8_push_pull.py -q
 python -m pytest tests/test_step7_capacity.py -q
+python -m pytest tests/test_holiday_explicit_closure.py -q
 ```
 
 Run relevant reporting/PPC tests selected after source inspection.
@@ -783,13 +922,14 @@ Do not implement the following in this request:
 ```text
 change push_lead_time_weeks from 7 to 4
 Push Config production_node_id redesign
-Holiday explicit closure semantics
+rework or replace the accepted Holiday Explicit Closure implementation
 capacity mode enum redesign
 automatic capacity backfill for every scenario
 automatic optimal warm-up calculation from network LT
 PPC price/cost/tariff formula redesign
 opening-inventory accounting redesign
 major GUI layout redesign
+broad rename of WOMConfig.start_week / num_weeks
 ```
 
 The automatic formula:
@@ -818,6 +958,7 @@ may be documented as a future enhancement, but do not implement it here.
 - [ ] Diagnostic views can use the full horizon.
 - [ ] Standard Management/PPC outputs apply the reporting window.
 - [ ] `push_lead_time_weeks=7` remains unchanged.
+- [ ] Holiday Explicit Closure behavior from `670c983` remains unchanged and its focused tests pass.
 - [ ] Models without horizon config preserve legacy AutoDetect.
 - [ ] Invalid horizon config gives a clear error.
 - [ ] Focused tests pass.
@@ -831,17 +972,19 @@ may be documented as a future enhancement, but do not implement it here.
 Return:
 
 ```text
-1. Configuration interface chosen and why
-2. Files changed
-3. Loading/precedence behavior
-4. Planning vs reporting data flow
-5. Tests added
-6. Exact test commands and results
-7. Manual soy sauce results
-8. Legacy model regression result
-9. Remaining limitations
-10. git diff --stat
-11. Recommended commit message
+1. Starting branch/HEAD verification
+2. Configuration interface chosen and why
+3. Files changed
+4. Loading/precedence behavior
+5. Planning vs reporting data flow
+6. Tests added
+7. Exact test commands and results
+8. Manual soy sauce results
+9. Legacy model regression result
+10. Holiday closure regression result
+11. Remaining limitations
+12. git diff --stat
+13. Recommended commit message
 ```
 
 Recommended commit message:
