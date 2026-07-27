@@ -105,10 +105,12 @@ class ForwardPlanner:
         sc_tree:              SCTree,
         opening_inv:          Optional[Dict[str, List[str]]] = None,
         decouple_node_ids:    Optional[set]                  = None,
+        explicit_closures:    Optional[Dict[str, set]]       = None,
     ) -> None:
         self.sc_tree             = sc_tree
         self.opening_inv         = opening_inv or {}
         self.decouple_node_ids   = decouple_node_ids  # None = auto-detect
+        self._explicit_closures  = explicit_closures or {}
         self._lot_leaf_index: Dict[str, PlanNode] = {}
 
     def run(self, prod_nm: str) -> ForwardPlanResult:
@@ -408,8 +410,20 @@ class ForwardPlanner:
             # PUSH decoupling nodes (e.g. Buffer_Wafer_TW) skip sealing:
             # their P bucket holds incoming inventory (already produced upstream),
             # not production at this node. Surplus P flows to I via PUSH_MODE logic.
+            is_closed = w in self._explicit_closures.get(node.node_name, set())
             ch = node.cap_hard(w)
-            if not is_push_mode and ch > 0 and len(node.psi4supply[w][P]) > int(ch):
+            if is_closed:
+                # Closure is event state and overrides numeric capacity and
+                # PUSH exemptions. Defer the same supply Lot IDs; normal
+                # demand matching below records the corresponding shortfall.
+                excess = list(node.psi4supply[w][P])
+                node.psi4supply[w][P] = []
+                if excess and w + 1 < n_weeks:
+                    node.psi4supply[w + 1][P].extend(excess)
+                if excess:
+                    result.record_cap_hard_sealed(
+                        node.node_id, wk_label, len(excess))
+            elif not is_push_mode and ch > 0 and len(node.psi4supply[w][P]) > int(ch):
                 excess = node.psi4supply[w][P][int(ch):]
                 node.psi4supply[w][P] = node.psi4supply[w][P][:int(ch)]
                 if w + 1 < n_weeks:

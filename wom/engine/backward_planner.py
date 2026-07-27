@@ -387,35 +387,36 @@ class BackwardPlanner:
         if node.node_type != "mom":
             return  # only apply to MOM nodes
 
+        closure_set = self._explicit_closures.get(node.node_name, set())
         for w in range(n_weeks - 1, -1, -1):
-            cap_w = node.cap_hard(w)
-            if cap_w <= 0.0:
-                continue  # unconstrained week (cap not set)
-
             s_lots  = list(node.psi4demand[w][S])
-            cap_int = int(cap_w)
-
-            if len(s_lots) <= cap_int:
-                continue  # no overflow this week
+            if w in closure_set:
+                cap_int = 0
+            else:
+                cap_w = node.cap_hard(w)
+                if cap_w <= 0.0:
+                    # Unset capacity remains unconstrained.  P must still be
+                    # synchronized because _in_propagate skips MOM P in
+                    # constrained mode.
+                    node.psi4demand[w][P] = list(s_lots)
+                    continue
+                cap_int = int(cap_w)
 
             # -- Clip P at cap_hard ----------------------------------------
             within_cap = s_lots[:cap_int]
             overflow   = s_lots[cap_int:]
 
-            # Overwrite P: was set to full S by _in_propagate; now capped
-            node.psi4demand[w][P].clear()
-            node.psi4demand[w][P].extend(within_cap)
+            # Synchronize S/P before inbound propagation, including weeks
+            # whose demand fits within finite capacity.
+            node.psi4demand[w][P] = list(within_cap)
+            node.psi4demand[w][S] = list(within_cap)
+
+            if not overflow:
+                continue
 
             # -- Record overflow as CO (unfulfilled demand this week) -------
             for lot_id in overflow:
                 node.psi4demand[w][CO].append(lot_id)
-
-            # -- Also update S to within_cap --------------------------------
-            # _in_propagate (Phase 3) uses psi4demand[w][S] to propagate to
-            # child nodes.  By updating S here, child.S[w-LT] will carry only
-            # the cap-clipped lots, making child.S match MOM.P in shape.
-            node.psi4demand[w][S].clear()
-            node.psi4demand[w][S].extend(within_cap)
 
             # -- Push overflow to previous week S (earlier production) ------
             if w > 0:

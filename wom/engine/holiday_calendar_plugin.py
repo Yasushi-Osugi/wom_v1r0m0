@@ -54,7 +54,7 @@ class HolidayCalendarPlugin(WOMPlugin):
             if rule["effect"] == "supply_closure":
                 self._apply_supply_closure(
                     nodes, rule["week_idxs"], rule["week_labels"],
-                    rule["value"], rule["holiday_name"])
+                    rule["holiday_name"])
             elif rule["effect"] == "demand_multiplier":
                 self._apply_demand_multiplier(
                     nodes, rule["week_idxs"], rule["week_labels"],
@@ -74,13 +74,11 @@ class HolidayCalendarPlugin(WOMPlugin):
         print(f"[HolidayCalendar] explicit_closures written to config: "
               f"{len(explicit_closures)} nodes")
 
-    def _apply_supply_closure(self, nodes, w_idxs, w_lbls, cap_val, name):
-        for node in nodes:
-            for w in w_idxs:
-                node.set_capacity(w, cap_hard=cap_val)
+    def _apply_supply_closure(self, nodes, w_idxs, w_lbls, name):
+        """Log closure event state without mutating the numeric capacity."""
         print(
-            f"[HolidayCalendar] Supply closure {name!r}: "
-            f"{nodes[0].node_name} cap_hard={cap_val} "
+            f"[HolidayCalendar] Explicit supply closure {name!r}: "
+            f"{nodes[0].node_name} "
             f"{w_lbls[0]}..{w_lbls[-1]} ({len(w_idxs)} weeks)"
         )
 

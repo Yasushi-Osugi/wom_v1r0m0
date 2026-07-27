@@ -3983,7 +3983,10 @@ class DebugPanel(tk.Frame):
                 f"ForwardPlanner [{pn}]", "forward_planner",
                 "Apply capacity constraints, generate CO, PULL/PUSH supply"))
             calls.append(lambda p=pn:
-                ForwardPlanner(sc_tree, opening_inv=opening_inv).run(p))
+                ForwardPlanner(
+                    sc_tree, opening_inv=opening_inv,
+                    explicit_closures=cfg.get("explicit_closures", {}),
+                ).run(p))
 
             # HOOK_POST_FORWARD
             steps.append(OperatorStep(
@@ -5235,7 +5238,10 @@ class WOMApp(tk.Tk):
                         __import__('tkinter').BooleanVar(value=False)).get()
                     else {}
                 )
-                ForwardPlanner(sc_tree, opening_inv=_opening_inv).run(prod_nm)
+                ForwardPlanner(
+                    sc_tree, opening_inv=_opening_inv,
+                    explicit_closures=_cfg.get("explicit_closures", {}),
+                ).run(prod_nm)
                 _bus.fire(HOOK_POST_FORWARD, sc_tree=sc_tree,
                           prod_nm=prod_nm, weeks=weeks, config=_cfg)
 
