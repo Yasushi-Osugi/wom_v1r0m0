@@ -1,6 +1,6 @@
 {
   "backward": {
-    "cap_soft_envelope_count": 88
+    "cap_soft_envelope_count": 8
   },
   "case": "soysauce-jpy-2027",
   "config": {
@@ -12,7 +12,7 @@
   },
   "forward": {
     "cap_hard_sealed": 0,
-    "cap_soft_violation_count": 81
+    "cap_soft_violation_count": 8
   },
   "period": {
     "start": "2027-W01",
