@@ -1,4 +1,7 @@
 {
+  "backward": {
+    "cap_soft_envelope_count": 0
+  },
   "case": "ev-thailand-2026",
   "config": {
     "plugins": [

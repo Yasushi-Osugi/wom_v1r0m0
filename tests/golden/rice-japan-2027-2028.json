@@ -1,4 +1,7 @@
 {
+  "backward": {
+    "cap_soft_envelope_count": 0
+  },
   "case": "rice-japan-2027-2028",
   "config": {
     "plugins": [

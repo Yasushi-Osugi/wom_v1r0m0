@@ -1,4 +1,7 @@
 {
+  "backward": {
+    "cap_soft_envelope_count": 0
+  },
   "case": "smartx-2027-2029",
   "config": {
     "plugins": [

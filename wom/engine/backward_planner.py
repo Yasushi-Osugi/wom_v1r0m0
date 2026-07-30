@@ -108,8 +108,23 @@ class BackwardPlanResult:
         default_factory=dict
     )
 
+    # cap_soft envelope violations (plan-time overtime signal, Fork A).
+    # (node_id, week_label, over_by) where over_by = min(demand, cap_hard) - cap_soft.
+    # Placement is NOT changed by cap_soft; this is a flag only.
+    cap_soft_envelope_violations: List[Tuple[str, str, int]] = field(
+        default_factory=list
+    )
+
     def record_past_due(self, node_id: str, lot_id: str, week: int) -> None:
         self.past_due_lots.append((node_id, lot_id, week))
+
+    def record_cap_soft_envelope(
+        self, node_id: str, week_label: str, over_by: int
+    ) -> None:
+        """Plan-time flag: production placed within cap_hard exceeds cap_soft
+        (regular-shift ceiling) by ``over_by`` lots -> requires overtime/burst.
+        Does NOT move any lots."""
+        self.cap_soft_envelope_violations.append((node_id, week_label, over_by))
 
     def __str__(self) -> str:
         return (
@@ -394,6 +409,18 @@ class BackwardPlanner:
 
             s_lots  = list(node.psi4demand[w][S])
             cap_int = int(cap_w)
+
+            # -- cap_soft envelope (Fork A: flag only, NO lot movement) ------
+            # Placed production this week = min(demand, cap_hard).  If it exceeds
+            # the soft (regular-shift) ceiling, flag the overtime band at plan
+            # time.  cap_hard still governs CO below; nothing is moved here.
+            cs = node.cap_soft(w)
+            if cs > 0:
+                placed_p = min(len(s_lots), cap_int)
+                if placed_p > int(cs):
+                    wk_label = node.week_labels[w] if node.week_labels else str(w)
+                    result.record_cap_soft_envelope(
+                        node.node_id, wk_label, placed_p - int(cs))
 
             if len(s_lots) <= cap_int:
                 continue  # no overflow this week

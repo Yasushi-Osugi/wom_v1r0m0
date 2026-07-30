@@ -165,8 +165,10 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
     bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree, weeks=weeks, config=cfg)
     _cap_hard_sealed = 0      # Forward が cap_hard で seal した lot 総数
     _cap_soft_viol   = 0      # Forward の cap_soft 違反（残業要）件数
+    _bwd_soft_env    = 0      # Backward の cap_soft envelope 違反（計画段階の残業帯）件数
     for prod_nm in sc_tree.products:
-        BackwardPlanner(sc_tree, lane_table=lane_table, config=cfg).run(prod_nm)
+        _bres = BackwardPlanner(sc_tree, lane_table=lane_table, config=cfg).run(prod_nm)
+        _bwd_soft_env += len(getattr(_bres, "cap_soft_envelope_violations", []) or [])
         bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
         copy_demand_to_supply(sc_tree, prod_nm)
         bus.fire(HOOK_POST_COPY, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
@@ -209,6 +211,7 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
         "products": list(sc_tree.products),
         "forward": {"cap_hard_sealed": _cap_hard_sealed,
                     "cap_soft_violation_count": _cap_soft_viol},
+        "backward": {"cap_soft_envelope_count": _bwd_soft_env},
         "ppc": ppc_kpi,
         "psi": _psi_signature(sc_tree, n_weeks),
     }
@@ -297,7 +300,8 @@ def main(argv=None) -> int:
         print(f"[Headless] snapshot -> {a.out}  (GM={snap['ppc']['gross_margin_pct']*100:.1f}% "
               f"trust={snap['ppc']['trust_event_count']} "
               f"cap_hard_sealed={snap['forward']['cap_hard_sealed']} "
-              f"cap_soft_viol={snap['forward']['cap_soft_violation_count']})")
+              f"cap_soft_viol={snap['forward']['cap_soft_violation_count']} "
+              f"bwd_env={snap['backward']['cap_soft_envelope_count']})")
     else:
         print(text)
     return 0

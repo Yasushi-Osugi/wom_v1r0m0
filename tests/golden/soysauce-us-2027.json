@@ -1,4 +1,7 @@
 {
+  "backward": {
+    "cap_soft_envelope_count": 0
+  },
   "case": "soysauce-us-2027",
   "config": {
     "plugins": [

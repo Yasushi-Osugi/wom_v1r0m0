@@ -60,6 +60,11 @@ def test_golden_matches(case, tmp_path):
         assert snap["forward"] == golden["forward"], (
             f"{case}: forward capacity drift\n  now={snap['forward']}\n  golden={golden['forward']}")
 
+    # Backward cap_soft envelope（計画段階の残業帯）— Slice 2 の flag-only 挙動を固定。
+    if "backward" in golden:
+        assert snap["backward"] == golden["backward"], (
+            f"{case}: backward capacity drift\n  now={snap['backward']}\n  golden={golden['backward']}")
+
     # 財務 KPI（単一 Lot_ID 台帳）— 挙動が変わっていない事
     assert snap["ppc"] == golden["ppc"], (
         f"{case}: PPC KPI drift\n  now={snap['ppc']}\n  golden={golden['ppc']}")
