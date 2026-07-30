@@ -7,6 +7,10 @@
       "HolidayCalendarPlugin"
     ]
   },
+  "forward": {
+    "cap_hard_sealed": 0,
+    "cap_soft_violation_count": 81
+  },
   "period": {
     "start": "2027-W01",
     "weeks": 104

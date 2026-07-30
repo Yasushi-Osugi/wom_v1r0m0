@@ -163,6 +163,8 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
 
     # ── Planning pipeline（app.py _planning_thread と同順序）───────
     bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree, weeks=weeks, config=cfg)
+    _cap_hard_sealed = 0      # Forward が cap_hard で seal した lot 総数
+    _cap_soft_viol   = 0      # Forward の cap_soft 違反（残業要）件数
     for prod_nm in sc_tree.products:
         BackwardPlanner(sc_tree, lane_table=lane_table, config=cfg).run(prod_nm)
         bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
@@ -190,7 +192,9 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
             if cfgs:
                 PushProductionPlanner(sc_tree).setup_all(cfgs)
         opening_inv = getattr(harvest_plugin, "opening_inv", {}) if harvest_plugin else {}
-        ForwardPlanner(sc_tree, opening_inv=opening_inv).run(prod_nm)
+        _fres = ForwardPlanner(sc_tree, opening_inv=opening_inv).run(prod_nm)
+        _cap_hard_sealed += int(getattr(_fres, "cap_hard_sealed", 0) or 0)
+        _cap_soft_viol   += len(getattr(_fres, "cap_soft_violations", []) or [])
         bus.fire(HOOK_POST_FORWARD, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
     bus.fire(HOOK_POST_PLAN, sc_tree=sc_tree, weeks=weeks, config=cfg)
 
@@ -203,6 +207,8 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
         "config": {"plugins": sorted(type(p).__name__ for p in active_plugins)},
         "period": {"start": start, "weeks": n_weeks},
         "products": list(sc_tree.products),
+        "forward": {"cap_hard_sealed": _cap_hard_sealed,
+                    "cap_soft_violation_count": _cap_soft_viol},
         "ppc": ppc_kpi,
         "psi": _psi_signature(sc_tree, n_weeks),
     }
@@ -289,7 +295,9 @@ def main(argv=None) -> int:
         with open(a.out, "w", encoding="utf-8") as f:
             f.write(text + "\n")
         print(f"[Headless] snapshot -> {a.out}  (GM={snap['ppc']['gross_margin_pct']*100:.1f}% "
-              f"trust={snap['ppc']['trust_event_count']})")
+              f"trust={snap['ppc']['trust_event_count']} "
+              f"cap_hard_sealed={snap['forward']['cap_hard_sealed']} "
+              f"cap_soft_viol={snap['forward']['cap_soft_violation_count']})")
     else:
         print(text)
     return 0

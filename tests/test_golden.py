@@ -54,6 +54,12 @@ def test_golden_matches(case, tmp_path):
     assert snap["products"] == golden["products"], f"{case}: product set drift"
     assert snap["config"] == golden["config"], f"{case}: plugin config drift"
 
+    # Forward 能力挙動（cap_hard seal 数・cap_soft 違反数）— flag-only 挙動の退行検知。
+    # 旧 golden（forward 無し）とは互換：golden に有る時だけ厳密比較する。
+    if "forward" in golden:
+        assert snap["forward"] == golden["forward"], (
+            f"{case}: forward capacity drift\n  now={snap['forward']}\n  golden={golden['forward']}")
+
     # 財務 KPI（単一 Lot_ID 台帳）— 挙動が変わっていない事
     assert snap["ppc"] == golden["ppc"], (
         f"{case}: PPC KPI drift\n  now={snap['ppc']}\n  golden={golden['ppc']}")

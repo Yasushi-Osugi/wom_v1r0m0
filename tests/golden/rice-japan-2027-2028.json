@@ -8,6 +8,10 @@
       "HolidayCalendarPlugin"
     ]
   },
+  "forward": {
+    "cap_hard_sealed": 8572,
+    "cap_soft_violation_count": 0
+  },
   "period": {
     "start": "2026-W01",
     "weeks": 156
