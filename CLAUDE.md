@@ -223,6 +223,43 @@ Planning Engine完了後に自動実行（`_run_ppc_from_planning`）。
 
 ---
 
+## 禁足ルール（Planning Engine 保護対象コア）― Anti-Degrade
+
+**背景**: v1r0m3 の「MOM Constrained Demand Allocation」リファクタで、cap_soft の配線（sealer 呼出＋CSV列）が**意図せず外れ**、骨格だけ残って休眠した（＝承認済みリファクタの副作用）。この教訓から、Planning Engine のコアを**手続きルール（本節・soft）＋機械的な網（3層テスト・hard）の二重**で守る。設計根拠は `requests/operating-constraint-layer-request-letter.md` §11。
+
+**保護対象コア（禁足対象ファイル）**:
+- `wom/engine/backward_planner.py`
+- `wom/engine/forward_planner.py`
+- `wom/engine/plan_copy.py`
+- `wom/model/plan_node.py`
+- `wom/model/sc_tree.py`
+- `wom/engine/push_pull.py`
+
+**ルール（ゲート式＝「絶対に触るな」ではなく「認可＋テスト緑を条件に触る」）**:
+1. **明示的な指示（Request Letter 参照）が無い限り、上記コアを改変しない。**
+2. 改変する場合は、以下の **3層テストを必ず緑**にする（§11.1）:
+   - **Unit**：望む挙動を固定値で assert（合成ツリー、CSV バイパス可）。例 `tests/test_capacity_soft_backward.py`。
+   - **Integration**：CSV→**実ローダ**→ノードのデータ経路を実際に通す（`wom/engine/capacity_sealer.load_capacity_dataframe` 等）。例 `tests/test_capacity_soft.py`。← cap_soft 休眠の真因（欠けていた層）。
+   - **E2E ゴールデン**：`tools/run_headless_from_folder.py` ＋ `tests/golden/*.json` で、既存12ケースの `period/products/config/forward/backward/ppc/psi` が不変であること。例 `tests/test_golden.py`。
+3. **オーナー（大杉さん）が `git diff` を差分レビュー**してからコミット。
+4. 挙動を**意図的に**変えるときは golden を**意図的に再生成・コミット**（差分そのものが監査証跡）。
+
+**二重化の必然（§11.4）**: 禁足ルール（soft）だけでは「承認された変更の副作用」を防げない。それを機械的に捕まえるのはテストのみ。AI が markdown ルールに従うかは確率的だが、テストは機械が強制する。→ **禁足ルール＋3層テストの二重化が必須。**
+
+**ゴールデン・ハーネス（網の実体・v1r2m2 で整備）**:
+- `tools/run_headless_from_folder.py`：GUI 抜きで Load→Planning→PPC を実行し、KPI スナップショット（`forward{cap_hard_sealed, cap_soft_violation_count}` / `backward{cap_soft_envelope_count}` / `ppc` / `psi`〔各ノードの P/S/I/CO 集計＋週次系列 md5〕）を出力。GUI の実値と一致することを確認済み（＝ハーネス自体の忠実性担保）。
+- `tests/golden/<case>.json`：12ケースの凍結スナップショット。`tests/test_golden.py` が「現行実行 == golden」を assert。
+- **golden 再生成**（Windows・オーナー実行。bash マウントは切り捨てのため不可）:
+  ```powershell
+  Get-ChildItem tests\golden -Filter *.json | ForEach-Object {
+    $c=$_.BaseName
+    $pl= if ($c -like "rice-japan*") {"HolidayCalendarPlugin,BufferingStockOptimizerPlugin,CapacityOverridePlugin,HarvestBatchPlugin"} else {"safe"}
+    python -m tools.run_headless_from_folder --model-dir "data\sample\$c" --plugins $pl --out "tests\golden\$c.json" --quiet }
+  ```
+  ※ レガシー `iphone`（旧サンプル・CNY FX 欠落で失敗）と `rice-…_BK…`（古いバックアップ）は golden 対象外。
+
+---
+
 ## 設計上の制約・注意事項
 
 - `app.py`はLinuxのbashでは約172KB付近で切り捨てられる。構文チェックはWindowsで行うこと: `python -c "import ast; ast.parse(open('wom/gui/app.py').read())"`
@@ -1069,3 +1106,27 @@ Landed Cost の Base/Tariff10/Tariff0 比較を、上記 per-channel 再スケ�
 **bash の落とし穴（再確認）**：CLAUDE.md を Linux bash の `tail`/`wc` で読むと**切り捨てられた行数（今回 982 行）を返す**。実ファイル（約1070行）は必ず **Read tool（Windows側実ファイル）** で確認すること。
 
 **commit**：`fix(Management): Landed Cost ledger overlay aggregates tariff over ALL nodes by country`（app.py 1ファイル）。
+
+---
+
+## v1r2m2：Anti-Degrade 網（golden ハーネス）＋ cap_soft 復活（Phase 1a/1b、完了、2026-07-30）
+
+branch `wom-v1r2m2`。`requests/operating-constraint-layer-request-letter.md` の Phase 1a/1b を実装。**エンジンの挙動（psi/ppc）は不変**——cap_soft はすべて「フラグのみ・lot 不動（Fork A）」、既存12ケースの golden は placement 不変で緑。
+
+### Phase 1a：ゴールデン・ハーネス（先に網を張る）
+- `tools/run_headless_from_folder.py`（新規）：GUI の `_build_planning_context`/`_planning_thread`/`_run_ppc_from_planning` を tkinter 抜きで移植。`run(model_dir, plugins_spec, ...)` が Load→Planning→PPC を実行し KPI スナップショット dict を返す。忠実性は GUI 実値と一致確認済み（soysauce-us 26.9%／jpy 28.0%・trust32／apparel 42.4%／rice 38.5% 等）。「手動 probe が毎回消える」問題の恒久対策。
+- `tests/test_golden.py`（新規）＋ `tests/golden/*.json`（12ケース）：「現行実行 == golden」を assert。スナップショット構造 = `period / products / config{plugins} / forward{cap_hard_sealed, cap_soft_violation_count} / backward{cap_soft_envelope_count} / ppc{GM/Rev/Cost/tariff/trust} / psi{node:{P,S,I_sum,I_max,CO,series_md5}}`。**エンジンを触る前に "before" を凍結**するのが目的。
+- レガシー `iphone`（CNY FX 欠落で失敗）と `rice-…_BK…`（古いバックアップ）は golden 対象外。
+
+### Phase 1b：cap_soft の復活（休眠の解消）
+cap_soft が死んでいた真因は §11.1 の通り2つ——(i) Backward の demand envelope 未実装、(ii) **CSV→ローダ→ノードのデータ経路欠落**（capacity_plan に列が無く、ローダが cap_hard しか読まない）。Forward の Step 0b（cap_soft 違反フラグ）は生きていた。
+- **データ経路スライス**：`wom/engine/capacity_sealer.py` に `load_capacity_dataframe(sc_tree, cap_df, weeks)` を新設（sku_id/week/max_supply/[node_name]/[cap_soft]、cap_soft は**列がある時だけ**セット＝opt-in で既存無変更）。app.py と headless の重複ローダを**この1本に集約**。`tests/test_capacity_soft.py`（Integration 3＋Unit 1）。
+- **Slice 2（Backward envelope・禁足コア改変）**：`backward_planner.py` の `BackwardPlanResult` に `cap_soft_envelope_violations` ＋ `record_cap_soft_envelope`、`_apply_mom_cap_backward` の週ループ先頭に「`placed_p=min(demand,cap_hard)` が cap_soft 超過なら記録（lot 不動）」を**純加算**。配置ロジックは無変更。`tests/test_capacity_soft_backward.py`（Unit 4、うち1つは cap_soft 有無で psi 完全一致＝Fork A 保証）。
+- **実ケース可視化**：`data/sample/soysauce-jpy-2027/capacity_plan.csv` の Bottling_Noda に `cap_soft=900`（通常2直）／`cap_hard=1500`（繁忙3直）。GUI の **Network タブ → PSI List サブタブ**（`PSIListPanel._draw_capacity_chart`「P vs Capacity Limits」）に CapSoft オレンジ点線＋残業週オレンジ棒が表示。数値：Forward `cap_soft_viol=81`（実行/PUSH スケジュールが900超）、Backward `bwd_env=88`（需要計画が900超）——別レイヤーの残業シグナルとして両方 golden に固定。
+
+**テスト**：81 → **101 件全緑**（+golden12・+cap_soft Integration/Unit 4・+backward Unit 4）。GUI 実機確認済み。
+
+### 禁足ルール成文化（§11.3）
+本ファイル上部「## 禁足ルール（Planning Engine 保護対象コア）」と `AGENTS.md` §10 に、保護対象コア6ファイル＋「明示指示＋3層テスト緑＋オーナー差分レビューを条件に触る」ゲート式ルールを明記。
+
+**未着手（次回候補）**：Phase 2（操業カレンダーの core 統合＝休日を plugin から traversal の「配置週スキップ」へ、SS_Days と統一）、Phase 3（撹乱層の分離整理）。

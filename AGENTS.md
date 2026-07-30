@@ -123,3 +123,42 @@ The goal is to make WOM development accessible from multiple AI coding environme
 - structured `docs/`
 - AI-neutral development guidance
 - repository-based knowledge continuity
+
+## 10. Protected core (Anti-Degrade guardrail)
+
+The Planning Engine core must be protected from silent regressions. History: a
+v1r0m3 refactor ("MOM Constrained Demand Allocation") unintentionally disconnected
+the `cap_soft` wiring (loader column + sealer call) as a **side effect of an
+approved change**, leaving it dormant. Procedural rules alone cannot catch such
+side effects — only tests can. Rationale: `requests/operating-constraint-layer-request-letter.md` §11.
+
+**Protected core files** (gated — not "never touch"):
+- `wom/engine/backward_planner.py`
+- `wom/engine/forward_planner.py`
+- `wom/engine/plan_copy.py`
+- `wom/model/plan_node.py`
+- `wom/model/sc_tree.py`
+- `wom/engine/push_pull.py`
+
+**Rules:**
+1. Do not modify the files above without an explicit instruction (reference a Request Letter).
+2. Any change must keep a **3-layer test suite green**:
+   - **Unit** — assert desired behavior on a synthetic tree with fixed values.
+   - **Integration** — exercise the real CSV → loader → node data path
+     (e.g. `wom/engine/capacity_sealer.load_capacity_dataframe`). This was the
+     layer whose absence let `cap_soft` die.
+   - **E2E golden** — `tools/run_headless_from_folder.py` + `tests/golden/*.json`
+     must show the existing 12 sample cases unchanged (`period/products/config/
+     forward/backward/ppc/psi`). Enforced by `tests/test_golden.py`.
+3. The owner reviews the `git diff` before committing.
+4. Intentional behavior changes must **regenerate and commit** the goldens
+   (the diff is the audit trail).
+
+**Dual layer is mandatory**: procedural guardrail (soft, intent) + 3-layer tests
+(hard, machine-enforced). Markdown rules are followed only probabilistically by an
+AI agent; tests are enforced by the machine.
+
+**Golden harness**: `tools/run_headless_from_folder.py` runs Load→Planning→PPC
+headlessly and emits a KPI snapshot (forward/backward capacity stats, PPC KPIs,
+per-node PSI sums + weekly-series md5). Regenerate goldens on the owner's Windows
+shell (the Linux bash mount truncates large files and must not run git or WOM).

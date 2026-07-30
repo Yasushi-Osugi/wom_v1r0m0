@@ -149,16 +149,20 @@ cap_soft は**意図的で承認されたリファクタ（v1r0m3）の副作用
 
 ## 12. ステータス行
 
+実装ブランチは当初案の `wom-v1r2m0_test` ではなく **`wom-v1r2m2`** で実施（2026-07-30）。
+
 ```text
 [x] 起草（本レター）
-[ ] オーナーレビュー・承認（Phase 範囲の確定）
-[ ] Phase 0（decouple 位置実験・CSVのみ）
-[ ] Phase 1a（ゴールデン・ハーネス整備：tools/run_headless_from_folder.py + tests/golden）
-[ ] Phase 1b（cap_soft 二層 demand envelope ＋ 3層テスト）
-[ ] Phase 1 検証（工場シフト制約・既存81件緑・golden 緑）
+[x] オーナーレビュー・承認（Phase 範囲の確定）
+[~] Phase 0（decouple 位置実験・CSVのみ）  ← Phase 1a を優先し省略（engine 改修の要否は Fork A で解消）
+[x] Phase 1a（ゴールデン・ハーネス整備：tools/run_headless_from_folder.py + tests/golden、12ケース）
+[x] Phase 1b（cap_soft データ経路＋Forward可視化＋Backward envelope・Fork A・3層テスト）
+[x] Phase 1 検証（soysauce-jpy でシフト制約可視化・101件全緑・golden 緑・GUI 確認）
 [ ] Phase 2（操業カレンダー core 統合・SS 統一 ＋ 3層テスト）
 [ ] Phase 2 検証（休日=カレンダースキップ・rice 収穫再現・golden 緑）
 [ ] Phase 3（撹乱層の分離整理）
-[ ] CLAUDE.md/AGENTS.md に禁足ルール（保護対象コア＋3層テスト条件）を明記
-[ ] オーナー commit / push（wom-v1r2m0_test）
+[x] CLAUDE.md/AGENTS.md に禁足ルール（保護対象コア＋3層テスト条件）を明記
+[x] オーナー commit / push（wom-v1r2m2：Phase 1a=043a6d7 / 1b データ経路=4a633f9 / 1b Slice2=49d2edd）
 ```
+
+**実装メモ（当初設計からの確定事項）**：cap_soft は全て **Fork A＝フラグのみ・lot 不動**で実装（配置は cap_hard が支配、CO 閾値も cap_hard のまま）。これにより既存12ケースの psi/ppc は不変で golden 緑を維持。二層 envelope の「増産余地を使う」は placement 変更ではなく残業帯の可視化（Forward=実行/psi4supply、Backward=計画/psi4demand の2レイヤー）として表現した。§5.2 の CO 閾値を cap_soft 側に動かす案は不採用（需要は常に cap_hard まで充当されるため退化する）。
