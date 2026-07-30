@@ -147,11 +147,20 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
 
     # ── 能力（capacity_plan → cap_hard [+ cap_soft]、共有ローダ）───
     #   GUI(app.py) と同一の単一ローダ。cap_soft 列は opt-in（無ければ従来どおり）。
-    from wom.engine.capacity_sealer import load_capacity_dataframe
+    from wom.engine.capacity_sealer import load_capacity_dataframe, load_operating_calendar
     cap_path = _p("capacity_plan.csv")
     if os.path.exists(cap_path):
         try:
             load_capacity_dataframe(sc_tree, pd.read_csv(cap_path), weeks)
+        except Exception:
+            pass
+
+    # ── 操業カレンダー（per-node shift plan; Phase 2、opt-in）─────────
+    #   BackwardPlanner 生成より前に node.op_shifts をセットしておく必要がある。
+    opcal_path = _p("operating_calendar.csv")
+    if os.path.exists(opcal_path):
+        try:
+            load_operating_calendar(sc_tree, pd.read_csv(opcal_path), weeks)
         except Exception:
             pass
 

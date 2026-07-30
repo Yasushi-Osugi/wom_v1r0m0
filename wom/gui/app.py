@@ -5085,6 +5085,18 @@ class WOMApp(tk.Tk):
             except Exception:
                 pass
 
+        # ── Operating calendar (per-node shift plan; Phase 2, opt-in) ─
+        #   Set node.op_shifts before BackwardPlanner runs. Looked up in the
+        #   same folder as capacity_plan.csv; no file => no-op (always open).
+        if cap_path and os.path.exists(cap_path):
+            _opcal = os.path.join(os.path.dirname(cap_path), "operating_calendar.csv")
+            if os.path.exists(_opcal):
+                try:
+                    from wom.engine.capacity_sealer import load_operating_calendar
+                    load_operating_calendar(sc_tree, pd.read_csv(_opcal), weeks)
+                except Exception:
+                    pass
+
         # ── Lane Assignment ─────────────────────────────────────────
         _lane_path = self._f_lane.get() if hasattr(self, "_f_lane") else ""
         _lane_table = (LaneTable.from_csv(_lane_path)

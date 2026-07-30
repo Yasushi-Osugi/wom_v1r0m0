@@ -170,6 +170,11 @@ class BackwardPlanner:
         self._explicit_closures: Dict[str, set] = cfg.get("explicit_closures", {})
         # v1r0m3: MOM constrained demand allocation (default: True)
         self._mom_constrained: bool = cfg.get("mom_constrained", True)
+        # v1r2m2 Phase 2: per-node operating calendar (op_shifts==0 => closed week).
+        # Union the plugin-injected explicit_closures with each node's intrinsic
+        # closed weeks, keyed by node_name, so _offset_week skips BOTH sources.
+        # (No calendar / no closures => empty => behaviour identical to before.)
+        self._closed_by_name: Dict[str, set] = self._build_closed_index(sc_tree)
 
     # ======================================================================
     # Public API
@@ -255,6 +260,27 @@ class BackwardPlanner:
     # v1r0m2: LT offset with closure-week skip
     # ======================================================================
 
+    def _build_closed_index(self, sc_tree: SCTree) -> Dict[str, set]:
+        """
+        Build node_name -> set(closed week_idx), unioning two sources:
+          - self._explicit_closures  (plugin-injected, via config)
+          - each node's intrinsic operating calendar (op_shifts[w] == 0)
+        Only names with at least one closed week are stored (empty => no entry,
+        so _offset_week falls back to plain week - lt_wks == unchanged behaviour).
+        """
+        idx: Dict[str, set] = {}
+        for prod in sc_tree.products:
+            for nd in sc_tree.iter_all_nodes(prod):
+                closed = set(self._explicit_closures.get(nd.node_name, set()))
+                ops = getattr(nd, "op_shifts", None)
+                if ops:
+                    for w_, s_ in enumerate(ops):
+                        if s_ == 0:
+                            closed.add(w_)
+                if closed:
+                    idx[nd.node_name] = closed
+        return idx
+
     def _offset_week(self, week: int, lt_wks: int, node_name: str) -> int:
         """
         Compute the upstream week index by stepping back lt_wks weeks,
@@ -265,7 +291,7 @@ class BackwardPlanner:
 
         If node_name has no closures, this is equivalent to week - lt_wks.
         """
-        closure_set = self._explicit_closures.get(node_name, set())
+        closure_set = self._closed_by_name.get(node_name, set())
         if not closure_set:
             return week - lt_wks
 

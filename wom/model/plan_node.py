@@ -65,6 +65,11 @@ PSI_BUCKET_NAMES = {S: "S", CO: "CO", I: "I", P: "P"}
 CAP_HARD = 0   # Equipment / physical limit
 CAP_SOFT = 1   # Operational plan limit (softer ceiling)
 
+# Operating calendar: 1 week = MAX_SHIFTS shifts (3 shifts/day * 7 days; 1 shift = 8H).
+# op_shifts[w] == 0 => closed week (skipped in traversal); N>0 => open;
+# None => no calendar entry (always open). Future: cap_soft = N * cap_hard / MAX_SHIFTS.
+MAX_SHIFTS = 21
+
 
 # ---------------------------------------------------------------------------
 # PlanNode
@@ -153,6 +158,9 @@ class PlanNode:
         self.psi4demand = [_empty_buckets() for _ in range(n)]
         self.psi4supply = [_empty_buckets() for _ in range(n)]
         self.capacity   = [[0.0, 0.0] for _ in range(n)]
+        # Phase 2 operating calendar: per-week shift count (0..MAX_SHIFTS).
+        # None = no calendar entry (always open); 0 = closed; N>0 = open with N shifts.
+        self.op_shifts  = [None] * n
 
     # ======================================================================
     # Week index helper
@@ -227,6 +235,26 @@ class PlanNode:
     ) -> None:
         self.capacity[week][CAP_HARD] = cap_hard
         self.capacity[week][CAP_SOFT] = cap_soft
+
+    # ======================================================================
+    # Operating calendar (per-week shift count; Phase 2)
+    # ======================================================================
+
+    def set_operating_shifts(self, week: int, shifts) -> None:
+        """Set the operating shift count for one week.
+        0 = closed (skipped in traversal, like SS/holiday); N>0 = open with N
+        shifts/week (1 week = MAX_SHIFTS=21 max). None keeps 'no calendar / open'."""
+        self.op_shifts[week] = shifts
+
+    def operating_shifts(self, week: int):
+        """Return the operating shift count for the week (None = unset / always open)."""
+        return self.op_shifts[week]
+
+    def is_open(self, week: int) -> bool:
+        """True if the node operates this week. Unset (None) => always open;
+        0 shifts => closed; N>0 => open."""
+        s = self.op_shifts[week]
+        return s is None or s > 0
 
     # ======================================================================
     # Carry Over helper (Forward Planning only)

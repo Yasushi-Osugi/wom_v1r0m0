@@ -37,7 +37,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from wom.model.plan_node import PlanNode, CAP_HARD, CAP_SOFT
+from wom.model.plan_node import PlanNode, CAP_HARD, CAP_SOFT, MAX_SHIFTS
 from wom.model.sc_tree   import SCTree
 
 
@@ -365,5 +365,64 @@ def load_capacity_dataframe(
                 mom.set_capacity(wi, cap_hard=float(row["max_supply"]),
                                  cap_soft=_soft_of(row))
                 stats["applied"] += 1
+
+    return stats
+
+
+# ---------------------------------------------------------------------------
+# operating_calendar.csv loader (Phase 2: per-node shift plan)
+# ---------------------------------------------------------------------------
+
+def load_operating_calendar(
+    sc_tree:  SCTree,
+    cal_df:   "pd.DataFrame",
+    weeks:    List[str],
+) -> Dict[str, int]:
+    """
+    Apply an `operating_calendar.csv` DataFrame to the SCTree's PlanNodes as a
+    per-week operating **shift count** (0..MAX_SHIFTS).
+
+    Columns (all required): ``sku_id``, ``node_name``, ``week``, ``shifts``.
+
+    Semantics (data model agreed 2026-07-31):
+      - ``shifts == 0`` -> the node is **closed** that week; BackwardPlanner's
+        `_offset_week` skips it (same "place on the adjacent open week" behaviour
+        as SS_Days / holidays).
+      - ``shifts == N > 0`` -> open with N shifts/week. Future (Slice 2-2):
+        ``cap_soft = N * cap_hard / MAX_SHIFTS``.
+      - Weeks/nodes not listed keep ``None`` (no calendar entry = always open),
+        so models without this file are byte-for-byte unchanged (opt-in).
+
+    Returns
+    -------
+    dict : {"applied": N, "node_not_found": M, "week_out_of_range": K}
+    """
+    stats = {"applied": 0, "node_not_found": 0, "week_out_of_range": 0}
+
+    if cal_df is None or not {"sku_id", "node_name", "week", "shifts"}.issubset(set(cal_df.columns)):
+        return stats
+
+    widx = {str(w): i for i, w in enumerate(weeks)}
+    lut: Dict[Tuple[str, str], PlanNode] = {}
+    for pn in sc_tree.products:
+        for nd in sc_tree.iter_all_nodes(pn):
+            lut[(pn, nd.node_name)] = nd
+
+    for _, row in cal_df.iterrows():
+        nd = lut.get((str(row["sku_id"]), str(row["node_name"])))
+        if nd is None:
+            stats["node_not_found"] += 1
+            continue
+        wi = widx.get(str(row["week"]))
+        if wi is None:
+            stats["week_out_of_range"] += 1
+            continue
+        try:
+            sh = int(row["shifts"])
+        except (TypeError, ValueError):
+            continue
+        sh = max(0, min(MAX_SHIFTS, sh))   # clamp to [0, 21]
+        nd.set_operating_shifts(wi, sh)
+        stats["applied"] += 1
 
     return stats
