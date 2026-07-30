@@ -423,6 +423,19 @@ def load_operating_calendar(
             continue
         sh = max(0, min(MAX_SHIFTS, sh))   # clamp to [0, 21]
         nd.set_operating_shifts(wi, sh)
+
+        # Slice 2-2: derive cap_soft from the planned shift level.
+        #   cap_soft(w) = round(sh * cap_hard(w) / MAX_SHIFTS)   for sh > 0.
+        #   21 shifts => cap_soft == cap_hard (physical ceiling); cap_hard unchanged.
+        #   0-shift (closed) weeks are handled by the backward skip; cap_soft left
+        #   as-is. cap_hard must already be set (capacity_plan loads first) —
+        #   weeks without a physical ceiling (cap_hard==0) are not derived.
+        if sh > 0:
+            ch = nd.cap_hard(wi)
+            if ch > 0:
+                nd.set_capacity(wi, cap_hard=ch,
+                                cap_soft=float(round(sh * ch / MAX_SHIFTS)))
+
         stats["applied"] += 1
 
     return stats
