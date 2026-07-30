@@ -1,0 +1,178 @@
+{
+  "case": "ev-europe-2026",
+  "config": {
+    "plugins": [
+      "BufferingStockOptimizerPlugin",
+      "CapacityOverridePlugin",
+      "HolidayCalendarPlugin"
+    ]
+  },
+  "period": {
+    "start": "2026-W02",
+    "weeks": 88
+  },
+  "ppc": {
+    "base_currency": "JPY",
+    "cost_base": 174173455500.0,
+    "gross_margin_pct": 0.524776,
+    "gross_profit_base": 192334774500.0,
+    "revenue_base": 366508230000.0,
+    "tariff_base": 1803549000.0,
+    "total_lots": 526,
+    "trust_event_count": 0
+  },
+  "products": [
+    "EVmaker_Local",
+    "EVmaker_Import"
+  ],
+  "psi": {
+    "EVmaker_Import": {
+      "Battery_HU": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 2808,
+        "S": 2808,
+        "series_md5": "765849f9b28e"
+      },
+      "DC_EV_Import": {
+        "CO": 60202,
+        "I_max": 230,
+        "I_sum": 15858,
+        "P": 7929,
+        "S": 8661,
+        "series_md5": "cc5f8c50b987"
+      },
+      "ECU_HU": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 2669,
+        "S": 2669,
+        "series_md5": "043f53b51a97"
+      },
+      "Factory_Import_HU": {
+        "CO": 0,
+        "I_max": 176,
+        "I_sum": 3088,
+        "P": 8215,
+        "S": 8345,
+        "series_md5": "2696314f86fb"
+      },
+      "Motor_HU": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 2738,
+        "S": 2738,
+        "series_md5": "4b8e9e7fb514"
+      },
+      "SP_EV_Import": {
+        "CO": 34264,
+        "I_max": 167,
+        "I_sum": 11373,
+        "P": 8039,
+        "S": 8345,
+        "series_md5": "976482ecb6cd"
+      },
+      "Sales_DE_BER_i": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 4430,
+        "S": 4430,
+        "series_md5": "99bd91c57144"
+      },
+      "Sales_DE_ONL_i": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 879,
+        "S": 879,
+        "series_md5": "e6348a752e65"
+      },
+      "Sales_DE_REG_i": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 3506,
+        "S": 3506,
+        "series_md5": "a3c18beb75f0"
+      }
+    },
+    "EVmaker_Local": {
+      "Battery_DE": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 41975,
+        "S": 41975,
+        "series_md5": "2984ce0edb49"
+      },
+      "DC_EV_Local": {
+        "CO": 135930,
+        "I_max": 575,
+        "I_sum": 41975,
+        "P": 41975,
+        "S": 43555,
+        "series_md5": "3d5c3e8785ab"
+      },
+      "ECU_DE": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 41475,
+        "S": 41475,
+        "series_md5": "3d4129d3aafe"
+      },
+      "Factory_Local_DE": {
+        "CO": 43500,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 125425,
+        "S": 42475,
+        "series_md5": "37f07e289f42"
+      },
+      "Motor_DE": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 41975,
+        "S": 41975,
+        "series_md5": "2984ce0edb49"
+      },
+      "SP_EV_Local": {
+        "CO": 43500,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 41975,
+        "S": 42475,
+        "series_md5": "c3b4e25b2288"
+      },
+      "Sales_DE_BER": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 22165,
+        "S": 22165,
+        "series_md5": "afa7c3c085c5"
+      },
+      "Sales_DE_ONL": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 4430,
+        "S": 4430,
+        "series_md5": "99bd91c57144"
+      },
+      "Sales_DE_REG": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 17730,
+        "S": 17730,
+        "series_md5": "b9367f59fcaa"
+      }
+    }
+  }
+}

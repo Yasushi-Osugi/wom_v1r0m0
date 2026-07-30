@@ -1,0 +1,293 @@
+{
+  "case": "iphone_global",
+  "config": {
+    "plugins": [
+      "BufferingStockOptimizerPlugin",
+      "CapacityOverridePlugin",
+      "HolidayCalendarPlugin"
+    ]
+  },
+  "period": {
+    "start": "2027-W01",
+    "weeks": 156
+  },
+  "ppc": {
+    "base_currency": "JPY",
+    "cost_base": 417085188783232.6,
+    "gross_margin_pct": 0.415283,
+    "gross_profit_base": 296225445796167.4,
+    "revenue_base": 713310634579400.0,
+    "tariff_base": 47447152070602.62,
+    "total_lots": 1170,
+    "trust_event_count": 390
+  },
+  "products": [
+    "iPhone16",
+    "iPhone15",
+    "iPhone17"
+  ],
+  "psi": {
+    "iPhone15": {
+      "DC_AMER_i15": {
+        "CO": 831600,
+        "I_max": 400,
+        "I_sum": 28180,
+        "P": 28180,
+        "S": 33780,
+        "series_md5": "83f9cac38151"
+      },
+      "DC_APAC_i15": {
+        "CO": 2539016,
+        "I_max": 63,
+        "I_sum": 4975,
+        "P": 4975,
+        "S": 27024,
+        "series_md5": "112827246350"
+      },
+      "DC_EMEA_i15": {
+        "CO": 1156460,
+        "I_max": 204,
+        "I_sum": 15246,
+        "P": 15246,
+        "S": 23644,
+        "series_md5": "db137dc7974d"
+      },
+      "Foxconn_CN_i15": {
+        "CO": 825000,
+        "I_max": 500,
+        "I_sum": 48401,
+        "P": 48401,
+        "S": 53901,
+        "series_md5": "d2da66650a7e"
+      },
+      "Retail_AMER_i15": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 34580,
+        "S": 34580,
+        "series_md5": "2eed558f199b"
+      },
+      "Retail_APAC_i15": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 27664,
+        "S": 27664,
+        "series_md5": "b7ee38e133ff"
+      },
+      "Retail_EMEA_i15": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 24204,
+        "S": 24204,
+        "series_md5": "a804583857ff"
+      },
+      "SP_iPhone15": {
+        "CO": 4128095,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 48401,
+        "S": 81168,
+        "series_md5": "2b7fc287c70a"
+      },
+      "SiliconWafer_TW_i15": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 48401,
+        "S": 48401,
+        "series_md5": "8116c5f14aa0"
+      },
+      "TSMC_TW_i15": {
+        "CO": 154500,
+        "I_max": 1000,
+        "I_sum": 5655,
+        "P": 48401,
+        "S": 49401,
+        "series_md5": "590bfc7caf20"
+      }
+    },
+    "iPhone16": {
+      "BoschSensor_IN": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 93106,
+        "S": 93106,
+        "series_md5": "87ef8deff3b2"
+      },
+      "DC_AMER": {
+        "CO": 823500,
+        "I_max": 1009,
+        "I_sum": 93106,
+        "P": 93106,
+        "S": 98506,
+        "series_md5": "03c4297f923b"
+      },
+      "DC_APAC": {
+        "CO": 4795487,
+        "I_max": 334,
+        "I_sum": 37047,
+        "P": 37047,
+        "S": 78744,
+        "series_md5": "a81effab795f"
+      },
+      "DC_EMEA": {
+        "CO": 1220310,
+        "I_max": 678,
+        "I_sum": 61286,
+        "P": 61286,
+        "S": 69476,
+        "series_md5": "7465f7ae8d3f"
+      },
+      "Foxconn_CN": {
+        "CO": 1087200,
+        "I_max": 800,
+        "I_sum": 98333,
+        "P": 98333,
+        "S": 105533,
+        "series_md5": "00cceaa40bca"
+      },
+      "Foxconn_IN": {
+        "CO": 415800,
+        "I_max": 1002,
+        "I_sum": 5628,
+        "P": 93106,
+        "S": 95806,
+        "series_md5": "f09bd7576fa8"
+      },
+      "Retail_AMER": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100306,
+        "S": 100306,
+        "series_md5": "52339677cbaf"
+      },
+      "Retail_APAC": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 80184,
+        "S": 80184,
+        "series_md5": "288ec5e7fc53"
+      },
+      "Retail_EMEA": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 70736,
+        "S": 70736,
+        "series_md5": "131e0b6c8592"
+      },
+      "SP_iPhone16": {
+        "CO": 5853428,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 191439,
+        "S": 239346,
+        "series_md5": "5aa1d8dd655a"
+      },
+      "SiliconWafer_TW": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 98333,
+        "S": 98333,
+        "series_md5": "997ac75581c9"
+      },
+      "TSMC_TW": {
+        "CO": 247200,
+        "I_max": 1600,
+        "I_sum": 11005,
+        "P": 98333,
+        "S": 99933,
+        "series_md5": "482c357c9648"
+      }
+    },
+    "iPhone17": {
+      "DC_AMER_i17": {
+        "CO": 38446,
+        "I_max": 1093,
+        "I_sum": 52674,
+        "P": 52674,
+        "S": 53300,
+        "series_md5": "5c9ebdce05b0"
+      },
+      "DC_APAC_i17": {
+        "CO": 16,
+        "I_max": 868,
+        "I_sum": 42632,
+        "P": 42632,
+        "S": 42640,
+        "series_md5": "73601b6f7e20"
+      },
+      "DC_EMEA_i17": {
+        "CO": 17585,
+        "I_max": 758,
+        "I_sum": 36714,
+        "P": 36714,
+        "S": 37310,
+        "series_md5": "5e27134df3f7"
+      },
+      "Foxconn_CN_i17": {
+        "CO": 121896,
+        "I_max": 75306,
+        "I_sum": 132020,
+        "P": 132020,
+        "S": 133250,
+        "series_md5": "10ab3a91004a"
+      },
+      "Retail_AMER_i17": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 53300,
+        "S": 53300,
+        "series_md5": "32e85324d289"
+      },
+      "Retail_APAC_i17": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 42640,
+        "S": 42640,
+        "series_md5": "2fe3210a857d"
+      },
+      "Retail_EMEA_i17": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 37310,
+        "S": 37310,
+        "series_md5": "1a7caba1b4c5"
+      },
+      "SP_iPhone17": {
+        "CO": 60333,
+        "I_max": 75013,
+        "I_sum": 3217648,
+        "P": 132020,
+        "S": 133250,
+        "series_md5": "8ba26a67199d"
+      },
+      "SiliconWafer_TW_i17": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 133250,
+        "S": 133250,
+        "series_md5": "834e7610da2f"
+      },
+      "TSMC_TW_i17": {
+        "CO": 0,
+        "I_max": 1771,
+        "I_sum": 4405,
+        "P": 133250,
+        "S": 133250,
+        "series_md5": "2fcbe66211a7"
+      }
+    }
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "case": "ev-thailand-2026",
+  "config": {
+    "plugins": [
+      "BufferingStockOptimizerPlugin",
+      "CapacityOverridePlugin",
+      "HolidayCalendarPlugin"
+    ]
+  },
+  "period": {
+    "start": "2026-W02",
+    "weeks": 104
+  },
+  "ppc": {
+    "base_currency": "JPY",
+    "cost_base": 138830903750.0,
+    "gross_margin_pct": 0.564956,
+    "gross_profit_base": 180288676250.0,
+    "revenue_base": 319119580000.0,
+    "tariff_base": 3583600000.0,
+    "total_lots": 624,
+    "trust_event_count": 0
+  },
+  "products": [
+    "EVmaker_Local",
+    "EVmaker_Import"
+  ],
+  "psi": {
+    "EVmaker_Import": {
+      "Components_CN": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 9554,
+        "S": 9554,
+        "series_md5": "24670ff070e7"
+      },
+      "DC_EV_Import": {
+        "CO": 100142,
+        "I_max": 230,
+        "I_sum": 18740,
+        "P": 9370,
+        "S": 10386,
+        "series_md5": "6297567e7b45"
+      },
+      "Factory_Import_CN": {
+        "CO": 0,
+        "I_max": 62,
+        "I_sum": 3263,
+        "P": 9554,
+        "S": 9770,
+        "series_md5": "c547a46e6a14"
+      },
+      "SP_EV_Import": {
+        "CO": 40600,
+        "I_max": 172,
+        "I_sum": 15749,
+        "P": 9538,
+        "S": 9770,
+        "series_md5": "cb91b3ef28a8"
+      },
+      "Sales_TH_BKK_i": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 5265,
+        "S": 5265,
+        "series_md5": "7144b6e5f1eb"
+      },
+      "Sales_TH_ONL_i": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 1059,
+        "S": 1059,
+        "series_md5": "fe1e1501823a"
+      },
+      "Sales_TH_PRO_i": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 4216,
+        "S": 4216,
+        "series_md5": "09ae9213bdb1"
+      }
+    },
+    "EVmaker_Local": {
+      "Battery_CN": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 48850,
+        "S": 48850,
+        "series_md5": "701b2a41533b"
+      },
+      "DC_EV_Local": {
+        "CO": 309710,
+        "I_max": 575,
+        "I_sum": 48850,
+        "P": 48850,
+        "S": 51930,
+        "series_md5": "9c6e3671835b"
+      },
+      "Factory_Local_TH": {
+        "CO": 203000,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 48850,
+        "S": 50850,
+        "series_md5": "85d6ec75bd08"
+      },
+      "SP_EV_Local": {
+        "CO": 203000,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 48850,
+        "S": 50850,
+        "series_md5": "85d6ec75bd08"
+      },
+      "Sales_TH_BKK": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 26355,
+        "S": 26355,
+        "series_md5": "3ba3c8caf405"
+      },
+      "Sales_TH_ONL": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 5265,
+        "S": 5265,
+        "series_md5": "7144b6e5f1eb"
+      },
+      "Sales_TH_PRO": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 21080,
+        "S": 21080,
+        "series_md5": "de701d177c96"
+      }
+    }
+  }
+}

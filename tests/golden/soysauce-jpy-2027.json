@@ -1,0 +1,151 @@
+{
+  "case": "soysauce-jpy-2027",
+  "config": {
+    "plugins": [
+      "BufferingStockOptimizerPlugin",
+      "CapacityOverridePlugin",
+      "HolidayCalendarPlugin"
+    ]
+  },
+  "period": {
+    "start": "2027-W01",
+    "weeks": 104
+  },
+  "ppc": {
+    "base_currency": "JPY",
+    "cost_base": 442528784.19,
+    "gross_margin_pct": 0.280427,
+    "gross_profit_base": 172459615.81,
+    "revenue_base": 614988400.0,
+    "tariff_base": 21923341.69,
+    "total_lots": 624,
+    "trust_event_count": 32
+  },
+  "products": [
+    "Soy_Sauce"
+  ],
+  "psi": {
+    "Soy_Sauce": {
+      "Bottling_Noda": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 85875,
+        "S": 92537,
+        "series_md5": "8458faedc1eb"
+      },
+      "Brewing_Noda": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 85875,
+        "S": 85875,
+        "series_md5": "e7f1daed8710"
+      },
+      "DC_EU_RTM": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 35132,
+        "S": 35132,
+        "series_md5": "c13cc91c43a8"
+      },
+      "DC_JP": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 30112,
+        "S": 30112,
+        "series_md5": "3e1594890202"
+      },
+      "DC_US_NY": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 17566,
+        "S": 17566,
+        "series_md5": "55e678335bbf"
+      },
+      "DC_US_SF": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 17566,
+        "S": 17566,
+        "series_md5": "55e678335bbf"
+      },
+      "FG_WH_Noda": {
+        "CO": 1020762,
+        "I_max": 3000,
+        "I_sum": 256725,
+        "P": 85575,
+        "S": 96012,
+        "series_md5": "26fabb58d9c7"
+      },
+      "Materials_JP": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 85875,
+        "S": 85875,
+        "series_md5": "2282e85294b4"
+      },
+      "Rest_BE": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 10050,
+        "S": 10050,
+        "series_md5": "7219aa34cede"
+      },
+      "Rest_FR": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 15075,
+        "S": 15075,
+        "series_md5": "a218688e12a6"
+      },
+      "Rest_JP": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 30150,
+        "S": 30150,
+        "series_md5": "c0d44c270f03"
+      },
+      "Rest_NL": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 10050,
+        "S": 10050,
+        "series_md5": "7219aa34cede"
+      },
+      "Rest_US_East": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 17588,
+        "S": 17588,
+        "series_md5": "eef4768ae0f9"
+      },
+      "Rest_US_West": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 17588,
+        "S": 17588,
+        "series_md5": "eef4768ae0f9"
+      },
+      "SP_Soy": {
+        "CO": 696086,
+        "I_max": 1000,
+        "I_sum": 85575,
+        "P": 85875,
+        "S": 92537,
+        "series_md5": "b5f0843a56b4"
+      }
+    }
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "case": "Cookie-jp-2026",
+  "config": {
+    "plugins": [
+      "BufferingStockOptimizerPlugin",
+      "CapacityOverridePlugin",
+      "HolidayCalendarPlugin"
+    ]
+  },
+  "period": {
+    "start": "2026-W02",
+    "weeks": 104
+  },
+  "ppc": {
+    "base_currency": "JPY",
+    "cost_base": 3573471000.0,
+    "gross_margin_pct": 0.161098,
+    "gross_profit_base": 686229000.0,
+    "revenue_base": 4259700000.0,
+    "tariff_base": 213111000.0,
+    "total_lots": 624,
+    "trust_event_count": 0
+  },
+  "products": [
+    "Cookie_Import",
+    "Cookie_Local"
+  ],
+  "psi": {
+    "Cookie_Import": {
+      "DC_Import_Buffer": {
+        "CO": 772608,
+        "I_max": 2364,
+        "I_sum": 206172,
+        "P": 68724,
+        "S": 76566,
+        "series_md5": "af0f747d3a52"
+      },
+      "DC_Import_Main": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 78142,
+        "S": 78142,
+        "series_md5": "d4d0872dee1f"
+      },
+      "Factory_GP_CN": {
+        "CO": 157664,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 68724,
+        "S": 70262,
+        "series_md5": "79536618db85"
+      },
+      "Ingredients_CN": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 68724,
+        "S": 68724,
+        "series_md5": "2484b994dc2d"
+      },
+      "Retail_JP_CVS": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 31560,
+        "S": 31560,
+        "series_md5": "dedefdf14c58"
+      },
+      "Retail_JP_EC": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 15810,
+        "S": 15810,
+        "series_md5": "9136a64a9d7f"
+      },
+      "Retail_JP_SM": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 31560,
+        "S": 31560,
+        "series_md5": "dedefdf14c58"
+      },
+      "SP_Cookie_Import": {
+        "CO": 157664,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 68724,
+        "S": 70262,
+        "series_md5": "79536618db85"
+      }
+    },
+    "Cookie_Local": {
+      "DC_Local_JP": {
+        "CO": 192474,
+        "I_max": 629,
+        "I_sum": 60544,
+        "P": 60544,
+        "S": 62431,
+        "series_md5": "960d7b27bec9"
+      },
+      "Factory_DP_JP": {
+        "CO": 64787,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 60544,
+        "S": 61173,
+        "series_md5": "84c292fe0c9c"
+      },
+      "Ingredients_JP": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 60544,
+        "S": 60544,
+        "series_md5": "10144b84f9dc"
+      },
+      "Retail_JP_CVS": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 26270,
+        "S": 26270,
+        "series_md5": "ffc38e808516"
+      },
+      "Retail_JP_EC": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 10520,
+        "S": 10520,
+        "series_md5": "d4cb09960377"
+      },
+      "Retail_JP_SM": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 26270,
+        "S": 26270,
+        "series_md5": "ffc38e808516"
+      },
+      "SP_Cookie_Local": {
+        "CO": 64787,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 60544,
+        "S": 61173,
+        "series_md5": "84c292fe0c9c"
+      }
+    }
+  }
+}

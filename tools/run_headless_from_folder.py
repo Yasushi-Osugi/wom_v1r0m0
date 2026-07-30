@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+run_headless_from_folder.py
+===========================
+GUI 抜きで「モデルフォルダ → Planning Engine（SCTree＋プラグイン＋Backward/copy/Forward）
+→ PPC」を実行し、主要 KPI の**スナップショット JSON** を出力するヘッドレス・ランナー。
+
+目的（Anti-Degrade / Phase 1a）：
+  操業制約レイヤー等のエンジン改修に着手する**前に**、既存ケースの挙動を golden として
+  固定するための "網"。GUI の `_planning_thread` / `_run_ppc_from_planning`（wom/gui/app.py）
+  と同じ順序・同じエンジン関数を呼ぶ（＝orchestration の忠実な移植。既存コードは無変更）。
+
+使い方（リポジトリ直下で）：
+  python -m tools.run_headless_from_folder --model-dir data/sample/soysauce-us-2027
+  python -m tools.run_headless_from_folder --model-dir data/sample/soysauce-us-2027 \
+         --out tests/golden/soysauce-us-2027.json
+  # 全ケースを golden 化（例）
+  #   for d in data/sample/*/ ; do python -m tools.run_headless_from_folder --model-dir "$d" \
+  #       --out "tests/golden/$(basename $d).json" ; done
+
+プラグイン（--plugins）：
+  safe（既定）= HolidayCalendarPlugin, BufferingStockOptimizerPlugin, CapacityOverridePlugin
+              （いずれもデータ/設定が無ければ no-op。DemandSmoothing は需要を変えるため既定で除外）
+  all  = 全ビルトイン / none = 無効 / それ以外 = クラス名の comma 区切りで明示
+  rice 等 収穫ケースは：--plugins HolidayCalendarPlugin,BufferingStockOptimizerPlugin,CapacityOverridePlugin,HarvestBatchPlugin
+
+忠実性の検証：本ランナーの出力（GM・trust events 等）が GUI の実値と一致する事を人手で確認してから
+golden として採用する（＝ハーネス自体が正しい事の担保）。
+"""
+from __future__ import annotations
+import argparse
+import hashlib
+import json
+import os
+import sys
+
+import pandas as pd
+
+# --- PSI バケット定数（psi4supply[w][bucket]）。plan_node に無ければ既定値 ---
+try:
+    from wom.model.plan_node import S, CO, I, P            # type: ignore
+except Exception:
+    S, CO, I, P = 0, 1, 2, 3
+
+SAFE_DEFAULT = {
+    "HolidayCalendarPlugin",
+    "BufferingStockOptimizerPlugin",
+    "CapacityOverridePlugin",
+}
+
+
+# ──────────────────────────────────────────────────────────────────────
+def _detect_period(dem_path: str):
+    """demand_forecast.csv から (start_week, n_weeks) を自動検出（GUI と同じ）。"""
+    dem_df = pd.read_csv(dem_path)
+    weeks_sorted = sorted(dem_df["week"].dropna().unique().tolist())
+    return str(weeks_sorted[0]), len(weeks_sorted)
+
+
+def _build_week_labels(start: str, n_weeks: int):
+    import re, datetime
+    m = re.match(r"(\d{4})-W(\d+)", start)
+    yr, wk = (int(m.group(1)), int(m.group(2))) if m else (2024, 1)
+    weeks, d = [], datetime.date.fromisocalendar(yr, wk, 1)
+    for _ in range(n_weeks):
+        y2, w2, _ = d.isocalendar()
+        weeks.append(f"{y2}-W{w2:02d}")
+        d += datetime.timedelta(weeks=1)
+    return weeks
+
+
+def _select_plugins(spec: str):
+    """--plugins 指定から (active_instances, harvest_instance) を返す。"""
+    from wom.plugins import ALL_BUILTIN_PLUGINS
+    spec = (spec or "safe").strip()
+    active, harvest = [], None
+    if spec == "none":
+        names = set()
+    elif spec == "all":
+        names = None  # all
+    elif spec == "safe":
+        names = SAFE_DEFAULT
+    else:
+        names = {s.strip() for s in spec.split(",") if s.strip()}
+    for cls in ALL_BUILTIN_PLUGINS:
+        inst = cls()
+        cn = cls.__name__
+        take = (names is None) or (cn in names) or (getattr(inst, "name", "") in names)
+        if take:
+            active.append(inst)
+            if "Harvest" in cn:
+                harvest = inst
+    return active, harvest
+
+
+# ──────────────────────────────────────────────────────────────────────
+def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "output/ppc",
+        verbose: bool = True) -> dict:
+    """GUI の planning + PPC を再現し、KPI スナップショット dict を返す。"""
+    from wom.model.lot_generator import assign_demand_lots_from_dict
+    from wom.engine.lane_assignment import LaneTable
+    from wom.engine.hook_bus import (
+        HookBus, HOOK_PRE_PLAN, HOOK_POST_BACKWARD,
+        HOOK_POST_COPY, HOOK_POST_FORWARD, HOOK_POST_PLAN)
+    from wom.engine.sc_tree_builder import build_sc_tree_from_master
+    from wom.engine.backward_planner import BackwardPlanner
+    from wom.engine.plan_copy import copy_demand_to_supply
+    from wom.engine.forward_planner import ForwardPlanner
+
+    def _p(name):  # model-local file path
+        return os.path.join(model_dir, name)
+
+    # ── 期間の自動検出 ─────────────────────────────────────────────
+    dem_path = _p("demand_forecast.csv")
+    start, n_weeks = _detect_period(dem_path)
+    weeks = _build_week_labels(start, n_weeks)
+    if verbose:
+        print(f"[Headless] {os.path.basename(model_dir.rstrip('/'))}: "
+              f"period {start} x {n_weeks} weeks")
+
+    # ── SCTree 構築 ────────────────────────────────────────────────
+    sc_tree_df = pd.read_csv(_p("sc_tree_master.csv"))
+    sc_tree = build_sc_tree_from_master(sc_tree_df, weeks)
+    if verbose:
+        print(f"[Headless] products: {sc_tree.products}")
+
+    # ── HookBus + プラグイン ───────────────────────────────────────
+    bus = HookBus()
+    cfg = {"n_weeks": n_weeks, "start_week": start,
+           "cap_path": _p("capacity_plan.csv"),
+           "holiday_cal_path": _p("holiday_calendar.csv")}
+    active_plugins, harvest_plugin = _select_plugins(plugins_spec)
+    for pl in active_plugins:
+        pl.register(bus)
+    if verbose:
+        print(f"[Headless] plugins: {[type(p).__name__ for p in active_plugins]}")
+
+    # ── 需要 → ロット ──────────────────────────────────────────────
+    demand_dict = {}
+    dem_df = pd.read_csv(dem_path)
+    if {"sku_id", "region", "week", "quantity"}.issubset(dem_df.columns):
+        for _, r in dem_df.iterrows():
+            k = (str(r["sku_id"]), str(r["region"]), str(r["week"]))
+            demand_dict[k] = demand_dict.get(k, 0) + int(r["quantity"])
+    assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
+
+    # ── 能力（capacity_plan → cap_hard、node_name ベース）─────────
+    cap_path = _p("capacity_plan.csv")
+    if os.path.exists(cap_path):
+        cap_df = pd.read_csv(cap_path)
+        if {"sku_id", "week", "max_supply"}.issubset(cap_df.columns):
+            widx = {w: i for i, w in enumerate(weeks)}
+            if "node_name" in cap_df.columns:
+                lut = {}
+                for pn in sc_tree.products:
+                    for nd in sc_tree.iter_all_nodes(pn):
+                        lut[(pn, nd.node_name)] = nd
+                for _, r in cap_df.iterrows():
+                    nd = lut.get((str(r["sku_id"]), str(r["node_name"])))
+                    wi = widx.get(str(r["week"]))
+                    if nd is not None and wi is not None:
+                        nd.set_capacity(wi, cap_hard=float(r["max_supply"]))
+            else:
+                agg = cap_df.groupby(["sku_id", "week"])["max_supply"].sum().reset_index()
+                for pn in sc_tree.products:
+                    try:
+                        mom = sc_tree.get_in_root(pn)
+                        for _, r in agg[agg["sku_id"] == pn].iterrows():
+                            wi = widx.get(str(r["week"]))
+                            if wi is not None:
+                                mom.set_capacity(wi, cap_hard=float(r["max_supply"]))
+                    except Exception:
+                        pass
+
+    # ── Lane / Push ────────────────────────────────────────────────
+    lane_path = _p("lane_assignment.csv")
+    lane_table = (LaneTable.from_csv(lane_path)
+                  if os.path.exists(lane_path) else LaneTable.empty())
+    push_path = _p("push_config.csv")
+
+    # ── Planning pipeline（app.py _planning_thread と同順序）───────
+    bus.fire(HOOK_PRE_PLAN, sc_tree=sc_tree, weeks=weeks, config=cfg)
+    for prod_nm in sc_tree.products:
+        BackwardPlanner(sc_tree, lane_table=lane_table, config=cfg).run(prod_nm)
+        bus.fire(HOOK_POST_BACKWARD, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
+        copy_demand_to_supply(sc_tree, prod_nm)
+        bus.fire(HOOK_POST_COPY, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
+        # PUSH/PULL
+        if os.path.exists(push_path):
+            import csv as _csv
+            from wom.engine.push_pull import PushProductionPlanner, PushConfig
+            cfgs = {}
+            with open(push_path, newline="", encoding="utf-8") as pf:
+                for pr in _csv.DictReader(pf):
+                    if pr.get("sku_id", "").strip() == prod_nm:
+                        cfgs[prod_nm] = PushConfig(
+                            node_id=pr.get("node_id", "").strip(),
+                            push_qty_per_week=int(pr.get("push_qty_per_week") or 0),
+                            buffer_lots=int(pr.get("buffer_lots") or 0),
+                            sku_id=prod_nm,
+                            mode_only=pr.get("mode_only", "").strip().lower() == "true",
+                            mom_ref_node_id=pr.get("mom_ref_node_id", "").strip(),
+                            pre_build_qty_per_week=int(pr.get("pre_build_qty_per_week") or 0),
+                            pre_build_end_week=pr.get("pre_build_end_week", "").strip(),
+                            push_lead_time_weeks=int(pr.get("push_lead_time_weeks") or 0),
+                        )
+            if cfgs:
+                PushProductionPlanner(sc_tree).setup_all(cfgs)
+        opening_inv = getattr(harvest_plugin, "opening_inv", {}) if harvest_plugin else {}
+        ForwardPlanner(sc_tree, opening_inv=opening_inv).run(prod_nm)
+        bus.fire(HOOK_POST_FORWARD, sc_tree=sc_tree, prod_nm=prod_nm, weeks=weeks, config=cfg)
+    bus.fire(HOOK_POST_PLAN, sc_tree=sc_tree, weeks=weeks, config=cfg)
+
+    # ── PPC（app.py _run_ppc_from_planning と同じ）─────────────────
+    ppc_kpi = _run_ppc(sc_tree, weeks, model_dir, output_ppc_dir, verbose)
+
+    # ── スナップショット組み立て ───────────────────────────────────
+    snap = {
+        "case": os.path.basename(model_dir.rstrip("/\\")),
+        "config": {"plugins": sorted(type(p).__name__ for p in active_plugins)},
+        "period": {"start": start, "weeks": n_weeks},
+        "products": list(sc_tree.products),
+        "ppc": ppc_kpi,
+        "psi": _psi_signature(sc_tree, n_weeks),
+    }
+    return snap
+
+
+def _run_ppc(sc_tree, weeks, model_dir, output_ppc_dir, verbose) -> dict:
+    from wom.ppc.ppc_runner import run_ppc_from_psi
+    data_dir = "data/ppc"
+    use_node_name = False
+    if os.path.exists(os.path.join(model_dir, "ppc_market_price.csv")):
+        data_dir = model_dir
+        use_node_name = True
+    base_currency = "JPY"
+    fx = os.path.join(data_dir, "ppc_fx_rate.csv")
+    if os.path.exists(fx):
+        try:
+            vals = pd.read_csv(fx, dtype=str)["base_currency"].dropna().unique()
+            if len(vals) == 1:
+                base_currency = str(vals[0])
+        except Exception:
+            pass
+    kpi = run_ppc_from_psi(
+        sc_tree=sc_tree, weeks=list(sc_tree.week_labels) or weeks,
+        data_dir=data_dir, output_dir=output_ppc_dir,
+        base_currency=base_currency, verbose=verbose, use_node_name=use_node_name)
+    # ppc_kpi_summary.json（唯一の真実源）を優先して読む
+    js = os.path.join(output_ppc_dir, "ppc_kpi_summary.json")
+    if os.path.exists(js):
+        with open(js, encoding="utf-8") as f:
+            k = json.load(f)
+    else:
+        k = kpi or {}
+    return {
+        "base_currency":  k.get("base_currency", base_currency),
+        "total_lots":     int(k.get("total_lots", 0) or 0),
+        "revenue_base":   round(float(k.get("total_revenue_base", 0) or 0), 2),
+        "cost_base":      round(float(k.get("total_cost_base", 0) or 0), 2),
+        "gross_profit_base": round(float(k.get("gross_profit_base", 0) or 0), 2),
+        "gross_margin_pct":  round(float(k.get("gross_margin_pct", 0) or 0), 6),
+        "tariff_base":    round(float(k.get("total_tariff_base", 0) or 0), 2),
+        "trust_event_count": int(k.get("trust_event_count", 0) or 0),
+    }
+
+
+def _psi_signature(sc_tree, n_weeks) -> dict:
+    """各ノードの psi4supply の P/S/I/CO を集計＋週次系列ハッシュ（timing ドリフト検知）。"""
+    out = {}
+    for prod in sc_tree.products:
+        pnodes = {}
+        for nd in sc_tree.iter_all_nodes(prod):
+            sup = nd.psi4supply
+            def series(bucket):
+                return [len(sup[w][bucket]) for w in range(n_weeks)]
+            p_s, s_s, i_s, co_s = series(P), series(S), series(I), series(CO)
+            h = hashlib.md5(
+                json.dumps([p_s, s_s, i_s, co_s]).encode()).hexdigest()[:12]
+            pnodes[nd.node_name] = {
+                "P": sum(p_s), "S": sum(s_s),
+                "I_sum": sum(i_s), "I_max": max(i_s) if i_s else 0,
+                "CO": sum(co_s), "series_md5": h,
+            }
+        out[prod] = pnodes
+    return out
+
+
+# ──────────────────────────────────────────────────────────────────────
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--model-dir", required=True, help="モデルフォルダ（sc_tree_master.csv 等）")
+    ap.add_argument("--plugins", default="safe",
+                    help="safe(既定)/all/none/クラス名 comma 区切り")
+    ap.add_argument("--out", default="", help="スナップショット JSON 出力先（省略時 stdout）")
+    ap.add_argument("--ppc-out", default="output/ppc", help="PPC 出力先")
+    ap.add_argument("--quiet", action="store_true")
+    a = ap.parse_args(argv)
+
+    snap = run(a.model_dir, plugins_spec=a.plugins,
+               output_ppc_dir=a.ppc_out, verbose=not a.quiet)
+    text = json.dumps(snap, ensure_ascii=False, indent=2, sort_keys=True)
+    if a.out:
+        os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+        with open(a.out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+        print(f"[Headless] snapshot -> {a.out}  (GM={snap['ppc']['gross_margin_pct']*100:.1f}% "
+              f"trust={snap['ppc']['trust_event_count']})")
+    else:
+        print(text)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
