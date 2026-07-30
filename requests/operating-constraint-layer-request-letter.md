@@ -125,16 +125,40 @@ WOM の Planning Engine は、demand-allocation（Backward の Demand Envelope�
 3. **SS_Days との統一が鍵**：SS は既に traversal のオフセットに入っている。休日スキップを同じパイプに載せることで、大杉さんの「置く週をズラすだけ」という自然な実装イメージに一致する。
 4. **論文との接続**：本統合は「操業カレンダー×シフト能力×収穫制約」を、plugin の寄せ集めではなく **統一された配置週・能力モデル**として説明できるようになり、経営工学的な一般性（撹乱×ノードの網羅）の土台になる。
 
-## 11. ステータス行
+## 11. 退行防止（Anti-Degrade）― cap_soft の教訓を制度化
+
+**教訓の精密化**：cap_soft の退行は「テストが皆無」だったからではない。`tests/test_step7_capacity.py::test_cap_soft_violation_no_movement` は**存在し、Forward の cap_soft 違反フラグは今も生きている**。死んだのは (i) **Backward の demand envelope としての cap_soft 使用**（そもそも未実装）と、(ii) **CSV→ローダ→ノードのデータ経路**（capacity_plan に列が無く、ローダが cap_hard しか読まない）。既存テストは**ノードを直接 `set_capacity` して CSV をバイパス**していたため、この2つの穴を誰も踏まなかった。
+→ **原則：機能ごとに "入力→処理→出力" を跨ぐ3層テストを必須化する。**
+
+### 11.1 （必須）3層テスト方針
+各機能（cap_soft 二層 envelope／操業カレンダー・スキップ／SS 統一）に、以下3層を必ず持たせる：
+1. **Unit（望む挙動）**：ノード単体で望む出力を**固定値 assert**（例：cap_soft=2・cap_hard=4・需要=6 → `len(psi4demand[w][P])≤4`、`len(psi4demand[w][CO])==2`）。入力を作者が固定するので期待値も決定論的。cap_soft を無視する改変で赤。
+2. **Integration（データ経路）**：`cap_soft` 列つき `capacity_plan.csv` を**実ローダで読み込み**、`node.cap_soft(w)==CSV値` を assert。← **今回欠けていた層**。ローダが列を無視した瞬間に赤。
+3. **E2E ゴールデン（スナップショット）**：サンプルケースを**入力ごと凍結**（バージョン管理下の固定データ）し、既知良好な1回の実行から主要KPI（GM・PSI 形状ハッシュ・CO 数・trust event 数）を **golden ファイルとして記録・コミット**。以後「現行実行 == golden」を assert。入力も出力も固定。意図的変更時は golden を**意図的に再生成・コミット**（差分そのものが監査証跡）。
+
+### 11.2 （整備）ゴールデン・ハーネス
+`tools/run_headless_from_folder.py`（GUI 抜きで Load→Planning→PPC 実行）＋ `tests/golden/<case>.json`（KPI スナップショット）を **Phase 1 の先頭で整備**。CLAUDE.md が繰り返し「見送り」と記録してきた "6ケース一括ヘッドレス検証" を、ここで恒久インフラ化する。
+
+### 11.3 （制度）禁足ルール（procedural guardrail・soft）
+CLAUDE.md / AGENTS.md に、Planning Engine の**保護対象コア**を列挙して明記する：
+`wom/engine/backward_planner.py`, `forward_planner.py`, `plan_copy.py`, `wom/model/plan_node.py`, `wom/model/sc_tree.py`, `wom/engine/push_pull.py`。
+ルール文言：「**明示的な指示（Request Letter 参照）が無い限り改変しない。改変時は3層テスト緑必須＋オーナーが差分レビュー**」。＝ゲート式（「絶対に触るな」ではなく「認可＋テスト緑を条件に触る」）。
+
+### 11.4 二重化が必須（禁足ルールだけでは不十分）
+cap_soft は**意図的で承認されたリファクタ（v1r0m3）の副作用**で死んだ。禁足ルールは「無認可・不用意な改変」を防ぐが、「**承認された変更の副作用**」は防げない。それを機械的に捕まえるのは**テストのみ**。さらに AI が markdown のルールに従うかは確率的で保証がない一方、テストは機械が強制する。→ **禁足ルール（soft・意図表明）＋ 3層テスト（hard・機械強制）の二重化**を必須とする。
+
+## 12. ステータス行
 
 ```text
 [x] 起草（本レター）
 [ ] オーナーレビュー・承認（Phase 範囲の確定）
 [ ] Phase 0（decouple 位置実験・CSVのみ）
-[ ] Phase 1（cap_soft 二層 demand envelope）
-[ ] Phase 1 検証（工場シフト制約・既存テスト緑）
-[ ] Phase 2（操業カレンダー core 統合・SS 統一）
-[ ] Phase 2 検証（休日=カレンダースキップ・rice 収穫再現）
+[ ] Phase 1a（ゴールデン・ハーネス整備：tools/run_headless_from_folder.py + tests/golden）
+[ ] Phase 1b（cap_soft 二層 demand envelope ＋ 3層テスト）
+[ ] Phase 1 検証（工場シフト制約・既存81件緑・golden 緑）
+[ ] Phase 2（操業カレンダー core 統合・SS 統一 ＋ 3層テスト）
+[ ] Phase 2 検証（休日=カレンダースキップ・rice 収穫再現・golden 緑）
 [ ] Phase 3（撹乱層の分離整理）
+[ ] CLAUDE.md/AGENTS.md に禁足ルール（保護対象コア＋3層テスト条件）を明記
 [ ] オーナー commit / push（wom-v1r2m0_test）
 ```
