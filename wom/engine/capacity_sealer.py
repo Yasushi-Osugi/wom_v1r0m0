@@ -35,6 +35,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+import pandas as pd
+
 from wom.model.plan_node import PlanNode, CAP_HARD, CAP_SOFT
 from wom.model.sc_tree   import SCTree
 
@@ -269,3 +271,99 @@ def build_capacity_load_report(
             ))
 
     return report
+
+
+# ---------------------------------------------------------------------------
+# capacity_plan.csv loader (single source of truth for GUI + headless)
+# ---------------------------------------------------------------------------
+
+def load_capacity_dataframe(
+    sc_tree:  SCTree,
+    cap_df:   "pd.DataFrame",
+    weeks:    List[str],
+) -> Dict[str, int]:
+    """
+    Apply a `capacity_plan.csv` DataFrame to the SCTree's PlanNodes.
+
+    This is the **single, testable data path** shared by the GUI
+    (`wom/gui/app.py`) and the headless runner
+    (`tools/run_headless_from_folder.py`).  Previously each caller had its own
+    inline loader that mapped only ``max_supply -> cap_hard`` — the missing
+    ``cap_soft`` column was the root cause of cap_soft lying dormant (see the
+    "operating-constraint-layer" request letter §3/§11.1).
+
+    Columns
+    -------
+    Required : ``sku_id``, ``week``, ``max_supply``
+    Optional : ``node_name``  — if present, capacity is applied to that named
+               node; otherwise ``max_supply`` is aggregated by (sku_id, week)
+               and applied to each product's InBound root (MOM).
+    Optional : ``cap_soft``   — operational/shift ceiling.  **Opt-in**: when the
+               column is absent, ``cap_soft`` is left at its default (0.0 =
+               unlimited), reproducing the pre-existing behaviour exactly so
+               that models without the column are byte-for-byte unchanged.
+
+    cap_soft semantics (Forward Step 0b) : a *flag only* — lots are never moved
+    by cap_soft.  Physical sealing/CO is governed solely by ``cap_hard``.
+
+    Returns
+    -------
+    dict : {"applied": N, "node_not_found": M, "week_out_of_range": K}
+    """
+    stats = {"applied": 0, "node_not_found": 0, "week_out_of_range": 0}
+
+    if cap_df is None or not {"sku_id", "week", "max_supply"}.issubset(set(cap_df.columns)):
+        return stats
+
+    has_soft = "cap_soft" in cap_df.columns
+    widx = {str(w): i for i, w in enumerate(weeks)}
+
+    def _soft_of(row) -> float:
+        """cap_soft 列があり有効値なら float、無ければ 0.0（=無制限、後方互換）。"""
+        if not has_soft:
+            return 0.0
+        val = row["cap_soft"]
+        try:
+            if pd.isna(val):
+                return 0.0
+            return float(val)
+        except (TypeError, ValueError):
+            return 0.0
+
+    if "node_name" in cap_df.columns:
+        # per-node path
+        lut: Dict[Tuple[str, str], PlanNode] = {}
+        for pn in sc_tree.products:
+            for nd in sc_tree.iter_all_nodes(pn):
+                lut[(pn, nd.node_name)] = nd
+        for _, row in cap_df.iterrows():
+            nd = lut.get((str(row["sku_id"]), str(row["node_name"])))
+            if nd is None:
+                stats["node_not_found"] += 1
+                continue
+            wi = widx.get(str(row["week"]))
+            if wi is None:
+                stats["week_out_of_range"] += 1
+                continue
+            nd.set_capacity(wi, cap_hard=float(row["max_supply"]),
+                            cap_soft=_soft_of(row))
+            stats["applied"] += 1
+    else:
+        # sku-aggregate → MOM (InBound root) path
+        agg_cols = ["max_supply"] + (["cap_soft"] if has_soft else [])
+        agg = cap_df.groupby(["sku_id", "week"])[agg_cols].sum().reset_index()
+        for pn in sc_tree.products:
+            try:
+                mom = sc_tree.get_in_root(pn)
+            except Exception:
+                continue
+            for _, row in agg[agg["sku_id"] == pn].iterrows():
+                wi = widx.get(str(row["week"]))
+                if wi is None:
+                    stats["week_out_of_range"] += 1
+                    continue
+                mom.set_capacity(wi, cap_hard=float(row["max_supply"]),
+                                 cap_soft=_soft_of(row))
+                stats["applied"] += 1
+
+    return stats

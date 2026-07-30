@@ -145,33 +145,15 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
             demand_dict[k] = demand_dict.get(k, 0) + int(r["quantity"])
     assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
 
-    # ── 能力（capacity_plan → cap_hard、node_name ベース）─────────
+    # ── 能力（capacity_plan → cap_hard [+ cap_soft]、共有ローダ）───
+    #   GUI(app.py) と同一の単一ローダ。cap_soft 列は opt-in（無ければ従来どおり）。
+    from wom.engine.capacity_sealer import load_capacity_dataframe
     cap_path = _p("capacity_plan.csv")
     if os.path.exists(cap_path):
-        cap_df = pd.read_csv(cap_path)
-        if {"sku_id", "week", "max_supply"}.issubset(cap_df.columns):
-            widx = {w: i for i, w in enumerate(weeks)}
-            if "node_name" in cap_df.columns:
-                lut = {}
-                for pn in sc_tree.products:
-                    for nd in sc_tree.iter_all_nodes(pn):
-                        lut[(pn, nd.node_name)] = nd
-                for _, r in cap_df.iterrows():
-                    nd = lut.get((str(r["sku_id"]), str(r["node_name"])))
-                    wi = widx.get(str(r["week"]))
-                    if nd is not None and wi is not None:
-                        nd.set_capacity(wi, cap_hard=float(r["max_supply"]))
-            else:
-                agg = cap_df.groupby(["sku_id", "week"])["max_supply"].sum().reset_index()
-                for pn in sc_tree.products:
-                    try:
-                        mom = sc_tree.get_in_root(pn)
-                        for _, r in agg[agg["sku_id"] == pn].iterrows():
-                            wi = widx.get(str(r["week"]))
-                            if wi is not None:
-                                mom.set_capacity(wi, cap_hard=float(r["max_supply"]))
-                    except Exception:
-                        pass
+        try:
+            load_capacity_dataframe(sc_tree, pd.read_csv(cap_path), weeks)
+        except Exception:
+            pass
 
     # ── Lane / Push ────────────────────────────────────────────────
     lane_path = _p("lane_assignment.csv")

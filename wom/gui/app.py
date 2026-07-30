@@ -5074,40 +5074,14 @@ class WOMApp(tk.Tk):
         assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
 
         # ── Capacity ────────────────────────────────────────────────
+        #   単一の共有ローダ（wom/engine/capacity_sealer.load_capacity_dataframe）。
+        #   headless runner と同一経路。cap_soft 列は opt-in（無ければ従来どおり
+        #   cap_hard のみ設定）。
         cap_path = self._f_cap.get()
         if cap_path and os.path.exists(cap_path):
             try:
-                cap_df = pd.read_csv(cap_path)
-                req_cap = {"sku_id", "week", "max_supply"}
-                if req_cap.issubset(set(cap_df.columns)):
-                    week_idx_map = {wk_: i for i, wk_ in enumerate(weeks)}
-                    has_node_name = "node_name" in cap_df.columns
-                    if has_node_name:
-                        _node_lookup = {}
-                        for _pn in sc_tree.products:
-                            for _nd in sc_tree.iter_all_nodes(_pn):
-                                _node_lookup[(_pn, _nd.node_name)] = _nd
-                        for _, row in cap_df.iterrows():
-                            _nd = _node_lookup.get(
-                                (str(row["sku_id"]), str(row["node_name"])))
-                            if _nd is None:
-                                continue
-                            w_idx = week_idx_map.get(str(row["week"]))
-                            if w_idx is not None:
-                                _nd.set_capacity(w_idx, cap_hard=float(row["max_supply"]))
-                    else:
-                        cap_agg = (cap_df.groupby(["sku_id", "week"])["max_supply"]
-                                   .sum().reset_index())
-                        for prod_nm in sc_tree.products:
-                            try:
-                                mom = sc_tree.get_in_root(prod_nm)
-                                sku_cap = cap_agg[cap_agg["sku_id"] == prod_nm]
-                                for _, row in sku_cap.iterrows():
-                                    w_idx = week_idx_map.get(str(row["week"]))
-                                    if w_idx is not None:
-                                        mom.set_capacity(w_idx, cap_hard=float(row["max_supply"]))
-                            except Exception:
-                                pass
+                from wom.engine.capacity_sealer import load_capacity_dataframe
+                load_capacity_dataframe(sc_tree, pd.read_csv(cap_path), weeks)
             except Exception:
                 pass
 
