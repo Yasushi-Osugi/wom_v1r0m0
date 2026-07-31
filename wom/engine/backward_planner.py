@@ -430,17 +430,31 @@ class BackwardPlanner:
 
         for w in range(n_weeks - 1, -1, -1):
             cap_w = node.cap_hard(w)
-            if cap_w <= 0.0:
+            ops = getattr(node, "op_shifts", None)
+            is_closed = bool(ops) and ops[w] == 0   # Phase 2 Slice 2-3b: closed week
+            if cap_w <= 0.0 and not is_closed:
                 continue  # unconstrained week (cap not set)
 
             s_lots  = list(node.psi4demand[w][S])
-            cap_int = int(cap_w)
-
-            # -- cap_soft envelope (Fork A: flag only, NO lot movement) ------
-            # Placed production this week = min(demand, cap_hard).  If it exceeds
-            # the soft (regular-shift) ceiling, flag the overtime band at plan
-            # time.  cap_hard still governs CO below; nothing is moved here.
             cs = node.cap_soft(w)
+            # Fill target (Phase 2 Fork B, per-node demand_envelope):
+            #   closed week       => 0  (holiday: produce nothing, carry back)
+            #   "soft" + cap_soft => cap_soft  (leveled production; the excess is
+            #                        pre-built into earlier weeks' slack)
+            #   "hard" (default)  => cap_hard  (current behaviour)
+            # cap_hard stays the physical ceiling; the overflow/carry-back logic
+            # below is UNCHANGED and simply uses this target.
+            if is_closed:
+                cap_int = 0
+            elif node.demand_envelope == "soft" and cs > 0:
+                cap_int = int(cs)
+            else:
+                cap_int = int(cap_w)
+
+            # -- cap_soft envelope flag (Fork A: flag only, NO lot movement) --
+            # Active in "hard" mode where placed production may exceed cap_soft
+            # (=> overtime band). In "soft" mode the fill target IS cap_soft, so
+            # placed_p <= cap_soft and this never fires (soft = no overtime).
             if cs > 0:
                 placed_p = min(len(s_lots), cap_int)
                 if placed_p > int(cs):

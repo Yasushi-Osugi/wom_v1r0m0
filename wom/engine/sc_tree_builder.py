@@ -182,6 +182,10 @@ def _build_product_tree(
         ss_days       = int(row.get("ss_days", 0) or 0)
         region        = str(row.get("region", "") or "").strip()
         is_decoupling = bool(int(row.get("buffering_stock_flag", 0) or 0))
+        # Phase 2 Fork B: per-node demand-envelope mode (hard/soft, default hard).
+        demand_envelope = str(row.get("demand_envelope", "hard") or "hard").strip().lower()
+        if demand_envelope not in ("hard", "soft"):
+            demand_envelope = "hard"
 
         node_id = _make_node_id(node_type, side, node_name, region, prod_nm)
 
@@ -197,6 +201,7 @@ def _build_product_tree(
             cpu_size       = cpu_size,
             ss_days        = ss_days,
             is_decoupling  = is_decoupling,
+            demand_envelope = demand_envelope,
         )
         nodes[node_name] = pnode
 

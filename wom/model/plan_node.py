@@ -131,6 +131,17 @@ class PlanNode:
     plan_mode:     str  = "pull"   # "pull" (backward/demand-driven)
                                    # "push" (forward/supply-driven)
 
+    # -- Demand-envelope mode (Phase 2 Fork B) ─────────────────────────────
+    # Per-node policy for how BackwardPlanner allocates demand (fill target):
+    #   "hard" (default) : fill up to cap_hard; overflow -> CO/carry-back.
+    #                      cap_soft is a flag only (overtime). Suits perishable /
+    #                      non-inventoriable / make-to-order nodes (no pre-build).
+    #   "soft"           : level production at cap_soft; excess is carried back
+    #                      (pre-built) into earlier weeks' slack (cap_soft-demand).
+    #                      cap_hard stays the physical ceiling. Suits inventoriable
+    #                      nodes that plan leveled production (heijunka).
+    demand_envelope: str = "hard"
+
     # -- Week index lookup (set after init_psi) ────────────────────────────
     # week_labels[week_idx] = ISO week string, e.g. "2026-W01"
     week_labels: List[str] = field(default_factory=list, repr=False)

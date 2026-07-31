@@ -370,33 +370,6 @@ class ForwardPlanner:
         unmatched_supply = [lot for lot in supply_lots if lot not in matched_set]
         return matched, unmatched_demand, unmatched_supply
 
-    @staticmethod
-    def _apply_operating_calendar_shift(node, n_weeks):
-        """
-        Phase 2 Slice 2-3: operating-calendar skip (前倒し).
-
-        Move production P off closed weeks (op_shifts == 0) to the nearest
-        EARLIER open week.  Lot_IDs are moved (identity preserved); no CO is
-        generated (output preserved, only the timing shifts).  Called at the
-        top of _process_node so the per-week I/S computation reflects the
-        re-timed production (closed week => empty P; the pre-build week accrues
-        the shifted lots and carries them as inventory into the closure).
-
-        Opt-in: no-op if the node has no operating calendar or no 0-shift week
-        (== every existing sample case), so goldens are unchanged.
-        """
-        ops = getattr(node, "op_shifts", None)
-        if not ops or all(s != 0 for s in ops):
-            return
-        for w in range(n_weeks):
-            if ops[w] == 0 and node.psi4supply[w][P]:
-                ow = w - 1
-                while ow >= 0 and ops[ow] == 0:   # find nearest EARLIER open week
-                    ow -= 1
-                if ow >= 0:
-                    node.psi4supply[ow][P].extend(node.psi4supply[w][P])
-                    node.psi4supply[w][P] = []
-
     def _process_node(self, node, n_weeks, result, opening_lots):
         """
         Compute psi4supply[I]/[CO] and the "actual shipped" set for one node
@@ -427,11 +400,6 @@ class ForwardPlanner:
         prev_inv_lots: List[str] = list(opening_lots)
         is_push_sub  = (node.plan_mode == "push_sub")
         is_push_mode = (node.plan_mode == "push")    # PUSH decoupling (Buffer_Wafer_TW等)
-
-        # Step 0c: operating-calendar skip (前倒し) — re-time production off
-        # closed weeks (op_shifts==0) BEFORE the per-week I/S computation.
-        # opt-in / no-op unless the node has a 0-shift week (goldens unchanged).
-        self._apply_operating_calendar_shift(node, n_weeks)
 
         for w in range(n_weeks):
             wk_label = node.week_labels[w] if node.week_labels else str(w)
