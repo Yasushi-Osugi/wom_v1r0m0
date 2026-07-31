@@ -1,6 +1,6 @@
 {
   "backward": {
-    "cap_soft_envelope_count": 8
+    "cap_soft_envelope_count": 0
   },
   "case": "soysauce-jpy-2027",
   "config": {
@@ -12,7 +12,7 @@
   },
   "forward": {
     "cap_hard_sealed": 0,
-    "cap_soft_violation_count": 8
+    "cap_soft_violation_count": 0
   },
   "period": {
     "start": "2027-W01",
@@ -35,19 +35,19 @@
     "Soy_Sauce": {
       "Bottling_Noda": {
         "CO": 0,
-        "I_max": 0,
-        "I_sum": 0,
-        "P": 85875,
+        "I_max": 1286,
+        "I_sum": 16681,
+        "P": 87161,
         "S": 92537,
-        "series_md5": "8458faedc1eb"
+        "series_md5": "0c9d784f125d"
       },
       "Brewing_Noda": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 85875,
-        "S": 85875,
-        "series_md5": "e7f1daed8710"
+        "P": 87161,
+        "S": 87161,
+        "series_md5": "92ab4e6ec5e5"
       },
       "DC_EU_RTM": {
         "CO": 0,
@@ -82,20 +82,20 @@
         "series_md5": "55e678335bbf"
       },
       "FG_WH_Noda": {
-        "CO": 1020762,
+        "CO": 1021334,
         "I_max": 3000,
-        "I_sum": 256725,
-        "P": 85575,
+        "I_sum": 252435,
+        "P": 85289,
         "S": 96012,
-        "series_md5": "26fabb58d9c7"
+        "series_md5": "ccf71f044abe"
       },
       "Materials_JP": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 85875,
-        "S": 85875,
-        "series_md5": "2282e85294b4"
+        "P": 87161,
+        "S": 87161,
+        "series_md5": "d0f47f88e53d"
       },
       "Rest_BE": {
         "CO": 0,
@@ -146,12 +146,12 @@
         "series_md5": "eef4768ae0f9"
       },
       "SP_Soy": {
-        "CO": 696086,
-        "I_max": 1000,
-        "I_sum": 85575,
-        "P": 85875,
+        "CO": 701234,
+        "I_max": 1714,
+        "I_sum": 84718,
+        "P": 86575,
         "S": 92537,
-        "series_md5": "b5f0843a56b4"
+        "series_md5": "42fe5c45b386"
       }
     }
   }
