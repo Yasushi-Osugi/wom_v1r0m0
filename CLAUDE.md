@@ -1130,3 +1130,50 @@ cap_soft が死んでいた真因は §11.1 の通り2つ——(i) Backward の 
 本ファイル上部「## 禁足ルール（Planning Engine 保護対象コア）」と `AGENTS.md` §10 に、保護対象コア6ファイル＋「明示指示＋3層テスト緑＋オーナー差分レビューを条件に触る」ゲート式ルールを明記。
 
 **未着手（次回候補）**：Phase 2（操業カレンダーの core 統合＝休日を plugin から traversal の「配置週スキップ」へ、SS_Days と統一）、Phase 3（撹乱層の分離整理）。
+
+---
+
+## v1r2m2：Phase 2 — 操業カレンダー intrinsic 化 ＋ per-node demand_envelope（hard/soft）＋ 休日 holiday-aware 平準化（完了、2026-07-31）
+
+branch `wom-v1r2m2`。Request Letter「操業制約レイヤー」の Phase 2（操業カレンダーの core 統合）を、大杉さんとの設計対話で当初案を超える形に発展させて実装。**既定 hard で既存11ケースの golden は不変**（opt-in）。
+
+### 確立した設計原則（最重要・次の Claude 君へ）
+
+**「Backward の Demand Allocation が"親心"で全部やる。Forward Planning は `I(W)=I(W-1)+P−S` を前へ回すだけで、決して時間を遡及しない。」**
+
+- 休日（閉鎖週）の作り溜め・前倒しは **Backward の `_apply_mom_cap_backward` が完結**させる（閉鎖週を cap=0 として cap を尊重しつつ手前へ carry-back）。
+- Forward に「閉鎖週の生産を手前へ動かす」ような**遡及処理を入れてはならない**。実際、開発途中で Forward 側に `_apply_operating_calendar_shift`（閉鎖週の P を最寄り手前週へ pile）を入れたところ、**W32 の P が cap_hard すら超える 2143 のスパイク**を生み（soysauce-jpy お盆デモで発覚）、大杉さんの「Forward は遡及するな」の指摘で**撤回**した。これがこの原則を確立した経緯。
+
+### Slice 2-1：per-node 操業カレンダー（0-shift → 配置週スキップ）
+- `PlanNode.op_shifts`（per-week の shift 数 0〜21、既定 None=常時 open。`MAX_SHIFTS=21`＝3直×7日）。`set_operating_shifts`/`operating_shifts`/`is_open`。`init_psi` で `[None]*n` 確保。
+- `wom/engine/capacity_sealer.load_operating_calendar(sc_tree, cal_df, weeks)`：`operating_calendar.csv`（sku_id/node_name/week/shifts）を読み node に展開。app.py＋headless で capacity ローダ直後に呼ぶ（opt-in、ファイル無ければ no-op）。
+- `BackwardPlanner.__init__` で `_closed_by_name`（plugin 由来 `explicit_closures` ∪ 各 node の `op_shifts==0`）を構築し、`_offset_week` が両ソースの閉鎖週を LT オフセットでスキップ。SS_Days と同じ「配置週調整」に統一。
+- テスト `tests/test_operating_calendar.py`（Unit/Integration 4）。
+
+### Slice 2-2：shifts → cap_soft 導出
+- `load_operating_calendar` 内で `sh>0` かつ `cap_hard>0` の週に `cap_soft = round(sh × cap_hard / MAX_SHIFTS)` を導出（capacity_plan の cap_soft を上書き）。21 shift＝cap_hard、0 shift＝閉鎖（skip、cap_soft は据え置き）。＝operating_calendar 1枚で「休み・通常・フル稼働」を表現。テスト `tests/test_shift_cap_soft.py`（3）。
+
+### Fork B：per-node `demand_envelope`（hard / soft）— 平準化の二モード
+大杉さんの問い「休み前だけ頑張る（cap_hard）か、平準化計画（cap_soft）で淡々か？」への結論＝**2 の cap_soft 平準化（heijunka）が実務の正解**。ただし生鮮・在庫不可・受注生産は前倒しできないので **hard も残す**。→ **lane 上の各 plan_node が工程特性で選ぶ**二モードに。
+- `PlanNode.demand_envelope`（"hard"（既定）/"soft"）。`sc_tree_master.csv` に `demand_envelope` 列（`sc_tree_builder` が読む。列無し＝全 hard）。
+- `_apply_mom_cap_backward` の**充填ターゲットを mode 化**：閉鎖週=0／soft かつ cap_soft>0=cap_soft（平準化・超過は前倒し carry-back）／それ以外=cap_hard（従来）。**以降の overflow→CO＋前週 carry-back ロジックは無変更**（cap_int を切り替えるだけ）。cap_hard は両モードで物理天井。
+- **平準化には slack（cap_soft − 需要 > 0）が必須**：通常週に余裕が無いと前倒し先が無く past_due になる。soysauce demo は Bottling_Noda を 18 shift（cap_soft≈1286・需要~1000・slack≈286）にして、お盆 W33 の 1000 を手前へ均等に前倒し。
+- テスト `tests/test_backward_holiday_carryback.py`（3）＋`tests/test_demand_envelope_soft.py`（3）。
+
+### Forward の遡及処理を撤回
+`forward_planner.py` の `_apply_operating_calendar_shift`（Slice 2-3 で一時導入）と `_process_node` の Step 0c 呼び出しを**削除**。休日対応は Backward に一本化（上記原則）。これに伴い pile 挙動を assert していた `tests/test_operating_calendar_skip.py` は**廃止（git rm）**。
+
+### demo（soysauce-jpy）
+- `sc_tree_master.csv` に `demand_envelope` 列（Bottling_Noda=soft、他 hard）。
+- `capacity_plan.csv` は cap_soft 列を除去（cap_hard=1500 物理天井のみ）。`operating_calendar.csv`＝Bottling_Noda 通常18 shift＋お盆 2028-W33=0。
+- 結果：**お盆 W33 が自然な穴、直前週が cap_soft に均等前倒し、W32 スパイク無し、CO/Shortage 無し、cap_soft_viol=0、GM=28.0% 不変**。DEMAND 層と SUPPLY 層が整合。
+
+### テスト・確認
+- 114件全緑（既存 ＋ 操業カレンダー4・shift_cap_soft3・holiday_carryback3・demand_envelope3、廃止 skip3）。既定 hard で既存11ケースの golden 不変。soysauce-jpy golden のみ soft demo で意図的に再生成。
+- commit（wom-v1r2m2）：Slice 2-1 `c924338`／2-2 `1c71fbe`／demo hard版 `57d78b3`／…／Phase2 統合 engine `dbdd59b`＋demo `13cf44b`。
+
+### 未対応・次回検討事項
+- **CO カスケード表示**：Backward carry-back は overflow を各週 CO に記録しつつ前週へ押すため、DEMAND 層の CO 合計が net displacement より大きく見える（カスケード合計。財務・実行は無害、supply 側は欠品なし・GM 不変）。「純 displacement のみ」に整えるのは hard 共通機構の変更＝要 golden 再生成の将来課題。
+- **供給側（PUSH/上流）の休日反映**：今回は Backward 一本化で soysauce（Bottling PUSH decoupling）は綺麗に解けた。より複雑な多段 PUSH で残差が出た場合の検討は将来。
+- **禁足ルールへの追記**：「Forward は roll-forward のみ・遡及処理禁止」を上部「禁足ルール」節に明文化する価値あり（次回）。
+- Phase 3（撹乱層＝ストライキ/災害の cap_hard clip・CO の分離整理）。
