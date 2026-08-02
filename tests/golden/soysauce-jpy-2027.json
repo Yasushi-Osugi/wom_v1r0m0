@@ -15,8 +15,8 @@
     "cap_soft_violation_count": 0
   },
   "period": {
-    "start": "2027-W01",
-    "weeks": 104
+    "start": "2026-W28",
+    "weeks": 130
   },
   "ppc": {
     "base_currency": "JPY",
@@ -35,67 +35,67 @@
     "Soy_Sauce": {
       "Bottling_Noda": {
         "CO": 0,
-        "I_max": 1286,
-        "I_sum": 16681,
-        "P": 87161,
-        "S": 92537,
-        "series_md5": "0c9d784f125d"
+        "I_max": 2286,
+        "I_sum": 129607,
+        "P": 102087,
+        "S": 100501,
+        "series_md5": "99700b89a309"
       },
       "Brewing_Noda": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 87161,
-        "S": 87161,
-        "series_md5": "92ab4e6ec5e5"
+        "P": 102087,
+        "S": 102087,
+        "series_md5": "0c51200f10d4"
       },
       "DC_EU_RTM": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 35132,
-        "S": 35132,
-        "series_md5": "c13cc91c43a8"
+        "P": 35175,
+        "S": 35175,
+        "series_md5": "3d53cd9aa00b"
       },
       "DC_JP": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 30112,
-        "S": 30112,
-        "series_md5": "3e1594890202"
+        "P": 30150,
+        "S": 30150,
+        "series_md5": "14e6c85c7bf4"
       },
       "DC_US_NY": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 17566,
-        "S": 17566,
-        "series_md5": "55e678335bbf"
+        "P": 17588,
+        "S": 17588,
+        "series_md5": "cbbc593e46f8"
       },
       "DC_US_SF": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 17566,
-        "S": 17566,
-        "series_md5": "55e678335bbf"
+        "P": 17588,
+        "S": 17588,
+        "series_md5": "cbbc593e46f8"
       },
       "FG_WH_Noda": {
-        "CO": 1021334,
+        "CO": 6385,
         "I_max": 3000,
-        "I_sum": 252435,
-        "P": 85289,
-        "S": 96012,
-        "series_md5": "ccf71f044abe"
+        "I_sum": 286312,
+        "P": 99215,
+        "S": 100501,
+        "series_md5": "6e882edefb78"
       },
       "Materials_JP": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 87161,
-        "S": 87161,
-        "series_md5": "d0f47f88e53d"
+        "P": 102087,
+        "S": 102087,
+        "series_md5": "7e957de82180"
       },
       "Rest_BE": {
         "CO": 0,
@@ -103,7 +103,7 @@
         "I_sum": 0,
         "P": 10050,
         "S": 10050,
-        "series_md5": "7219aa34cede"
+        "series_md5": "6eac9853ab6f"
       },
       "Rest_FR": {
         "CO": 0,
@@ -111,7 +111,7 @@
         "I_sum": 0,
         "P": 15075,
         "S": 15075,
-        "series_md5": "a218688e12a6"
+        "series_md5": "b0b0d08708ba"
       },
       "Rest_JP": {
         "CO": 0,
@@ -119,7 +119,7 @@
         "I_sum": 0,
         "P": 30150,
         "S": 30150,
-        "series_md5": "c0d44c270f03"
+        "series_md5": "f2004ded1b44"
       },
       "Rest_NL": {
         "CO": 0,
@@ -127,7 +127,7 @@
         "I_sum": 0,
         "P": 10050,
         "S": 10050,
-        "series_md5": "7219aa34cede"
+        "series_md5": "6eac9853ab6f"
       },
       "Rest_US_East": {
         "CO": 0,
@@ -135,7 +135,7 @@
         "I_sum": 0,
         "P": 17588,
         "S": 17588,
-        "series_md5": "eef4768ae0f9"
+        "series_md5": "65782455a028"
       },
       "Rest_US_West": {
         "CO": 0,
@@ -143,15 +143,15 @@
         "I_sum": 0,
         "P": 17588,
         "S": 17588,
-        "series_md5": "eef4768ae0f9"
+        "series_md5": "65782455a028"
       },
       "SP_Soy": {
-        "CO": 701234,
-        "I_max": 1714,
-        "I_sum": 84718,
-        "P": 86575,
-        "S": 92537,
-        "series_md5": "42fe5c45b386"
+        "CO": 22862,
+        "I_max": 1286,
+        "I_sum": 26432,
+        "P": 100501,
+        "S": 100501,
+        "series_md5": "9ffa4e6e24c2"
       }
     }
   }
