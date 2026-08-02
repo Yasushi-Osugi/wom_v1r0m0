@@ -128,7 +128,7 @@ def build_sc_tree_from_master(
         DataFrame loaded from sc_tree_master.csv.
         Required columns: node_name, parent_node, product_name,
                           node_type, side, lt_wks
-        Optional columns: cpu_size, ss_days, region
+        Optional columns: cpu_size, ss_days, init_stock_days, region
     week_labels:
         Ordered ISO week strings for the planning horizon.
 
@@ -180,6 +180,9 @@ def _build_product_tree(
         transit_lt_wks = int(float(_tlt)) if (_tlt is not None and str(_tlt).strip() not in ("", "0", "nan")) else lt_wks
         cpu_size      = int(row.get("cpu_size", 1) or 1)
         ss_days       = int(row.get("ss_days", 0) or 0)
+        # X2: warm-up / initial stock coverage [days] (OutBound only; default 0).
+        # Column may be absent in existing models -> 0 = unchanged behaviour.
+        init_stock_days = int(row.get("init_stock_days", 0) or 0)
         region        = str(row.get("region", "") or "").strip()
         is_decoupling = bool(int(row.get("buffering_stock_flag", 0) or 0))
         # Phase 2 Fork B: per-node demand-envelope mode (hard/soft, default hard).
@@ -200,6 +203,7 @@ def _build_product_tree(
             transit_lt_wks = transit_lt_wks,
             cpu_size       = cpu_size,
             ss_days        = ss_days,
+            init_stock_days = init_stock_days,
             is_decoupling  = is_decoupling,
             demand_envelope = demand_envelope,
         )
