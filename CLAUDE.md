@@ -1177,3 +1177,62 @@ branch `wom-v1r2m2`。Request Letter「操業制約レイヤー」の Phase 2（
 - **供給側（PUSH/上流）の休日反映**：今回は Backward 一本化で soysauce（Bottling PUSH decoupling）は綺麗に解けた。より複雑な多段 PUSH で残差が出た場合の検討は将来。
 - **禁足ルールへの追記**：「Forward は roll-forward のみ・遡及処理禁止」を上部「禁足ルール」節に明文化する価値あり（次回）。
 - Phase 3（撹乱層＝ストライキ/災害の cap_hard clip・CO の分離整理）。
+
+---
+
+## v1r2m2：先行生産の per-node パラメータ `init_stock_days`（X2）― `LT_offset(D2S) = B + X1 + X2`（2026-08-02）
+
+branch `wom-v1r2m2`。大杉さんとの設計対話で先行生産の計画モデルを確定し、per-node パラメータ `init_stock_days`（X2）を追加。**既定 0 のため既存11ケースの golden は placement 不変で緑**（opt-in）。
+
+**設計の本体は docs/design 側にある**（本節は実装ログ）：
+- `docs/design/holiday_calendar_push_lead_time_and_planning_horizon.md` 9.5 ＋ Decision 7 … 三成分の定義、Tree による役割排他、採用しなかった案の経緯
+- `docs/design/planning_warmup_and_reporting_horizon.md` 13章 … 横軸（Planning Horizon）と per-node offset の二層関係
+
+### 要点
+
+```text
+LT_offset(D2S) = B + X1 + X2
+    B  = lt_wks           物理 LT（pipeline 在庫）
+    X1 = ss_wks           安全在庫（需要変動吸収）
+    X2 = init_stock_wks   立ち上げ期の初期在庫（人の意思入れ）
+```
+
+- **在庫を「量」ではなく「時間」で表現する**。P を S より `(B+X1+X2)` 週手前へずらせば、Forward の `I(W)=I(W-1)+P−S` が差分を I として自動生成する。opening_inv による lot 注入も、先行需要を建てることも不要。
+- **Decision 7（Tree による役割排他）**：InBound のボトルネック解消は `push_lead_time_weeks`（Mode 4）、OutBound の需要変動吸収は `init_stock_wks`（X2）。**X2 は OutBound propagation にのみ加算し、InBound には加算しない**——二重前倒しを実装で防ぐ。
+- **X2 は定数オフセットなので定常状態にも残る**（解釈A、意図的）。X1+X2 を「この node の在庫政策」と見なす。buffer node の目的が需要変動吸収である以上、目的と合致する。運転資本増は PPC/CCC に出るので、経営判断で絞れる。
+
+### 影響ファイル
+
+- `wom/model/plan_node.py`：`init_stock_days: int = 0` を `ss_days` の隣に追加、`init_stock_wks` プロパティ（`ceil(init_stock_days/7)`、`ss_wks` と同じ流儀）
+- `wom/engine/backward_planner.py`：**OutBound propagation の1箇所のみ**変更（`node.lt_wks + node.ss_wks` → `+ node.init_stock_wks`）。InBound propagation は**コード不変**、Decision 7 の理由コメントのみ追加
+- `wom/engine/forward_planner.py`：**変更なし**（Forward はそのまま素直に流すだけ。「Forward は時間を遡及しない」原則を維持）
+
+### Master CSV スキーマ
+
+`sc_tree_master.csv`（ノード属性 CSV、`ss_days` を定義しているファイル）に1列追加。
+
+| 列名 | 型 | 意味 | 既定 |
+|---|---|---|---|
+| `init_stock_days` | int | X2：立ち上げ初期在庫のカバレッジ日数 | 0 |
+
+単位を日数にしたのは `ss_days` と揃えるため。列を持たない既存ケースは挙動完全不変。
+
+### 運用（手動調整を主機構とする）
+
+1. `init_stock_days=0` で 1st run → PSI Graph で buffer node の CO を目視
+2. CO の出方を見て `init_stock_days` を設定（在庫週数/日数の意思入れ）
+3. re-plan → CO が消えることを PSI Graph で確認
+
+**自動調整は「上書き可能な提案」として併存させる方針**。黙って解く黒箱にはしない（6-keys の owner/field/consultant の役割分担と整合）。適用対象 node を buffer に限定するガードは設けない——ボトルネックもバッファも環境変化で移動するため、設定は運用者の裁量に委ねる。
+
+### 注意（次に触る Claude 君へ）
+
+- **X2 と Planning Horizon は連動する**。`init_stock_days` を増やすと Backward の遡り量が増え、Planning Start が前倒しされていないと `parent_w < 0` で `record_past_due` に落ちるだけで在庫は立たない。横軸（Warm-up Period、`demand_forecast.csv` のゼロ需要行、`capacity_plan.csv` の延長）とセットで見ること。
+- **横軸を延ばしても CO が残る場合**の切り分け：(a) X2 未設定、(b) 真の能力不足（X2 を積んでも消えない）。子文書 12章に追記済み。
+
+### 未対応・次回検討
+
+- 実データ検証（`init_stock_days=0` で CO 発生 → 値を入れて CO 消滅、を soysauce-jpy の OutBound DC で確認）
+- 自動調整レイヤー：`forward_planner.py` の PUSH decoupling ブロックに `_push_unmatched[w]`（未充足 lot_id の記録専用・Fork A）を加え、1st run の CO から X2 を推定する harvest。`warm_up_mode = manual | auto` の per-node 切替
+- X2 が定常に残す運転資本増を PPC/CCC でどう見せるか（「自動値＝CO ゼロの上限提示、人がそれ以下に絞る」UI 思想）
+- 環境変化の narrative から bottleneck/buffer 配置を割り出す機能（次バージョン構想。`init_stock_days` の per-node 化で探索空間の一次元としての素地はできた）

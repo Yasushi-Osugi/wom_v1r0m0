@@ -386,6 +386,130 @@ production_lead_weeks    = 4
 
 ---
 
+### 9.5 先行生産の三成分：`LT_offset(D2S) = B + X1 + X2`
+
+先行生産は単一の機構ではなく、Planning Sequence 上の3つのフェーズに役割分担される。
+
+| フェーズ | Layer | 担当する前倒し | 時間軸の性格 |
+|---|---|---|---|
+| Backward Demand Allocation | Demand | 能力・休日由来の前倒し（cap 超過、休業週の作り溜め） | need-date の「割り付け」 |
+| Layer Transition (D→S) | 遷移 | 恒常的な LT 先行（`LT_offset`） | need→build の「変換」 |
+| Forward Planning + Push-Pull | Supply | buffering node の積み溜め・引き出し | build 後の「時系列展開」 |
+
+Demand Layer 上で Demand Allocation を完了した後、Demand Layer から Supply Layer へ
+S と P を copy する際に、先行生産に相当する LT offset をこの Layer Transition の中に
+組み込む。その後 Forward Planning が Supply Layer 上で Supply Chain Simulation として
+機能する。
+
+Layer Transition が「need-date と build-date の差」を担うのは、Demand/Supply の
+two-layer 構造からの必然であり、恣意的な実装ではない。また Forward Planner は時間
+シフトを一切担わないため、原則「Forward Planning は決して時間を遡及しない」がそのまま
+保たれる。
+
+#### LT_offset(D2S) の構成
+
+```text
+LT_offset(D2S) = B + X1 + X2
+```
+
+| 成分 | 実装 | 生む在庫 | 溜まる場所 | 決定主体 |
+|---|---|---|---|---|
+| B | `lt_wks` | pipeline 在庫（WIP・輸送中） | lane 上に分散 | 物理（LT そのもの、選べない） |
+| X1 | `ss_wks` = ceil(`ss_days`/7) | 需要変動を吸収する安全在庫 | buffer node | 在庫政策 |
+| X2 | `init_stock_wks` = ceil(`init_stock_days`/7) | 立ち上げ期の初期在庫 | buffer node | 人の意思入れ（計画パラメータ CSV） |
+
+#### なぜ「時間」で在庫が立つのか
+
+buffer node で P を S より `(B + X1 + X2)` 週手前へずらすと、Forward の
+
+```text
+I(W) = I(W-1) + P - S
+```
+
+において P が S に先行するため、その差分が I として自動的に積み上がる。
+在庫の「高さ」を注入しなくても、P と S の「時間差」を作れば高さは Forward が生成する。
+
+これは「初期状態は外から与えず、計画が生成する」という WOM の設計原則の実装形である。
+
+#### 横軸（Planning Horizon）との二層関係
+
+X2 は per-node の offset であり、Planning Warm-up Period（横軸の延長、10〜11章）とは
+別の層である。両者は競合せず、次の関係にある。
+
+```text
+Planning Warm-up Period（横軸）
+    必要条件：build が走る計算領域を確保する
+    これが無いと offset は past_due に落ちるだけで在庫は立たない
+
+LT_offset の X2（per-node）
+    十分条件：どの node にどれだけ在庫を残すかを決める
+    これが無いと横軸を延ばしても buffer に狙った在庫は立たない
+```
+
+したがって計画期間のサイジングは次のとおり。
+
+```text
+D = A + B + X2
+    A  : 最終需要地での需要計画期間（例 104 weeks）
+    B  : E2E Supply Chain の LT（例 20 weeks）
+    X2 : warm-up 分（初期在庫のカバレッジ週数）
+```
+
+窓の先頭 B 週は「需要ゼロだが build は走る領域」＝ Warm-up、末尾 B 週は「build 済みだが
+pipeline が流れ切る領域」＝ EOL ドレインである。C = A + B は LT offset が生む自然な
+張り出しであり、恣意的なマージンではない。
+
+**依存関係の注意**：`init_stock_days` を増やすと、その分だけ Backward の遡り量が増える。
+Planning Start が前倒しされていないと `parent_w < 0` となり `record_past_due` に落ちる。
+X2 を設定する際は、Planning Warm-up Period も連動して確保すること。
+
+#### X2 は定常状態にも残る（設計判断）
+
+`LT_offset` は全期間に一律に効く定数であるため、X2 は立ち上げ後もドレインせず恒久的に
+残る。これはバグではなく設計選択である。
+
+- X1 + X2 を合わせて「この node の在庫政策」と見なす
+- そもそも buffer node の役割・目的は最終市場の需要変動を吸収する政策的な在庫であり、
+  この仕組みはその目的と合致する
+- トレードオフ：運転資本が恒久的に増える（CCC 悪化、PPC のキャッシュ回収週に影響）。
+  ただし PPC 側で可視化されるため、X2 を絞る経営判断が可能である
+
+#### 検討したが採用しなかった案
+
+**(1) `opening_inv` による外部注入**
+
+`ForwardPlanner(opening_inv={node_id: [lot_id, ...]})` は既存機構として存在するが、
+warm-up の主機構としては採用しない。注入する lot_id の発番が「Lot_ID の発番は需要計画
+（S_month / S_week）生成のみ」という単一源泉原則と衝突するためである。
+
+`opening_inv` は「計画期間外で既に発生済みの実在庫（前期繰越・棚卸ロード）」専用として
+意味を限定し、warm-up とは役割を分ける。
+
+**(2) 先行需要（マーケ初期需要）として建てる案**
+
+warm-up 分を「初期ロット・試作品」の先行需要として需要計画に建てれば発番原則は守れるが、
+**先行需要が積んだ在庫を先行需要自身が消費してしまうため、buffer node の棚在庫は残らず
+初期 CO は解消しない**。先行需要が担えるのは pipeline 充填（B）のみである。この案は破棄。
+
+**実務照合**：MRP / APS の一般解でも、期首在庫（Beginning On Hand）は「計算で作るもの
+ではなく計算に与えるもの」であり、棚在庫を需要では作らない。また新製品立ち上げの実務
+指標は「pipeline fill ＋ safety stock ＋ LT buffer」を別々に週数で数える（合計 6〜8 週が
+典型）——WOM の B / X1 / X2 分解と同型である。初期配分は均等割りではなく経営判断で
+非対称に置き、立ち上げ期は自動最適化ではなく人が短サイクルで見直すのが標準である。
+したがって手動調整（人の意思入れ）を主機構とする本設計は実務標準に沿う。
+
+#### 適用範囲
+
+`init_stock_days` は OutBound Tree の任意の node に設定できる（既定 0 = opt-in）。
+buffer node に限定するガードは設けない。ボトルネックもバッファも固定属性ではなく状態で
+あり、外部環境（市場、物流）・内部環境（設備、資金）の変化により制御対象 node は移動する
+ためである。WOM は既に `decouple_optimizer.py` / `BufferingStockOptimizerPlugin` により
+バッファ配置を動かす前提で設計されており、静的ガードはこれと矛盾する。
+
+設定は運用者の裁量に委ねる。
+
+---
+
 ## 10. Planning Warm-up Period
 
 ### 10.1 問題の本質
@@ -805,6 +929,29 @@ DC 初期 CO の解消は、Push Lead Time の短縮ではなく、Planning Warm
 
 将来的に Planning Horizon と Management Reporting Horizon を分離する。
 
+### Decision 7
+
+先行生産の機構は Tree で役割を分ける。
+
+```text
+InBound Tree
+    完成品が作られるまでのボトルネック解消
+    → push_lead_time_weeks（Mode 4）が担当
+
+OutBound Tree
+    完成品が市場へ流れ出した後の需要変動吸収
+    → LT_offset(D2S) の init_stock_wks（X2）が担当
+```
+
+両者は解いている問題が異なる。InBound は供給側の不確実性（素材が届くか、工程が回るか）
+に対する備えであり、OutBound は需要側の不確実性（市場がいくら買うか）に対する備えで
+ある。decoupling point がこの2つの世界の境界であり、その上流は `push_lead_time_weeks`、
+下流は `init_stock_wks` が担当する。
+
+適用範囲は排他であり、同一 lane で二重に前倒しされることはない。この排他性は
+`backward_planner.py` の実装で保証する（X2 は OutBound propagation にのみ加算し、
+InBound propagation には加算しない）。
+
 ---
 
 ## 21. Acceptance Criteria
@@ -832,13 +979,22 @@ DC 初期 CO の解消は、Push Lead Time の短縮ではなく、Planning Warm
 1. `capacity=None` または Capacity Mode Enum による Unlimited / Zero / Finite の明示化
 2. Holiday Closure と Maintenance Shutdown の共通イベント化
 3. 休業週の前倒し方針：FIFO、Priority、Demand Date、Market Priority
-4. Planning Warm-up Period の Auto Calculation
-5. SC Tree の累積 LT と Safety Stock から必要 Warm-up Weeks を算定する機能
+4. ~~Planning Warm-up Period の Auto Calculation~~
+   → 部分解決（9.5）。必要 warm-up の構成は `LT_offset(D2S) = B + X1 + X2` として確定。
+   横軸の自動算定（Planning Start の自動前倒し）は未実装。
+5. ~~SC Tree の累積 LT と Safety Stock から必要 Warm-up Weeks を算定する機能~~
+   → 式は確定（9.5）。`B + X1` が累積 LT と Safety Stock に対応し、`X2` が
+   `optional_prebuild_buffer` に対応する。自動算定の実装は未着手。
 6. `production_node_id` と `demand_reference_node_id` の分離
 7. Warm-up Period を除外した PPC Reporting
-8. Opening Inventory と Warm-up Production の役割分担
+8. ~~Opening Inventory と Warm-up Production の役割分担~~
+   → 解決（9.5、Decision 7）。`opening_inv` は計画期間外の実在庫（前期繰越・棚卸ロード）
+   専用とし、warm-up による在庫形成は `LT_offset` の X2 が担当する。
 9. Holiday Event の PSI Graph annotation
 10. Closure により吸収された Lot と CO へ転化した Lot の追跡
+11. X2 が定常状態に残す運転資本増を PPC / CCC でどう可視化するか
+12. 環境変化の narrative 入力から、適切な bottleneck と buffer の配置を割り出す機能
+    （`init_stock_days` の per-node 化により、探索空間の一次元として扱える素地はできた）
 
 ---
 
@@ -851,10 +1007,14 @@ Holiday Calendar
     特定週の能力状態を定義する
 
 push_lead_time_weeks
-    供給側が将来需要を何週先行して準備するかを定義する
+    InBound 側で、供給側が将来需要を何週先行して準備するかを定義する
+
+LT_offset(D2S) = B + X1 + X2
+    OutBound 側で、need-date から build-date への変換量を定義する
+    X2 = init_stock_wks が立ち上げ期の初期在庫を生む
 
 Planning Warm-up Period
-    先行調達・生産・輸送・在庫形成を計算可能にする
+    先行調達・生産・輸送・在庫形成を計算可能にする（横軸の確保）
 
 Business Analysis Period
     実需要、PSI、PPC、経営評価を行う
@@ -863,7 +1023,8 @@ Business Analysis Period
 醤油モデルでは、次を基本設定とする。
 
 ```text
-push_lead_time_weeks = 7
+push_lead_time_weeks = 7          （InBound）
+init_stock_days      = 運用者設定  （OutBound buffer node、既定 0）
 Planning Start       = 2026-W33
 Final Demand Start   = 2027-W01
 Planning Weeks       = 125
@@ -874,3 +1035,8 @@ Planning Weeks       = 125
 > 2027年から販売を開始するために、2026年から原材料調達・生産・輸送・DC在庫形成を開始する
 
 という、実際の Supply Chain Operation に沿った PSI Planning を表現する。
+
+初期 CO の解消は、Supply Chain の LT を短く見せることではなく、
+(1) 販売開始前の供給準備期間を Planning Horizon へ正しく含めること（横軸）、
+(2) buffer node の LT_offset に X2 を与えること（per-node）、
+の2層で行う。

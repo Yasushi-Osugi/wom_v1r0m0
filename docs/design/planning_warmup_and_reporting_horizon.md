@@ -357,22 +357,98 @@ Rest_US shipment = demand
 7. Opening Inventoryの初期化
 8. `transit_lt_wks` と `lt_wks` の意味混在
 9. Reporting filterがWarm-up Lotを誤除外していないか
+10. **`init_stock_days`（X2）が未設定** — 横軸（Planning Horizon）の延長は
+    必要条件にすぎない。buffer node に在庫を残すには per-node の X2 が要る（13章）
+11. **真の能力不足** — X2 を積んでも CO が消えない場合、それは warm-up 不足ではなく
+    能力そのものの不足である。設備能力または需要前提の見直しが必要
 
 ---
 
-## 13. Auto Calculationの将来設計
+## 13. Warm-up Weeks の構成と Auto Calculation
 
-必要Warm-up Weeksを、SC Treeの累積時間から自動算定する機能を検討する。
+### 13.1 必要 Warm-up の構成（確定）
 
-概念式：
+必要 Warm-up Weeks の構成は次のとおり確定した。
+設計の本体は親文書
+[`holiday_calendar_push_lead_time_and_planning_horizon.md`](holiday_calendar_push_lead_time_and_planning_horizon.md)
+の 9.5 を参照。
 
 ```text
-required_warmup_weeks
+LT_offset(D2S) = B + X1 + X2
+```
+
+| 成分 | 実装 | 意味 |
+|---|---|---|
+| B | `lt_wks` | E2E Supply Chain の LT（物理、選べない） |
+| X1 | `ss_wks` = ceil(`ss_days`/7) | 安全在庫（需要変動の吸収） |
+| X2 | `init_stock_wks` = ceil(`init_stock_days`/7) | 立ち上げ期の初期在庫（人の意思入れ） |
+
+本文書の初版で `optional_prebuild_buffer` として構想されていた項が、
+`init_stock_days`（per-node の計画パラメータ）として確定したものである。
+
+対応関係：
+
+```text
+初版の概念式                          確定した実装
+---------------------------------------------------------------
+inbound_push_lead_time            }
++ outbound_cumulative_transit_lt  }  → B  = lt_wks
++ cumulative_safety_stock_weeks      → X1 = ss_wks
++ optional_prebuild_buffer           → X2 = init_stock_wks
+```
+
+### 13.2 横軸と per-node offset の二層関係
+
+Warm-up の実現には2つの層があり、両方が必要である。
+
+```text
+第1層：Planning Warm-up Period（横軸・本文書 5〜7章）
+    Planning Start を前倒しし、build が走る計算領域を確保する
+    必要条件：これが無いと offset は past_due に落ちるだけで在庫は立たない
+
+第2層：LT_offset の X2（per-node・親文書 9.5）
+    どの node にどれだけ在庫を残すかを決める
+    十分条件：これが無いと横軸を延ばしても buffer に狙った在庫は立たない
+```
+
+計画期間のサイジング：
+
+```text
+D = A + B + X2
+    A  : 最終需要地での需要計画期間（醤油モデルでは 104 weeks）
+    B  : E2E Supply Chain の LT
+    X2 : warm-up 分（初期在庫のカバレッジ週数）
+```
+
+**依存関係の注意**：`init_stock_days` を増やすと Backward の遡り量が増えるため、
+Planning Start も連動して前倒しする必要がある。X2 を設定する場合は、
+5〜7章の Planning Warm-up Period・`demand_forecast.csv` のゼロ需要行・
+`capacity_plan.csv` の延長期間を、あわせて見直すこと。
+
+### 13.3 適用範囲（Tree による役割分担）
+
+親文書 Decision 7 のとおり、先行生産の機構は Tree で役割を分ける。
+
+```text
+InBound Tree   → push_lead_time_weeks（Mode 4）が担当
+OutBound Tree  → init_stock_wks（X2）が担当
+```
+
+適用範囲は排他であり、同一 lane で二重に前倒しされることはない。
+本文書 5.3 の推奨設定に含まれる `push lead time 7 weeks` は InBound 側の設定であり、
+OutBound 側の DC 初期在庫は `init_stock_days` で別途与える。
+
+`init_stock_days` は OutBound Tree の任意の node に設定できる（既定 0 = opt-in）。
+buffer node に限定するガードは設けず、設定は運用者の裁量に委ねる。
+
+### 13.4 Auto Calculation の将来設計
+
+構成式が確定したため、必要 Warm-up Weeks の自動算定は次の形で実装しうる。
+
+```text
+required_warmup_weeks(market)
 =
-inbound_push_lead_time
-+ outbound_cumulative_transit_lt
-+ cumulative_safety_stock_weeks
-+ optional_prebuild_buffer
+cumulative(B) + cumulative(X1) + cumulative(X2)   along the lane to that market
 ```
 
 市場ごとに必要値が異なる場合は最大値を使用する。
@@ -380,11 +456,17 @@ inbound_push_lead_time
 ```text
 planning_start_week
 =
-final_demand_start_week
-- max(required_warmup_weeks_by_market)
+final_demand_start_week - max(required_warmup_weeks_by_market)
 ```
 
-自動算定値は、ユーザーがoverrideできるようにする。
+自動算定値は、ユーザーが override できるようにする。
+
+なお X2 の水準そのものの自動推定（1st run で発生した CO から必要な X2 を逆算する）も
+検討されているが、実務では立ち上げ期の在庫は「CO をゼロにする量」ではなく
+「CO リスクと過剰在庫リスクのトレードオフで決める量」であるため、
+自動値は「上限の提示」として扱い、運用者がそれ以下に絞れる形とする。
+
+手動調整を主機構とし、自動調整は上書き可能な提案として併存させる。
 
 ---
 

@@ -331,8 +331,25 @@ class BackwardPlanner:
                     continue
 
                 # v1r0m2: skip closure weeks of the parent node when stepping back
-                # ss_wks adds safety stock buffer on top of lead time
-                parent_w = self._offset_week(w, node.lt_wks + node.ss_wks, node.parent.node_name)
+                # LT_offset(D2S) = B + X1 + X2   [OutBound Tree only]
+                #   B  = lt_wks          : E2E lead time (physical, given)
+                #   X1 = ss_wks          : safety stock (demand variability absorption)
+                #   X2 = init_stock_wks  : warm-up / initial stock coverage [weeks]
+                #
+                # Decision 7 -- role split by Tree:
+                #   InBound  Tree : bottleneck relief  -> push_lead_time_weeks (Mode 4)
+                #   OutBound Tree : demand variability -> init_stock_wks (X2, here)
+                # X2 is applied ONLY on the OutBound side, so the two mechanisms
+                # never double-shift the same lane.
+                #
+                # X2 is a CONSTANT offset: it persists into steady state and is
+                # treated as part of this node's inventory policy, not a transient.
+                # Per-node from CSV; 0 = no warm-up (unchanged behaviour).
+                parent_w = self._offset_week(
+                    w,
+                    node.lt_wks + node.ss_wks + node.init_stock_wks,
+                    node.parent.node_name,
+                )
                 if parent_w < 0:
                     result.record_past_due(node.node_id, lot_id, w)
                 elif parent_w < n_weeks:
@@ -382,6 +399,9 @@ class BackwardPlanner:
             # -- Propagate all lots to each child (supplier) ----------------
             for lot_id in all_lots:
                 for child in node.children:
+                    # NOTE: init_stock_wks (X2) is intentionally NOT applied here.
+                    # Decision 7: InBound-side pre-build is owned by
+                    # push_lead_time_weeks (Mode 4); X2 is OutBound-only.
                     child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
                     if child_w < 0:
                         result.record_past_due(child.node_id, lot_id, w)

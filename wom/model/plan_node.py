@@ -108,11 +108,23 @@ class PlanNode:
     ss_days:  int = 0       # safety stock [days]; 0 = no extra buffer
                             # backward planner adds ceil(ss_days/7) to lt_wks offset
                             # so upstream demand is placed earlier -> creates buffer at this node
+    init_stock_days: int = 0  # X2: warm-up / initial stock coverage [days]; 0 = none.
+                              # BackwardPlanner adds ceil(init_stock_days/7) on top of
+                              # (lt_wks + ss_wks) on the OUTBOUND side only, so upstream
+                              # demand is placed earlier and Forward builds this node's
+                              # opening inventory as a result.
+                              # Decision 7: InBound-side pre-build is owned by
+                              # push_lead_time_weeks (Mode 4); X2 is OutBound-only.
 
     @property
     def ss_wks(self) -> int:
         """Safety stock additional offset weeks = ceil(ss_days / 7)."""
         return (self.ss_days + 6) // 7 if self.ss_days > 0 else 0
+
+    @property
+    def init_stock_wks(self) -> int:
+        """X2: initial (warm-up) stock offset weeks = ceil(init_stock_days / 7)."""
+        return (self.init_stock_days + 6) // 7 if self.init_stock_days > 0 else 0
 
     # -- PSI lists  (initialized by init_psi) ─────────────────────────────
     # psi4demand[week_idx][bucket] = [lot_ID, ...]   (demand side)
