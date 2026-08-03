@@ -111,6 +111,14 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
     def _p(name):  # model-local file path
         return os.path.join(model_dir, name)
 
+    # ── Planning warm-up（Phase 2, opt-in）─────────────────────────
+    #   planning_config.csv があれば助走行を materialize（demand=0 / cap・opcal コピー）。
+    #   period 検出より前に走らせる（＝早い start 週を含める）。config 無し→no-op。
+    from wom.engine.warmup import materialize_warmup, format_summary
+    _wsum = materialize_warmup(model_dir)
+    if verbose:
+        print("[Headless]", format_summary(_wsum))
+
     # ── 期間の自動検出 ─────────────────────────────────────────────
     dem_path = _p("demand_forecast.csv")
     start, n_weeks = _detect_period(dem_path)

@@ -4786,6 +4786,14 @@ class WOMApp(tk.Tk):
         dem_path = self._f_dem.get() if hasattr(self, "_f_dem") else ""
         if not dem_path or not os.path.exists(dem_path):
             return
+        # Planning warm-up (Phase 2, opt-in): materialize warm-up rows from
+        # planning_config.csv BEFORE period detection so the earlier start weeks
+        # are picked up. No planning_config.csv -> no-op (existing cases unchanged).
+        try:
+            from wom.engine.warmup import materialize_warmup, format_summary
+            print("[Warmup]", format_summary(materialize_warmup(os.path.dirname(dem_path))))
+        except Exception as exc:
+            print(f"[Warmup] skipped: {exc}")
         try:
             dem_df = pd.read_csv(dem_path)
             if "week" not in dem_df.columns:
