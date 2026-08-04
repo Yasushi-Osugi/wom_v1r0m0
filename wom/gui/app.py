@@ -4346,12 +4346,46 @@ class DebugPanel(tk.Frame):
 # Main application window
 # ──────────────────────────────────────────────────────────────────────
 
+def _detect_version_label(repo_root: str) -> str:
+    """WOM のバージョン表記（例 'v1r2m3'）を自動検出する。
+
+    優先順: (1) git ブランチ名 → (2) リポジトリフォルダ名 → (3) 既定 'dev'。
+    'wom-' 接頭辞は除去する（`wom-v1r2m3` → `v1r2m3`）。
+    毎リリースでタイトル文字列を手編集する作業を避けるための仕組み。
+    """
+    def _strip(name: str) -> str:
+        name = (name or "").strip()
+        return name[len("wom-"):] if name.startswith("wom-") else name
+
+    # (1) git ブランチ（最も正確。ブランチを切り替えれば表示も追従）
+    try:
+        import subprocess
+        br = subprocess.check_output(
+            ["git", "-C", repo_root, "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL, text=True, timeout=3).strip()
+        if br and br != "HEAD":
+            return _strip(br)
+    except Exception:
+        pass
+    # (2) フォルダ名（git 不在・detached HEAD でもフォールバック）
+    base = _strip(os.path.basename(os.path.normpath(repo_root)))
+    if base:
+        return base
+    # (3) 既定
+    return "dev"
+
+
 class WOMApp(tk.Tk):
     """Top-level WOM application window."""
 
     def __init__(self):
         super().__init__()
-        self.title("WOM – Weekly Operation Model  v1r0m3")
+        # Version label auto-detected from git branch / folder name
+        # (no manual edit of the title string per release).
+        here = os.path.dirname(os.path.abspath(__file__))
+        root = os.path.dirname(os.path.dirname(here))
+        self._version = _detect_version_label(root)
+        self.title(f"WOM – Weekly Operation Model  {self._version}")
         self.configure(bg=BG_DARK)
         self.geometry("1280x820")
         self.minsize(900, 600)
@@ -4360,8 +4394,6 @@ class WOMApp(tk.Tk):
         self._mgr: Optional[ScenarioManager] = None
 
         # Detect sample data directory relative to this file
-        here = os.path.dirname(os.path.abspath(__file__))
-        root = os.path.dirname(os.path.dirname(here))
         # Default to smartx-2027-2029 subfolder (has sc_tree_master.csv)
         self._sample_dir = os.path.join(root, "data", "sample", "smartx-2027-2029")
 
@@ -4379,7 +4411,7 @@ class WOMApp(tk.Tk):
         tk.Label(title_bar, text="WOM  –  Weekly Operation Model",
                  bg="#0D1B2A", fg=FG_WHITE,
                  font=("Segoe UI", 14, "bold")).pack(side="left", padx=16)
-        tk.Label(title_bar, text="v1r0m3",
+        tk.Label(title_bar, text=self._version,
                  bg="#0D1B2A", fg=FG_ACC,
                  font=("Segoe UI", 10)).pack(side="right", padx=16)
 
