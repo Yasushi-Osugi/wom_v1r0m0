@@ -1236,3 +1236,51 @@ LT_offset(D2S) = B + X1 + X2
 - 自動調整レイヤー：`forward_planner.py` の PUSH decoupling ブロックに `_push_unmatched[w]`（未充足 lot_id の記録専用・Fork A）を加え、1st run の CO から X2 を推定する harvest。`warm_up_mode = manual | auto` の per-node 切替
 - X2 が定常に残す運転資本増を PPC/CCC でどう見せるか（「自動値＝CO ゼロの上限提示、人がそれ以下に絞る」UI 思想）
 - 環境変化の narrative から bottleneck/buffer 配置を割り出す機能（次バージョン構想。`init_stock_days` の per-node 化で探索空間の一次元としての素地はできた）
+
+---
+
+# v1r2m3（branch `wom-v1r2m3`、baseline = `wom-v1r2m2`）
+
+**このブランチの位置づけ**：`wom-v1r2m2`（Holiday休暇週の Backward 一本化、X2=init_stock_days、Anti-Degrade 網、設計文書まで完了）を**凍結ベースライン**とし、そこから切り直したブランチ。ローカルはフォルダも分け、`...\wom-v1r2m2`＝ブランチ v1r2m2（凍結）、`...\wom-v1r2m3`＝ブランチ v1r2m3（実装）と1対1で運用する。
+
+## 計画期間パラメータ `warmup_lt` / `planning_start` の外出しと warm-up 行の materialize（Phase 1〜3、2026-08-04）
+
+**設計文書（正典）**：`requests/planning-horizon-warmup-parameter-request-letter.md`。
+関連：`docs/design/planning_warmup_and_reporting_horizon.md` §13、同 §9.5。
+
+### 背景・確定事項
+Buffer node の startup CO 解消には「販売開始より前から供給準備を計算する助走区間（Planning Warm-up Period、横軸の前倒し）」が必要（§9.5 の第1層＝必要条件）。しかし WOM には助走区間の明示パラメータが無く、計画開始週は `demand_forecast.csv` の最早週から自動検出されるだけだった。v1r2m2 では soysauce-jpy に手作業で 2026-W28〜W53 のゼロ需要行等を追記して CO=0 を得た（commit `eb8691e`）。本機能はこの手作業を**基本パラメータ `warmup_lt` として外出し**し、助走行生成を規約化された materialize 処理に置き換える。
+
+**重要（v1r2m2 実測で確定）**：startup CO の解消は**横軸（`warmup_lt`）**で行う。必要量は最深レーンの累積 **B+X1**（soysauce で26週）。`init_stock_days`（X2）は横軸の代替では**ない**——横軸を延ばさず X2 だけ足すと past_due が増えて**悪化**する（§9.5 の注意の実証）。`warmup_lt` は運用者が与えるパラメータで、取るべき最小値が「累積 B+X1」。
+
+### 確定した設計判断（D1〜D3）
+- **D1**：demand は助走週=quantity 0（W1コピー禁止＝実需要の捏造で CO 再発を防ぐ）。capacity_plan / operating_calendar は各 node の「最初の非ゼロ需要週」の値を後方コピー。holiday/ppc 等は対象外。
+- **D2**：`warmup_lt`（週数、既定0）が主。`planning_start`（週ラベル）は任意 override。`effective_start = planning_start指定: min(planning_start, real_start) / warmup_lt>0: real_start − warmup_lt / それ以外: real_start`。
+- **D3**：CSV に materialize（in-memory 合成ではなく、load/save の一貫性優先）。生成物と原本の区別は「最初の非ゼロ需要週 real_start より前の週の行」。idempotent（strip→再生成）・byte-stable・write-if-needed。冪等性＝アルゴリズム、監査（durable）＝コミット済みCSV＋golden、サマリー出力＝実行時の観測性、と役割分担（案B-safe）。
+
+### 実装
+- **`wom/engine/warmup.py`（新設）**：`materialize_warmup(model_dir, warmup_lt=None, planning_start=None, write=True) -> summary dict`。`planning_config.csv` 読込→`effective_start`算出→strip(週<real_start)→助走行生成(demand=0／cap・opcalは最初の実週値を後方コピー、source=warmup)→byte-stable 書き出し／write-if-needed。**config も引数も無ければ完全 no-op**（既存11ケース保護）。`format_summary()` 同梱。ISO週ラベルは `date.fromisocalendar`（2026 は W53 まで、年跨ぎ注意）。
+- **`tools/gen_warmup_rows.py`（新設）**：上記を叩く薄いCLI（`python -m tools.gen_warmup_rows --model-dir <dir> [--warmup-lt N] [--planning-start W] [--dry-run]`）。
+- **planning 初期処理へのフック（案B-safe）**：`wom/gui/app.py` の `_auto_detect_planning_period` 先頭、`tools/run_headless_from_folder.py` の `run()` の period 検出直前で `materialize_warmup(model_dir)` を呼ぶ。1起動で materialize→planning が完結。config 無し＝no-op で全 golden 不変。
+- **`planning_config.csv` スキーマ（新設・per-model）**：`key,value` の2列。`warmup_lt`（int, 既定0）／`planning_start`（週ラベル, 任意）。ファイルを持たない既存ケースは挙動完全不変。
+
+### soysauce-jpy への適用（Phase 3）
+`data/sample/soysauce-jpy-2027/planning_config.csv` に `warmup_lt=26` を置き、`gen_warmup_rows` で手作業助走行（`eb8691e`、末尾追記）を**正規形に置換**（助走行がソートされて先頭へ、source=warmup）。実データ（2027-W01以降）は verbatim 保持。正規形は手作業版と**意味的に同一**（並び順・source テキストのみ違い、計算結果に無影響）のため、**soysauce-jpy golden は再生成不要でそのまま緑**。以降の planning 実行は write-if-needed で clean な no-op。FG_WH_Noda の startup CO=0・GM=28.0% 不変を確認。
+
+### テスト・確認
+- `tests/test_warmup_materialize.py`（新設・8件）：Unit（ISO週/年跨ぎ/effective_start導出/first_nonzero_demand_week）＋Integration（demand=0・コピー・idempotent・byte-stable・write-if-needed・config無しno-op・warmup_lt=0でstrip）。
+- 既存 golden 12ケース全緑（config 無し＝全 no-op で挙動不変）。soysauce-jpy も再生成せず緑。
+
+### commit（wom-v1r2m3）
+- `7b344b1`：Phase 1（`warmup.py`＋CLI＋8テスト）
+- `4aeaadb`：Phase 2（planning 初期処理フック：GUI `_auto_detect_planning_period`＋headless `run()`）
+- （Phase 3：`planning_config.csv`＋soysauce 3CSV 正規化＋本 CLAUDE.md v1r2m3 節）
+
+### 未対応・次回検討（Phase 4）
+- `warmup_lt` の自動算定（§13.4）：最深レーンの累積 `B+X1+X2` から `required_warmup_weeks(market)` を計算し、`planning_start = final_demand_start − max(...)`。自動値は override 可能な提案として扱う（黒箱にしない）。
+- `planning_config.csv` の GUI 入力欄／「Rebuild warm-up」ボタン（現状は CSV 直接編集＋起動時 materialize）。
+
+## 関連する v1r2m2 セッションの補足（本ブランチの前提）
+本ブランチの土台となった v1r2m2 セッションで、X2（`init_stock_days`）について以下が確定・修正済み（`wom-v1r2m2` 上）：
+- **`sc_tree_builder.py` の `init_stock_days` 配線を追加**（commit `23ae8ee`）。当初の X2 実装（`plan_node.py`＋`backward_planner.py`）は CSV 列を読む配線を欠き**休眠**していた（cap_soft 休眠と同型の「CSV→ローダ→ノード データ経路欠落」）。`tests/test_init_stock_days_wiring.py`（commit `4b2513f`、5件）で再発防止。
+- soysauce-jpy の26週 warm-up 初版（手作業、commit `eb8691e`）。→ 本ブランチ Phase 3 で `planning_config.csv` 駆動に置換。
