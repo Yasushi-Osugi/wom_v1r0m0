@@ -4791,9 +4791,9 @@ class WOMApp(tk.Tk):
         # are picked up. No planning_config.csv -> no-op (existing cases unchanged).
         try:
             from wom.engine.warmup import materialize_warmup, format_summary
-            print("[Warmup]", format_summary(materialize_warmup(os.path.dirname(dem_path))))
+            print(format_summary(materialize_warmup(os.path.dirname(dem_path))))
         except Exception as exc:
-            print(f"[Warmup] skipped: {exc}")
+            print(f"[warmup] skipped: {exc}")
         try:
             dem_df = pd.read_csv(dem_path)
             if "week" not in dem_df.columns:
