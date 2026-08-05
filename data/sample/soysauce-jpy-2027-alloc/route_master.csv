@@ -1,0 +1,7 @@
+sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
+Soy_Sauce,US_W,JP,US,2103100000,finished_goods,0
+Soy_Sauce,US_E,JP,US,2103100000,finished_goods,0
+Soy_Sauce,JP,JP,JP,2103100000,finished_goods,0
+Soy_Sauce,FR,JP,FR,2103100000,finished_goods,0
+Soy_Sauce,BE,JP,BE,2103100000,finished_goods,0
+Soy_Sauce,NL,JP,NL,2103100000,finished_goods,0

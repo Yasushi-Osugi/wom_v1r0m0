@@ -1,0 +1,16 @@
+scenario,src_region,dst_region,product_id,tariff_rate,fx_rate,src_currency,dst_currency,freight_usd_per_lot,notes
+Base,JP,US,Soy_Sauce,0.125,1.0,USD,USD,1.5,日本→米国 海上（ノードレッグ按分 実総額約4.5USD/ケース HS2103.10）
+Base,JP,NL,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→欧州(蘭) 海上（レッグ按分 実総額約6USD/ケース）
+Base,JP,FR,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→仏
+Base,JP,BE,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→白
+Base,JP,JP,Soy_Sauce,0.0,1.0,USD,USD,0.35,国内（レッグ按分）
+Tariff10,JP,US,Soy_Sauce,0.1,1.0,USD,USD,1.5,日本→米国 海上（ノードレッグ按分 実総額約4.5USD/ケース HS2103.10）
+Tariff10,JP,NL,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→欧州(蘭) 海上（レッグ按分 実総額約6USD/ケース）
+Tariff10,JP,FR,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→仏
+Tariff10,JP,BE,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→白
+Tariff10,JP,JP,Soy_Sauce,0.0,1.0,USD,USD,0.35,国内（レッグ按分）
+Tariff0,JP,US,Soy_Sauce,0.0,1.0,USD,USD,1.5,日本→米国 海上（ノードレッグ按分 実総額約4.5USD/ケース HS2103.10）
+Tariff0,JP,NL,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→欧州(蘭) 海上（レッグ按分 実総額約6USD/ケース）
+Tariff0,JP,FR,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→仏
+Tariff0,JP,BE,Soy_Sauce,0.08,1.0,USD,EUR,2.0,日本→白
+Tariff0,JP,JP,Soy_Sauce,0.0,1.0,USD,USD,0.35,国内（レッグ按分）

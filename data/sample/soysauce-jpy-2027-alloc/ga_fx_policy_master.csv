@@ -1,0 +1,33 @@
+currency,quarter,rate_type,rate_jpy,applied_to,coverage_ratio,revision_lag_q,note
+USD,2027Q1,internal,140.00,decision,,4,FY2027 社内管理レート（年1回改定）
+USD,2027Q1,forward,145.00,settlement,0.00,,v0r3 はヘッジ無効（coverage_ratio=0）。§9.3 の回帰値を再現するため
+USD,2027Q2,internal,140.00,decision,,4,
+USD,2027Q2,forward,145.00,settlement,0.00,,
+USD,2027Q3,internal,140.00,decision,,4,
+USD,2027Q3,forward,145.00,settlement,0.00,,
+USD,2027Q4,internal,140.00,decision,,4,
+USD,2027Q4,forward,145.00,settlement,0.00,,
+USD,2028Q1,internal,150.00,decision,,4,FY2028 社内管理レート（年1回改定）
+USD,2028Q1,forward,155.00,settlement,0.00,,v0r3 はヘッジ無効（coverage_ratio=0）。§9.3 の回帰値を再現するため
+USD,2028Q2,internal,150.00,decision,,4,
+USD,2028Q2,forward,155.00,settlement,0.00,,
+USD,2028Q3,internal,150.00,decision,,4,
+USD,2028Q3,forward,155.00,settlement,0.00,,
+USD,2028Q4,internal,150.00,decision,,4,
+USD,2028Q4,forward,155.00,settlement,0.00,,
+EUR,2027Q1,internal,151.20,decision,,4,FY2027 社内管理レート（年1回改定）
+EUR,2027Q1,forward,156.60,settlement,0.00,,v0r3 はヘッジ無効（coverage_ratio=0）。§9.3 の回帰値を再現するため
+EUR,2027Q2,internal,151.20,decision,,4,
+EUR,2027Q2,forward,156.60,settlement,0.00,,
+EUR,2027Q3,internal,151.20,decision,,4,
+EUR,2027Q3,forward,156.60,settlement,0.00,,
+EUR,2027Q4,internal,151.20,decision,,4,
+EUR,2027Q4,forward,156.60,settlement,0.00,,
+EUR,2028Q1,internal,162.00,decision,,4,FY2028 社内管理レート（年1回改定）
+EUR,2028Q1,forward,167.40,settlement,0.00,,v0r3 はヘッジ無効（coverage_ratio=0）。§9.3 の回帰値を再現するため
+EUR,2028Q2,internal,162.00,decision,,4,
+EUR,2028Q2,forward,167.40,settlement,0.00,,
+EUR,2028Q3,internal,162.00,decision,,4,
+EUR,2028Q3,forward,167.40,settlement,0.00,,
+EUR,2028Q4,internal,162.00,decision,,4,
+EUR,2028Q4,forward,167.40,settlement,0.00,,
