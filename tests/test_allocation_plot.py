@@ -13,7 +13,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import matplotlib
 matplotlib.use("Agg")
 
-from tools.plot_allocation_map import plot_tile, plot_layers, plot_single, bx_s
+from tools.plot_allocation_map import (
+    plot_tile, plot_layers, plot_single, plot_terrain_only, plot_each_scenario, bx_s,
+)
 
 ALLOC_DIR = os.path.join(os.path.dirname(__file__), "..",
                          "data", "sample", "soysauce-jpy-2027-alloc")
@@ -36,6 +38,16 @@ def test_plot_layers(tmp_path):
 def test_plot_single_with_point(tmp_path):
     out = str(tmp_path / "s4.png")
     assert _nonempty(plot_single(ALLOC_DIR, "s4_compound", 800, out, point=(0.45, 0.55)))
+
+
+def test_plot_terrain_only(tmp_path):
+    out = str(tmp_path / "terrain_s1.png")
+    assert _nonempty(plot_terrain_only(ALLOC_DIR, "s1_base", 800, out))
+
+
+def test_plot_each_scenario(tmp_path):
+    made = plot_each_scenario(ALLOC_DIR, 800, str(tmp_path / "terrains"))
+    assert len(made) == 7 and all(_nonempty(p) for p in made)   # s1-s7（s8は時系列で対象外）
 
 
 def test_bx_s_format():

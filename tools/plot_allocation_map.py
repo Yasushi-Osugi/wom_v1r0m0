@@ -125,6 +125,35 @@ def plot_single(model_dir, scenario_id, cap_wk, out, point=None):
     return out
 
 
+def plot_terrain_only(model_dir, scenario_id, cap_wk, out, point=None):
+    """1 シナリオ＝大きな直角三角形の地形図 1 枚（層別断面なし・訴求用）。"""
+    base_blocks, tp, scens = _engine(model_dir, cap_wk)
+    s = next(x for x in scens if x["id"] == scenario_id)
+    surf, blocks = _surface(base_blocks, tp, s, cap_wk)
+    best, plateau = best_point(surf)
+    bx = plateau[0]["x"]
+    fig, ax = plt.subplots(figsize=(6.6, 6.2))
+    title = (f"{scenario_id}   cap {cap_wk:.0f}/wk   USD {s['fx_usd']:.0f}   material ${s['material_usd']:.1f}\n"
+             f"optimum * ({bx_s(bx)})   max = {best/1e6:.0f}M JPY")
+    tcf, _b, _x = _draw_terrain(ax, surf, blocks, cap_wk, title, mark_point=point)
+    fig.colorbar(tcf, ax=ax, fraction=0.046, pad=0.04, label="Profit (JPY M)")
+    _legend_terrain(ax)
+    fig.tight_layout()
+    fig.savefig(out, dpi=150); plt.close(fig)
+    return out
+
+
+def plot_each_scenario(model_dir, cap_wk, out_dir):
+    """全定常シナリオの単独地形図を out_dir/terrain_<id>.png に 1 枚ずつ書き出す。"""
+    os.makedirs(out_dir, exist_ok=True)
+    _bb, _tp, scens = _engine(model_dir, cap_wk)
+    made = []
+    for s in scens:
+        p = os.path.join(out_dir, f"terrain_{s['id']}.png")
+        made.append(plot_terrain_only(model_dir, s["id"], cap_wk, p))
+    return made
+
+
 def plot_tile(model_dir, cap_wk, out):
     mname = os.path.basename(model_dir.rstrip("/\\"))
     base_blocks, tp, scens = _engine(model_dir, cap_wk)
@@ -215,7 +244,9 @@ def main(argv=None) -> int:
     ap.add_argument("--scenario", default=None)
     ap.add_argument("--tile", action="store_true")
     ap.add_argument("--layers", action="store_true")
-    ap.add_argument("--point", default=None, help="x_us,x_eu（断面を描く点）")
+    ap.add_argument("--each", action="store_true", help="全シナリオの単独地形図を1枚ずつ（--out はディレクトリ）")
+    ap.add_argument("--terrain-only", action="store_true", help="--scenario で地形図のみ（層別断面なし）")
+    ap.add_argument("--point", default=None, help="x_us,x_eu（断面/選択点を描く点）")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
 
@@ -225,10 +256,15 @@ def main(argv=None) -> int:
         pt = (xs[0], xs[1])
 
     made = []
-    if a.scenario:
+    if a.each:
+        made.extend(plot_each_scenario(a.model_dir, a.cap_wk, a.out or "out/terrains"))
+    elif a.scenario:
         out = a.out or f"out/terrain_{a.scenario}.png"
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-        made.append(plot_single(a.model_dir, a.scenario, a.cap_wk, out, point=pt))
+        if a.terrain_only:
+            made.append(plot_terrain_only(a.model_dir, a.scenario, a.cap_wk, out, point=pt))
+        else:
+            made.append(plot_single(a.model_dir, a.scenario, a.cap_wk, out, point=pt))
     elif a.tile:
         out = a.out or "out/tile.png"
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
@@ -238,9 +274,11 @@ def main(argv=None) -> int:
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
         made.append(plot_layers(a.model_dir, a.cap_wk, out))
     else:
+        # 既定：タイル＋層別断面＋各シナリオの単独地形図（訴求用の必須出力を含む）
         os.makedirs("out", exist_ok=True)
         made.append(plot_tile(a.model_dir, a.cap_wk, "out/tile.png"))
         made.append(plot_layers(a.model_dir, a.cap_wk, "out/layers.png"))
+        made.extend(plot_each_scenario(a.model_dir, a.cap_wk, "out/terrains"))
     for m in made:
         print(f"[plot] wrote {m}")
     return 0
