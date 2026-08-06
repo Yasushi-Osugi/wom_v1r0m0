@@ -801,6 +801,54 @@ AGENTS.md §10: golden の再生成は**オーナーの Windows シェル**で�
 
 ---
 
+### 8.1 実装記録（2026-08-06・Phase 1＋Phase 2 完了）
+
+**実装内容（Planning Engine・保護コアは無変更）**
+
+| 種別 | ファイル | 内容 |
+|---|---|---|
+| engine | `wom/allocation/transmission.py` | Step 0〜5（`rates`/`CostBlock`/`unit_pnl`）。純関数 |
+| engine | `wom/allocation/cost_block.py` | Step 0.5 導出器。既存 CSV→市場別 CostBlock |
+| engine | `wom/allocation/grid.py` | Step 6〜11。231点 Simplex スキャン・尾根・台地（粗利） |
+| engine | `wom/allocation/analytics.py` | 切替点・交互作用・robust_point・constraint_cost |
+| CLI | `tools/run_allocation_map.py` | シナリオ駆動で §7 出力 CSV 7本を生成 |
+| viz | `tools/plot_allocation_map.py` | 各シナリオの大判単独地形図（`--each`）＋層別断面＋シナリオタイル（静止画） |
+| test | `tests/test_allocation_*.py`（6本） | **allocation 42件緑**。既存 golden・Planning Engine 不変（#4/#5 維持） |
+
+**設計逸脱と理由（要 Claude 君確認を含む）**
+
+1. **利益＝粗利（revenue − cost）**。仕様 Step 9-10 の運転資本費用（wc_cost・金利 i）＋SGA を引いた**営業利益は未実装**。理由：#16 が付録 A（proto の粗利値）の再現を要求し、参照実装優先の原則にも従うため。**帰結**：金利シナリオ `s7_rate_up` は粗利では `s1_base` と同一結果（132.1M）。→ wc/sga を入れるか（入れると回帰値が変わり #16 と矛盾）は要確認。
+2. **移転価格 base = `sku_master.unit_cost`(2400 JPY) ÷ `base_fx`(150) = $16** × (1+0.1) = **$17.6**（proto の 16.0×1.1 と一致）。仕様の「終端 MOM 累積 unit_cost」からの厳密導出（≒$16.7）とは僅差。回帰前提（#10/#16）が 17.6 のため本式を採用。`cost_block.py` docstring に明記。
+3. **β（輸送費の燃費感応度）未実装**（既出・v0r3 送り。物流費 USD 固定額のまま）。**ε/α（価格弾力性・関税吸収率）未導入**（能力 800/週への削減で配給を発生させ代替）。
+4. **ヘッジ `coverage_ratio = 0`**（決済＝スポット。回帰値がスポット前提のため）。
+
+**交互作用の実測（能力800・円安150→200 × 原料$6→$8・§A.5 再現）**
+
+| 評価点 | 為替単独 | 原料単独 | 合計 | 交互作用 | 比率 |
+|---|---|---|---|---|---|
+| base (0.30/0.35/0.35) | +54.0M | −25.0M | +20.7M | **−8.3M** | −40.2% |
+| optimum (0.10/0.45/0.45) | +75.1M | −23.6M | +43.6M | −7.9M | −18.0% |
+| domestic-heavy (0.60/0.20/0.20) | +23.6M | −19.0M | **−1.8M** | −6.3M | 符号反転(+359%) |
+
+**5% 閾値は常に超過**（規準が正しく機能している証拠）。地層図に「層の和≠総効果／独立対策禁止」注記を出す実装とした。
+
+**FXB の実測と利益最大点との乖離**
+
+- 基準配分 (0.30/0.35/0.35)：**FCR 0.588 / FRR 0.787 / FXB 0.747**（円安メリット型）。FXB=1.0 の為替中立線は**輸出比率 42.4%** を通る。
+- s1 の利益最大点 (0.10/0.45/0.45) の **FXB = 0.664**。**山頂は中立線の外側（輸出側）**にあり、最大利益を取りに行くと円安/円高エクスポージャーを抱える構造を地図で確認。
+
+**回帰値（すべて再現・受入 #11/#12/#14/#16）**
+
+- 最大利益：s1=132.1M / s2=207.2M / s3=108.5M / s4=176.7M(台地3) / s5=85.8M / s6=121.0M(US関税25%で配分 US 0.45→0.40) / s7=132.1M(=s1)。
+- 尾根線（能力800）x_JP=0.362 / x_US=0.423 / x_EU=0.423（合計1.208＞1＝配給必要）。
+- 台地サイズ 能力800→1点 / 1500→28点。切替点 USD **117円**（EU>JP>US）/ **119円**（EU>US>JP）/ 100円（JP>EU>US）。
+
+**未対応（次 Rev 候補）**：`ga_fx_decision_gap.csv`（§7.8・社内レート150 vs 実勢200の機会損失。`ga_fx_policy_master` 実装済みだが gap 出力は未）／`s8_actual_path` 時系列（現状スキップ）／`ga_sensitivity`・`ga_breakeven`／`vv.py`（V&V は各テストで実質担保済み）／Phase 3（`app.py` への `AllocationMapPanel` 組込）／op_profit（wc/sga）の確定。
+
+**commit（wom-v1r3m0）**：`c60f9aa`(transmission) → `fb5c67c`(cost_block) → `9931ef5`(grid) → `3bcf1cc`(analytics) → `388fe91`(CLI) → `a6bc99c`(plot)。
+
+---
+
 ## 付録 A: プロトタイプ実測値(回帰テスト期待値)
 
 以下は本 Request Letter 起案時に作成したプロトタイプ(`proto_terrain2.py`、参照実装として同梱)の実測値である。**実装はこれらを再現しなければならない**(受け入れ基準 #16)。

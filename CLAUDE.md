@@ -1284,3 +1284,38 @@ Buffer node の startup CO 解消には「販売開始より前から供給準�
 本ブランチの土台となった v1r2m2 セッションで、X2（`init_stock_days`）について以下が確定・修正済み（`wom-v1r2m2` 上）：
 - **`sc_tree_builder.py` の `init_stock_days` 配線を追加**（commit `23ae8ee`）。当初の X2 実装（`plan_node.py`＋`backward_planner.py`）は CSV 列を読む配線を欠き**休眠**していた（cap_soft 休眠と同型の「CSV→ローダ→ノード データ経路欠落」）。`tests/test_init_stock_days_wiring.py`（commit `4b2513f`、5件）で再発防止。
 - soysauce-jpy の26週 warm-up 初版（手作業、commit `eb8691e`）。→ 本ブランチ Phase 3 で `planning_config.csv` 駆動に置換。
+
+---
+
+# v1r3m0（branch `wom-v1r3m0`、baseline = `wom-v1r2m3`）
+
+## ask_global_allocation：生産配分地形（Phase 1 コアエンジン＋Phase 2 可視化、2026-08-06）
+
+**設計文書（正典）**：`requests/global-allocation-request-letter.md`（Rev 3・§8 に実装記録）、`docs/design/ask_global_allocation_spec.md`（v0r3）。**参照実装**：`tools/proto_terrain2.py`（伝達式の解釈は文章より参照実装を優先）。
+
+### 位置づけ
+限られた醸造能力を **国内/米国/欧州の3市場にどう配分するか** を、配分比率単体 (x_JP,x_US,x_EU) の **231格子点を全数評価**して利益地形として描く **Management 層**モジュール。既存の soysauce-us/eu 2フォルダの手動比較を231点に自動拡張したもの。**Planning Engine・保護コアは一切不変**（`demand_forecast` の配分だけが変わる case1 方式の延長）。**LP 最適化はしない**（面を出す＝経営判断に要るのは最適点でなく地形。§1.1）。
+
+### 検証ケース `data/sample/soysauce-jpy-2027-alloc/`（golden 対象外）
+派生元 soysauce-jpy から **能力 1500→800/週**（充足率 82.8%）に絞った版。理由：能力1500だと全需要を満たす配分が多く**最適点が台地28点で不定**。800で配給が必要になり最適点が一意になる（醸造4週で短期増産不可＝業種として自然）。追加 CSV 3本（`ga_market_aggregation`/`ga_scenario_master`/`ga_fx_policy_master`）。原価ブロックは既存 CSV から**導出**（入力不要）。
+
+### 実装（`wom/allocation/`＋`tools/`）
+- `transmission.py`（Step 0-5・純関数）：`rates`/`CostBlock`/`unit_pnl`。単位マージン JP750/US1748/EU1832（FX150・$6）。
+- `cost_block.py`（Step 0.5 導出器）：sc_tree 経路×`ppc_node/edge/supplier/tariff/market_price/transfer`＋`sku_master`＋`ga_market_aggregation` から市場別ブロックを導出（US は SF/NY 1:1平均で 15.65）。移転価格 = `sku_master.unit_cost 2400 ÷ base_fx 150 = $16` ×1.1 = **$17.6**。
+- `grid.py`（Step 6-11）：`simplex_grid`(231点)・`evaluate_point`（Demand Anchored `min(x·Cap, D)`）・`demand_ceilings`（尾根）・`best_point`（台地）。**利益＝粗利**（§8.1 の逸脱記録参照。op_profit の wc/sga は未実装）。
+- `analytics.py`：切替点（117/119円）・交互作用（`(s4−s1)−(s2−s1)−(s3−s1)`・5%超で層分解無効フラグ）・`robust_point`（台地ミニマックス）・`constraint_cost`（国内フロア）。
+- `tools/run_allocation_map.py`：シナリオ駆動で §7 出力 CSV 7本（`ga_{cost_block_derived,profit_surface,fx_balance,plateau,switching_point,interaction,constraint_cost}.csv` → `output/allocation/`、gitignore）。s1-s7 定常、s8 時系列はスキップ、s6 は US 関税25%を上書き。
+- `tools/plot_allocation_map.py`：**各シナリオの大判単独地形図**（直角三角形 X=x_US/Y=x_EU、利益等高線・尾根線・最適★・基準○・FXB=1.0線。`--each` で全シナリオ1枚ずつ＝訴求用の必須出力）＋層別断面（交互作用ハッチ・>5%警告）＋シナリオタイル（共通スケール）。
+
+### 確定した回帰値（受入 #10-#16 / 付録A）
+- 最大利益：s1=132.1M / s2(円安)=207.2M / s4(円安×原油)=176.7M(台地3・最適(0.00,0.45,0.55)) / s5(円高)=85.8M / s6(US関税25%)=121.0M / s7(金利)=132.1M(=s1 ＝金利は粗利に無影響)。
+- 尾根 x_JP=0.362/x_US=0.423/x_EU=0.423（合計1.208＞1）。台地 800→1/1500→28。切替点 117/119円。
+- FXB：基準配分 FCR0.588/FRR0.787/**FXB0.747**、FXB=1.0 は輸出42.4%。最大点(0.10,0.45,0.45)は FXB0.664＝**山頂は中立線の外側**。
+- 交互作用：base −8.3M(−40.2%)/optimum −7.9M(−18%)/domestic-heavy −6.3M(符号反転)。**常に5%超＝規準が機能**。
+- **テスト allocation 42件緑**。既存 golden 12件・Planning Engine 不変。
+
+### 未対応（次 Rev）
+`ga_fx_decision_gap`（§7.8・社内レート150 vs 実勢200の機会損失）／s8 時系列／`ga_sensitivity`・`ga_breakeven`／`vv.py`／Phase 3（`AllocationMapPanel` GUI 組込）／op_profit（wc/sga・Step9-10）の扱い確定。
+
+### commit（wom-v1r3m0）
+`c60f9aa`(transmission)→`fb5c67c`(cost_block)→`9931ef5`(grid)→`3bcf1cc`(analytics)→`388fe91`(CLI)→`a6bc99c`(plot)。設計文書は別途 `68801f5`（spec v0r3＋letter Rev3）、サンプル `48f3ba9`。
