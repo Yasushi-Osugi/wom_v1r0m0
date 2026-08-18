@@ -1334,3 +1334,24 @@ Buffer node の startup CO 解消には「販売開始より前から供給準�
 - lot_id の形式 `{sku_id}:{region}:{week}:{seq:05d}` は**変更しない**（D1）。パースは `LotIDGenerator.parse()` を使うこと
 
 設計文書 §1 に、本検討中に発生し後に訂正された**三つの誤った前提**を記録している（lot_id に product がない／`split(":")[1]` はバグ／錨は InBound 側）。いずれも誤りで、コード確認により否定済み。実装前に必ず §1 を読むこと。
+
+## apparel-us-2026：warm-up 未整備と GUI Planning Config の配線（既知事象、2026-08-18）
+
+**症状**：S1〜S3 で CO が全期間に張り付く（ランプ残骸）。S4 以降は正常。
+
+**原因と対処**：
+- apparel-us-2026（旧定義）は `planning_config.csv` 未整備。
+- **GUI 経路では `planning_config.csv` の `warmup_lt` が Start Week に反映されない**
+  （読まれないか、配線欠落。headless 側は未検証）。CSV に 26 / 52 を書いても効かない。
+- GUI の Planning Config に **Start Week=2025-W02 / #Weeks=126** を直接入力すれば
+  全8シーズンが正常計画される（S1 の CO 消滅を確認）。
+- 初期値の #Weeks=74 は需要期間（104週）より短く、2027年後半シーズンが
+  計画期間外になっていた。126 で両方解消。
+- 実効オフセットは sc_tree の `lt_wks` 合計（約20週）より大きい。
+  `sku_master.csv` の `lead_time_wks`（12〜14週）が加算されるため、
+  S1 には 40週以上の warm-up が必要。
+
+**モデルフォルダ再読込で初期値に戻る可能性があるため、実行前に毎回確認すること。**
+
+**三層設計との関係**：静的 lint は CSV しか読まないため、この種の GUI 配線欠落は
+検出できない。lint の守備範囲外として記録する（`docs/design/lot_id_traceability_and_coverage_views.md` §3 第1層）。
