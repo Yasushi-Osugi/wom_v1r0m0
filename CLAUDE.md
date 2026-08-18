@@ -1319,3 +1319,18 @@ Buffer node の startup CO 解消には「販売開始より前から供給準�
 
 ### commit（wom-v1r3m0）
 `c60f9aa`(transmission)→`fb5c67c`(cost_block)→`9931ef5`(grid)→`3bcf1cc`(analytics)→`388fe91`(CLI)→`a6bc99c`(plot)。設計文書は別途 `68801f5`（spec v0r3＋letter Rev3）、サンプル `48f3ba9`。
+
+## Lot_ID トレーサビリティ可視化：三層設計（設計記録のみ・実装なし、2026-08-18）
+
+**設計文書（正典）**：`docs/design/lot_id_traceability_and_coverage_views.md`
+
+外部評価者の指摘（InBound/OutBound の網羅性 ＋ PSI の Lot_ID 連携の全体感）に対する三層構成（静的 lint / leaf_in × leaf_out マトリクス / スイムレーン・トレース）の設計記録。**コード変更なし・CSV スキーマ変更なし・禁足コア無変更。**
+
+ただし §2「スキーマ意味論の固定」は**本日から拘束力を持つ**：
+
+- `demand_forecast.csv` の `region` は**地理ではなく leaf_out ノード識別子**（ev-thailand の `Sales_TH_BKK` / `_i` は同一都市＝地理では区別できない）
+- `(sku_id, region)` は leaf_out と **1:1 でなければならない**（重複＝`_build_leaf_index` が無言で上書き＝需要が消える）
+- `edge_cost_master` / `route_master` の `region` は**地理**であり別物（`node_type` の二系統と同型の危険）
+- lot_id の形式 `{sku_id}:{region}:{week}:{seq:05d}` は**変更しない**（D1）。パースは `LotIDGenerator.parse()` を使うこと
+
+設計文書 §1 に、本検討中に発生し後に訂正された**三つの誤った前提**を記録している（lot_id に product がない／`split(":")[1]` はバグ／錨は InBound 側）。いずれも誤りで、コード確認により否定済み。実装前に必ず §1 を読むこと。
