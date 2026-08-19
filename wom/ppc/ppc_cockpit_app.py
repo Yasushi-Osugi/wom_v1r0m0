@@ -589,7 +589,7 @@ def _draw_waterfall(ax, ev_filtered: pd.DataFrame, cur: str) -> None:
     for xi, (amt, bot) in enumerate(zip(amounts, bottoms)):
         ax.text(xi, bot + amt / 2, _fmt(amt),
                 ha="center", va="center",
-                fontsize=8, fontweight="bold", color="white")
+                fontsize=8, fontweight="bold", color="black")
 
     # GM% badge
     gm_pct = gross_profit / revenue * 100 if revenue > 0 else 0.0
