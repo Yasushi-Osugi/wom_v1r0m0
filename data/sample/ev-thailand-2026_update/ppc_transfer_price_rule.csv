@@ -1,0 +1,3 @@
+mom_node,product_id,method,margin_rate,fixed_price,currency
+Factory_Local_TH,EVmaker_Local,fixed,0.0,800000.0,THB
+Factory_Import_CN,EVmaker_Import,fixed,0.0,1000000.0,THB

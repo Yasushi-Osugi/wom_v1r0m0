@@ -1,0 +1,16 @@
+node_id,product_id,profit_zone_role,country
+Platform_Unit_Assy,EVmaker_Local,SUPPLIER_COST_BASE,CN
+Motor_Unit_Assy,EVmaker_Local,SUPPLIER_COST_BASE,TH
+Factory_Local_TH,EVmaker_Local,MOM_PLANT_PROFIT,TH
+SP_EV_Local,EVmaker_Local,OPERATION_NODE_COST_BASE,TH
+DC_EV_Local,EVmaker_Local,OPERATION_NODE_COST_BASE,TH
+Sales_TH_BKK,EVmaker_Local,OUTBOUND_CHANNEL_PROFIT,TH
+Sales_TH_PRO,EVmaker_Local,OUTBOUND_CHANNEL_PROFIT,TH
+Sales_TH_ONL,EVmaker_Local,OUTBOUND_CHANNEL_PROFIT,TH
+Components_CN,EVmaker_Import,SUPPLIER_COST_BASE,CN
+Factory_Import_CN,EVmaker_Import,MOM_PLANT_PROFIT,CN
+SP_EV_Import,EVmaker_Import,OPERATION_NODE_COST_BASE,CN
+DC_EV_Import,EVmaker_Import,OPERATION_NODE_COST_BASE,TH
+Sales_TH_BKK_i,EVmaker_Import,OUTBOUND_CHANNEL_PROFIT,TH
+Sales_TH_PRO_i,EVmaker_Import,OUTBOUND_CHANNEL_PROFIT,TH
+Sales_TH_ONL_i,EVmaker_Import,OUTBOUND_CHANNEL_PROFIT,TH

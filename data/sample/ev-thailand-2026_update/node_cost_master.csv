@@ -1,0 +1,16 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+EVmaker_Local,Platform_Unit_Assy,274000,245000,EVプラットフォーム（シャシー+サスペンション+バッテリー一体型） 深圳・自社内製 THB/台
+EVmaker_Local,Motor_Unit_Assy,106000,95000,駆動モーターユニット（モーター+インバーター+減速機） タイ国内調達 THB/台
+EVmaker_Local,Factory_Local_TH,800000,780000,タイ工場 BOM+現地労務費+現地調達部品 THB/台
+EVmaker_Local,SP_EV_Local,800000,800000,Supply Point pass-through THB/台
+EVmaker_Local,DC_EV_Local,820000,800000,国内ディーラーDC 輸送+取扱費 THB/台
+EVmaker_Local,Sales_TH_BKK,1099000,820000,バンコク販売価格（EV3.5補助金後） THB/台
+EVmaker_Local,Sales_TH_PRO,1099000,825000,地方販売価格（+輸送費増） THB/台
+EVmaker_Local,Sales_TH_ONL,1049000,815000,オンライン直販（若干安値） THB/台
+EVmaker_Import,Components_CN,650000,600000,外部バッテリー+電子部品（第三者調達） THB/台
+EVmaker_Import,Factory_Import_CN,1000000,950000,上海工場 CIF価格（タイ向け移転価格） THB/台
+EVmaker_Import,SP_EV_Import,1000000,1000000,Supply Point pass-through THB/台
+EVmaker_Import,DC_EV_Import,1110000,1076000,輸入DC 関税8%=76k+海上運賃34k=110k THB/台
+EVmaker_Import,Sales_TH_BKK_i,1659000,1115000,バンコク販売価格（補助金なし） THB/台
+EVmaker_Import,Sales_TH_PRO_i,1659000,1120000,地方販売価格 THB/台
+EVmaker_Import,Sales_TH_ONL_i,1609000,1110000,オンライン販売 THB/台

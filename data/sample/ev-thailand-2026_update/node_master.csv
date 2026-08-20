@@ -1,0 +1,16 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+SP_EV_Local,SP_EV_Local（EVmaker_Local Thailand HQ）,procurement,13.7563,100.5018,,TH,EVmaker_Local Thailand 供給調整本部
+Factory_Local_TH,タイ国内組立工場（Amata City）,mother_plant,12.7,101.4,EVmaker_Local,TH,Local EV Assembly Plant — 年産15万台
+Platform_Unit_Assy,プラットフォーム工場（深圳）,sku_supplier,22.5431,114.0579,EVmaker_Local,CN,EVプラットフォーム（シャシー+サスペンション+バッテリーパック一体型） 自社内製
+Motor_Unit_Assy,モーター工場（チョンブリ）,sku_supplier,13.3611,101.0525,EVmaker_Local,TH,駆動モーターユニット タイ国内調達（BOI EV3.0/3.5現地調達要件）
+DC_EV_Local,国内ディーラー DC（バンコク近郊）,region_dc,13.8,100.6,,TH,国内ディーラー物流センター
+Sales_TH_BKK,バンコク ディーラー,marketing,13.7563,100.5018,,BKK,地場ディーラー バンコク
+Sales_TH_PRO,地方 ディーラー,marketing,16.4322,102.835,,PRO,東北・北部タイ 地方ディーラー
+Sales_TH_ONL,オンライン直販,marketing,13.7563,100.51,,ONL,EVmaker_Local Thailand 直販・法人フリート
+SP_EV_Import,SP_EV_Import（EVmaker_Import Thailand HQ）,procurement,13.72,100.49,,TH,EVmaker_Import Thailand 輸入調達本部
+Factory_Import_CN,上海工場（Import向け割当）,mother_plant,31.21,121.58,EVmaker_Import,CN,China Export Factory (Shanghai) — タイ向け割当枠
+Components_CN,部品調達（中国）,sku_supplier,31.3,121.4,EVmaker_Import,CN,バッテリーセル・外部電子部品
+DC_EV_Import,輸入保税 DC（レムチャバン港）,region_dc,13.09,100.88,,TH,輸入バッファ倉庫 LT4週
+Sales_TH_BKK_i,バンコク旗艦店,marketing,13.78,100.54,,BKK,Import Bangkok Showroom — 直販
+Sales_TH_PRO_i,地方 代理店,marketing,18.787,98.993,,PRO,チェンマイ他 地方拠点
+Sales_TH_ONL_i,オンライン直販,marketing,13.71,100.5,,ONL,EVimport.com Thailand

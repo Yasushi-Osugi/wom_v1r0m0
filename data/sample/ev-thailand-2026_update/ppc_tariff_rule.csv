@@ -1,0 +1,3 @@
+edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
+Factory_Local_TH->DC_EV_Local,TH,TH,EVmaker_Local,8703800000.0,0.0,transfer_price
+Factory_Import_CN->DC_EV_Import,CN,TH,EVmaker_Import,8703800000.0,0.08,transfer_price

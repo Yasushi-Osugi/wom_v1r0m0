@@ -1,0 +1,7 @@
+market_node,product_id,week,market_price,currency
+Sales_TH_BKK,EVmaker_Local,2026-W01,1099000,THB
+Sales_TH_PRO,EVmaker_Local,2026-W01,1099000,THB
+Sales_TH_ONL,EVmaker_Local,2026-W01,1049000,THB
+Sales_TH_BKK_i,EVmaker_Import,2026-W01,1659000,THB
+Sales_TH_PRO_i,EVmaker_Import,2026-W01,1659000,THB
+Sales_TH_ONL_i,EVmaker_Import,2026-W01,1609000,THB

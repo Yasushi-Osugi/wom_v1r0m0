@@ -1369,3 +1369,21 @@ Management（`ask_global_allocation`）/ Demand（`lane_assignment.csv`）/ Supp
 - `lt_wks` は**エッジ属性**（親→自分への物流LT）であり、ノードの加工時間ではない
 - **`parent_node` が空の MOM ノードの `lt_wks` は無視される**（ブリッジ区間は同一拠点の受け渡しで LT が定義されない）。値を置かないこと。apparel の `Factory_Import_CN` の `lt_wks=8` は実体としては物流LTで、正しい置き場所は DAD 側
 - 静的 lint に4項目を追加（設計文書 §6）
+
+## ForwardPlanner: 複数Tier-1部材（Multi-leaf_in BOM）× holiday_calendar 閉鎖の組み合わせで擬似COが発生（既知バグ、未修正、2026-08-20）
+
+**症状**：MOMノードに複数の`leaf_in`が並行して部材供給する構成（例: `ev-europe-2026`のBattery_DE/Motor_DE/ECU_DE、`ev-thailand-2026_update`のPlatform_Unit_Assy/Motor_Unit_Assy）で、そのMOM自身が`holiday_calendar.csv`の`supply_closure`を受けると、**閉鎖週の直後から実在しないCOがMOM自身のPSIに固定量で発生し、次の閉鎖イベントごとに段階的に積み上がって残り続ける**。`ev-thailand-2026_update`のFactory_Local_THで確認：2026-W32閉鎖後にCO=150固定、2027-W32閉鎖後にCO=300へ倍増、以降ずっと固定。ヘッドレス（`tools/run_headless_from_folder.py`）・GUI実機の両方で再現確認済み。
+
+**発生条件（両方満たす場合のみ）**：
+1. MOMノードに`leaf_in`が2つ以上ある（複数Tier-1部材構成）
+2. そのMOMノードに`holiday_calendar.csv`の`supply_closure`イベントが**有効に**かかる（`HolidayCalendarPlugin`がGUIでON、かつ`cap_hard`が上記「cap_hard<=0.0曖昧さバグ」を回避した正の値）
+
+**発見の経緯**：`ev-thailand-2026_update`にPlatform_Unit_Assy/Motor_Unit_Assyの2 leaf_in構成を追加した際に発覚。同型の構成は`ev-europe-2026`（Battery/Motor/ECUの3 leaf_in）に既存だが、そちらの`holiday_calendar.csv`はvalue列が`0.0`のまま（cap_hard<=0.0曖昧さバグで既に無効化済み）だったため、条件2を一度も満たしたことがなく、潜在バグとして見過ごされていた——「片方のバグを直したら、隠れていたもう片方が露出した」ケース。
+
+**原因（仮説、未確定・要engine調査）**：`forward_planner.py`の`_propagate_to_parent`は、各`leaf_in`子ノードが独立に親（MOM）の`psi4supply[w][P]`へ`extend()`する実装で、BOM的な「全部材が揃って初めて1台分」という組立セマンティクスを持たない。子が2つあると同じ週のPが単純加算され（`ev-thailand-2026_update`ではFactory_Local_THのPが毎週ほぼ正確にSの2倍）、通常時は`_match_by_identity`の重複ロット吸収ロジックによりI=0のまま辻褄が合って見える。しかしStep 0a（CapHardシーリング）が閉鎖週に生リスト（重複あり）をスライスして超過分をCO[w+1]へ積む処理と絡むと、以降の週での再マッチングが正しく解消されず、固定・階段状のCOとして残留する。
+
+**影響範囲（確認済み）**：影響はMOMノード自身のPSI表示（Networkタブ・PSI List・Debugパネル）に限定。下流（DAD・leaf_out・PPCの金額）は完全にクリーン（`ppc_node_pl_summary.csv`・各Sales_*チャネルのCO=0・粗利率とも無影響を確認）。
+
+**対応状況**：**未修正**。`forward_planner.py`は禁足コア対象ファイルのため、修正するには本ファイル冒頭「禁足ルール」の通りRequest Letter起票＋3層テスト緑＋オーナー差分レビューが必要（今回のセッションはスコープ外と判断し見送り）。`data/sample/ev-thailand-2026_update/`はこの既知の制約込みで現状のまま採用（Platform/Motor部材別コスト可視化という本来の目的自体は正しく機能しており、影響範囲がFactory_Local_TH自身のPSIパネルのみに限定されるため）。
+
+**次回セッションでの検討候補**：`ev-europe-2026`のholiday_calendar.csv（value=0.0のまま）を今後修正する場合、同じ症状がFactory_Local_DE/Factory_Import_HUでも再現するはずなので、そこでの追加確認・修正着手時の参考ケースとして使える。
