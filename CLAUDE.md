@@ -1355,3 +1355,17 @@ Buffer node の startup CO 解消には「販売開始より前から供給準�
 
 **三層設計との関係**：静的 lint は CSV しか読まないため、この種の GUI 配線欠落は
 検出できない。lint の守備範囲外として記録する（`docs/design/lot_id_traceability_and_coverage_views.md` §3 第1層）。
+
+## 三層生産配分：Management / Demand / Supply（設計記録のみ・実装なし、2026-08-20）
+
+**設計文書（正典）**：`docs/design/three_layer_production_allocation.md`
+
+Management（`ask_global_allocation`）/ Demand（`lane_assignment.csv`）/ Supply（`ForwardPlanner._actual_s`）の
+三層に独立した配分機構が存在し、**互いに接続されていない**ことを特定した記録。**コード変更なし。**
+
+**即座に有効な訂正：**
+
+- 上記「WOM 指標 → 上位 KPI」表の **「Multi-MOM 配分比率」は不正確**。実装は**静的チャネル振分け**（1:1固定テーブル、`priority` 列は未実装、能力連動の動的再配分なし、重複行は無言で後勝ち）
+- `lt_wks` は**エッジ属性**（親→自分への物流LT）であり、ノードの加工時間ではない
+- **`parent_node` が空の MOM ノードの `lt_wks` は無視される**（ブリッジ区間は同一拠点の受け渡しで LT が定義されない）。値を置かないこと。apparel の `Factory_Import_CN` の `lt_wks=8` は実体としては物流LTで、正しい置き場所は DAD 側
+- 静的 lint に4項目を追加（設計文書 §6）
