@@ -1,0 +1,49 @@
+# tools/sweep_specs/apparel_s1.yaml
+#
+# requests/request_impl_sweep_flags_tool.md §2.4 の初期検証ケース。
+# data/sample/apparel-us-2026 の Apparel_Outsourced_S1（leaf_in は Fabric_CN 1つのみ）で、
+# buffering_stock_flag / push_config.csv / holiday_calendar.csv の3設定の寄与を分離する。
+#
+# 実行:
+#   python -m tools.sweep_flags --spec tools/sweep_specs/apparel_s1.yaml
+
+model: data/sample/apparel-us-2026
+target_sku: Apparel_Outsourced_S1
+target_nodes:
+  - Fabric_CN            # leaf_in
+  - Factory_Import_CN    # mom
+  - SP_Apparel_Outsourced  # supply_point
+  - DC_Import_Buffer     # dad
+plugins: safe
+
+cases:
+  # buffering_stock_flag=0 / push_config無 / holiday_calendar有（現状のCSVそのまま）
+  - name: base
+    ops: []
+
+  # base から holiday_calendar.csv を退避（無効化）
+  - name: A_no_holiday
+    ops:
+      - op: remove_file
+        file: holiday_calendar.csv
+
+  # base から buffering_stock_flag を 1 に変更
+  - name: B_flag1
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+
+  # B_flag1 に加えて push_config.csv（push_lead_time_weeks=4）を追加
+  - name: C_flag1_push4
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,4,
