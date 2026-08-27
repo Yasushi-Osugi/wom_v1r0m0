@@ -1387,3 +1387,15 @@ Management（`ask_global_allocation`）/ Demand（`lane_assignment.csv`）/ Supp
 **対応状況**：**未修正**。`forward_planner.py`は禁足コア対象ファイルのため、修正するには本ファイル冒頭「禁足ルール」の通りRequest Letter起票＋3層テスト緑＋オーナー差分レビューが必要（今回のセッションはスコープ外と判断し見送り）。`data/sample/ev-thailand-2026_update/`はこの既知の制約込みで現状のまま採用（Platform/Motor部材別コスト可視化という本来の目的自体は正しく機能しており、影響範囲がFactory_Local_TH自身のPSIパネルのみに限定されるため）。
 
 **次回セッションでの検討候補**：`ev-europe-2026`のholiday_calendar.csv（value=0.0のまま）を今後修正する場合、同じ症状がFactory_Local_DE/Factory_Import_HUでも再現するはずなので、そこでの追加確認・修正着手時の参考ケースとして使える。
+
+**【2026-08-21追記】発生条件はholiday_calendar閉鎖に限らない、もっと広い不具合と判明**：
+
+`data/sample/india-ghee-2026`（新規、インド酪農ギー：国内 vs UAE輸出モデル）の構築中に、**上記条件2をholiday_calendar閉鎖なしでも満たしてしまう**ケースを発見した。Ghee_Domestic側（Gujarat集乳協同組合を2 leaf_in "Anand_Milk_Route"/"Kheda_Milk_Route"で表現、Ghee_Plant_Anandへ合流）に、holiday_calendar.csvの`demand_multiplier`（ディワリ需要スパイク、leaf_outにのみ作用しCapHardシーリングに一切触れない"安全"な仕組みのはず）を適用したところ、**閉鎖イベントが存在しないにもかかわらず同じ症状が再現した**（Ghee_Plant_AnandでCO=20,386固定、ディワリ前倒し生産週から発生し以降ずっと解消しない）。
+
+一方、同じ2 leaf_in構成でもディワリのような需要の不連続点を持たないGhee_Export側（Anand_Export_Route/Mehsana_Milk_Route → Ghee_Plant_Export、需要は滑らかに推移するのみ）は**完全にクリーン**（CO=0、cap_hard_sealed=0）だった。
+
+これにより、**真の発生条件は「holiday_calendar閉鎖」ではなく、より一般に「MOMノードの週次demand.Sに何らかの不連続（段差）が生じること」**だと判明した。demand_multiplierでもBackwardのLTオフセット経由でMOM自身のdemand.Sに段差が生じれば同じ経路（`_propagate_to_parent`の重複extend＋Step 0aのCapHardシーリング）を踏んでしまう。closure（cap_hard起点の段差）はこの一般条件の一例に過ぎなかった。
+
+**india-ghee-2026での回避策**：Ghee_Domestic側は2 leaf_inを`Gujarat_Milk_Collective`という単一leaf_inに統合（需要スパイクがあるチェーンは単一leaf_inで安全運用）。Ghee_Export側は2 leaf_in構成のまま維持（需要が滑らかなので安全）。結果、GM=20.0%・cap_hard_sealed=0・trust_events=0・CO=0（全ノード）を確認。
+
+**運用上の指針（次に多leaf_in構成を作るClaude君へ）**：MOMに2つ以上のleaf_inを持たせる場合、そのMOM側のチェーンには**閉鎖イベントだけでなく、需要側の段差（祭日デマンドスパイク、季節切替の急激な変化点等）も一切持ち込まないこと**。段差が必要なストーリーなら、その多leaf_inを持つMOMではなく、需要が滑らかな別チェーン側に多leaf_in構成を寄せるか、単一leaf_inに単純化すること。
