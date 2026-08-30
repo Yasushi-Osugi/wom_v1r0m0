@@ -1399,3 +1399,21 @@ Management（`ask_global_allocation`）/ Demand（`lane_assignment.csv`）/ Supp
 **india-ghee-2026での回避策**：Ghee_Domestic側は2 leaf_inを`Gujarat_Milk_Collective`という単一leaf_inに統合（需要スパイクがあるチェーンは単一leaf_inで安全運用）。Ghee_Export側は2 leaf_in構成のまま維持（需要が滑らかなので安全）。結果、GM=20.0%・cap_hard_sealed=0・trust_events=0・CO=0（全ノード）を確認。
 
 **運用上の指針（次に多leaf_in構成を作るClaude君へ）**：MOMに2つ以上のleaf_inを持たせる場合、そのMOM側のチェーンには**閉鎖イベントだけでなく、需要側の段差（祭日デマンドスパイク、季節切替の急激な変化点等）も一切持ち込まないこと**。段差が必要なストーリーなら、その多leaf_inを持つMOMではなく、需要が滑らかな別チェーン側に多leaf_in構成を寄せるか、単一leaf_inに単純化すること。
+
+## 設計メモ：合流と組立、そして自動チューニング（構想のみ・実装なし、2026-08-28）
+
+**設計文書（正典）**：`docs/design/design_memo_confluence_assembly_autotuning.md`
+
+三つの構想を記録したもの。**仕様確定なし・コード変更なし。**
+
+- **A**：酪農の生乳生産者は `leaf_in` ではなく `MOM` として定義すべきではないか
+- **B**：InBound の組立工程（全部材の Lot_ID が揃った時点で組み立て、Lot_ID を一つにして I に残す）
+- **C**：sweep loop → auto-debug → auto-tuning の三段階
+
+**整理された論点：**
+
+- **合流型と組立型は別物**。酪農は「同じものが集まる（揃う必要がない）」、製造は「異なるものが揃って一つになる（揃わないと作れない）」。現在の `_propagate_to_parent` は**合流としては正しく、組立としては誤り**。A1 の原因仮説（重複 extend で P が過大）は、合流型なら成立しない
+- **auto-debug は静的 lint とは別の層**。lint は実行前（CSV のみ）、auto-debug は実行後（結果の判定）。判定ルールは 2026-08-27 のスイープで見つかった症状から導出できる
+- **auto-tuning は「モデルが動くための設定」（`warmup_lt` 等、正しい値が一意）と「経営が決めるべき選択」（配分比率、decoupling 位置等、地形を渡すべき）を分ければ、「最適化しない」という WOM の思想と矛盾しない**
+
+**依存関係**：A1 の原因確定が A・B のボトルネック。**C は A1 と独立に進められる**（むしろ C② があれば A1 の検証が機械化できる）。
