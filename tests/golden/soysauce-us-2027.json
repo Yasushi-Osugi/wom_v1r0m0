@@ -35,19 +35,19 @@
     "Soy_Sauce": {
       "Bottling_Noda": {
         "CO": 0,
-        "I_max": 3000,
-        "I_sum": 175850,
-        "P": 89050,
+        "I_max": 1500,
+        "I_sum": 75750,
+        "P": 85750,
         "S": 92712,
-        "series_md5": "791486d76329"
+        "series_md5": "0cd5fc019065"
       },
       "Brewing_Noda": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 89050,
-        "S": 89050,
-        "series_md5": "36cfce3c2eda"
+        "P": 85750,
+        "S": 85750,
+        "series_md5": "5e0a132f2195"
       },
       "DC_EU_RTM": {
         "CO": 0,
@@ -82,20 +82,20 @@
         "series_md5": "67f29edc9d04"
       },
       "FG_WH_Noda": {
-        "CO": 1034162,
+        "CO": 1020762,
         "I_max": 3000,
-        "I_sum": 182650,
-        "P": 83750,
+        "I_sum": 257250,
+        "P": 85750,
         "S": 96187,
-        "series_md5": "86a43fe6bb15"
+        "series_md5": "d83189d111d4"
       },
       "Materials_JP": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 89050,
-        "S": 89050,
-        "series_md5": "24a7c75927df"
+        "P": 85750,
+        "S": 85750,
+        "series_md5": "a3296cda68d6"
       },
       "Rest_BE": {
         "CO": 0,
@@ -146,12 +146,12 @@
         "series_md5": "f4114ab5eb45"
       },
       "SP_Soy": {
-        "CO": 786086,
-        "I_max": 2000,
-        "I_sum": 105000,
-        "P": 86750,
+        "CO": 696086,
+        "I_max": 1500,
+        "I_sum": 13000,
+        "P": 85750,
         "S": 92712,
-        "series_md5": "14f1dd42bbfe"
+        "series_md5": "d2d384ccd46a"
       }
     }
   }

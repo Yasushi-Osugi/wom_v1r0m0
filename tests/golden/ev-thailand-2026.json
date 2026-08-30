@@ -38,9 +38,9 @@
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 9554,
-        "S": 9554,
-        "series_md5": "24670ff070e7"
+        "P": 9370,
+        "S": 9370,
+        "series_md5": "5b799e876368"
       },
       "DC_EV_Import": {
         "CO": 100142,
@@ -53,18 +53,18 @@
       "Factory_Import_CN": {
         "CO": 0,
         "I_max": 62,
-        "I_sum": 3263,
-        "P": 9554,
+        "I_sum": 3119,
+        "P": 9370,
         "S": 9770,
-        "series_md5": "c547a46e6a14"
+        "series_md5": "2f127911abef"
       },
       "SP_EV_Import": {
         "CO": 40600,
         "I_max": 172,
-        "I_sum": 15749,
-        "P": 9538,
+        "I_sum": 15621,
+        "P": 9370,
         "S": 9770,
-        "series_md5": "cb91b3ef28a8"
+        "series_md5": "1c0cfdf78f14"
       },
       "Sales_TH_BKK_i": {
         "CO": 0,

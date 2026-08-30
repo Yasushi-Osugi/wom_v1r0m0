@@ -280,6 +280,31 @@ class PushProductionPlanner:
             # some other lots of the same quantity."
             ref = demand_ref_node if demand_ref_node is not None else decoupling_node
             lt_weeks = config.push_lead_time_weeks
+
+            # Bug fix (2026-08-30, per Request Letter
+            # request_fix_mode4_double_count.md): Step 5
+            # (copy_demand_to_supply) deep-copies psi4demand[P] into
+            # psi4supply[P] for EVERY week of every node, including these
+            # leaf_in nodes. The loop below only overwrites the specific
+            # weeks it actually re-times (w such that
+            # ref.psi4demand[w+lt_weeks][S] is non-empty); any other week
+            # was left holding that Step-5 "natural" (non-shifted) copy.
+            # Since the natural copy sits at week (d - tau) -- tau being
+            # this leaf_in's own cumulative transit offset (lt_wks +
+            # ss_wks) back to the decoupling node -- and this loop places
+            # the SAME Lot_IDs at week (d - lt_weeks), the two land on
+            # different weeks whenever lt_weeks != tau, duplicating every
+            # Lot_ID across two weeks and inflating this leaf_in's P_sum
+            # (confirmed by tools/sweep_specs/apparel_s1_lt3.yaml -- P_sum
+            # returns exactly to baseline only at the coincidental
+            # lt_weeks == tau point). Clearing every week up front, for
+            # ONLY the leaf_in nodes this mode is about to (re)populate,
+            # restores the intended "re-timing, not duplication" semantics
+            # without touching any other node or PUSH mode.
+            for leaf_node in leaf_in_nodes:
+                for w in range(n_weeks):
+                    leaf_node.psi4supply[w][P] = []
+
             for w in range(n_weeks):
                 future_w = w + lt_weeks
                 lots = list(ref.psi4demand[future_w][S]) if future_w < n_weeks else []

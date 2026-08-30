@@ -38,49 +38,49 @@
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 2808,
-        "S": 2808,
-        "series_md5": "765849f9b28e"
+        "P": 2698,
+        "S": 2698,
+        "series_md5": "39e7667da157"
       },
       "DC_EV_Import": {
-        "CO": 60202,
+        "CO": 60186,
         "I_max": 230,
-        "I_sum": 15858,
-        "P": 7929,
+        "I_sum": 15890,
+        "P": 7945,
         "S": 8661,
-        "series_md5": "cc5f8c50b987"
+        "series_md5": "1021097299bf"
       },
       "ECU_HU": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 2669,
-        "S": 2669,
-        "series_md5": "043f53b51a97"
+        "P": 2619,
+        "S": 2619,
+        "series_md5": "9b54d7cd6a86"
       },
       "Factory_Import_HU": {
         "CO": 0,
-        "I_max": 176,
-        "I_sum": 3088,
-        "P": 8215,
+        "I_max": 53,
+        "I_sum": 2132,
+        "P": 7945,
         "S": 8345,
-        "series_md5": "2696314f86fb"
+        "series_md5": "588c9e9e4ef1"
       },
       "Motor_HU": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 2738,
-        "S": 2738,
-        "series_md5": "4b8e9e7fb514"
+        "P": 2628,
+        "S": 2628,
+        "series_md5": "a4f44444cc2b"
       },
       "SP_EV_Import": {
-        "CO": 34264,
+        "CO": 34200,
         "I_max": 167,
-        "I_sum": 11373,
-        "P": 8039,
+        "I_sum": 11139,
+        "P": 7945,
         "S": 8345,
-        "series_md5": "976482ecb6cd"
+        "series_md5": "36fc51c68b60"
       },
       "Sales_DE_BER_i": {
         "CO": 0,
