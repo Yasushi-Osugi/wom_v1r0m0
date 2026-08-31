@@ -154,6 +154,32 @@ class PlanNode:
     #                      nodes that plan leveled production (heijunka).
     demand_envelope: str = "hard"
 
+    # -- Supply role (A1 fix, Request Letter: request_fix_a1_supply_role_rev2.md) ──
+    # Interpreted as an edge attribute: "how does THIS node's demand relate to
+    # its siblings under the same parent?" Read from sc_tree_master.csv's
+    # supply_role column (on the CHILD's row). Only meaningful when a node
+    # has 2+ children in the InBound tree -- BackwardPlanner._in_propagate
+    # groups children by this attribute before propagating demand downward:
+    #   "confluence" : same-kind supply converging from multiple routes
+    #                  (e.g. milk from two collection circles). Siblings
+    #                  marked "confluence" SPLIT the parent's demand between
+    #                  them (equal + remainder), since either one satisfying
+    #                  part of the need is physically correct.
+    #   "assembly"   : different components that must all be present
+    #                  (e.g. a battery AND a motor AND an ECU per vehicle).
+    #                  Each "assembly" sibling receives the FULL lot list,
+    #                  unmultiplied. A future BOM quantity N (the "1 set
+    #                  rule", e.g. 4 tyres per vehicle) does NOT touch this
+    #                  list -- lot counts stay 1:1 parent-to-child so
+    #                  Lot_ID identity is preserved; N instead scales the
+    #                  physical quantity a lot represents (capacity
+    #                  thresholds, cost formulas, KPI unit counts, PPC
+    #                  display), entirely outside this layer.
+    #   "" (blank)   : treated as "assembly" (safe default -- this preserves
+    #                  every existing model's current "duplicate to every
+    #                  child" behaviour unchanged).
+    supply_role: str = "assembly"
+
     # -- Week index lookup (set after init_psi) ────────────────────────────
     # week_labels[week_idx] = ISO week string, e.g. "2026-W01"
     week_labels: List[str] = field(default_factory=list, repr=False)

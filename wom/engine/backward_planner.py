@@ -384,6 +384,16 @@ class BackwardPlanner:
         v1r0m3: P update skipped for MOM nodes in mom_constrained mode.
         P was already set by _apply_mom_cap_backward (Phase 3b) which runs
         before this method. Appending again would double-count within_cap lots.
+
+        A1 fix (request_fix_a1_supply_role_rev2.md): when a node has 2+
+        children, they are grouped by `supply_role` before propagation
+        (see _propagate_to_children below). Previously EVERY child received
+        a full copy of `all_lots` regardless of sibling count, which is only
+        correct for "assembly" (BOM) semantics; "confluence" siblings (same
+        physical supply arriving via multiple routes) must instead SPLIT the
+        demand, or the same Lot_ID is counted once per sibling downstream
+        (see India Ghee A1: Ghee_Plant_Anand P_sum inflated to ~2x with two
+        leaf_in children, later clipped by cap_hard into phantom CO).
         """
         for w in range(n_weeks):
             all_lots = list(node.psi4demand[w][S])
@@ -396,18 +406,76 @@ class BackwardPlanner:
                 for lot_id in all_lots:
                     node.psi4demand[w][P].append(lot_id)
 
-            # -- Propagate all lots to each child (supplier) ----------------
-            for lot_id in all_lots:
-                for child in node.children:
-                    # NOTE: init_stock_wks (X2) is intentionally NOT applied here.
-                    # Decision 7: InBound-side pre-build is owned by
-                    # push_lead_time_weeks (Mode 4); X2 is OutBound-only.
-                    child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
-                    if child_w < 0:
+            self._propagate_to_children(node, w, all_lots, n_weeks, result)
+
+    def _propagate_to_children(
+        self,
+        node:     PlanNode,
+        w:        int,
+        all_lots: List[str],
+        n_weeks:  int,
+        result:   BackwardPlanResult,
+    ) -> None:
+        """
+        Distribute one week's demand lots from `node` to its InBound children,
+        grouped by each child's `supply_role` (A1 fix, request_fix_a1_supply_role_rev2.md).
+
+            "assembly"   (default): each child gets the FULL lot list.
+                          A future BOM quantity N (the "1 set rule", e.g. 4
+                          tyres per vehicle) does NOT belong here: lot counts
+                          stay 1:1 between parent and child so Lot_ID identity
+                          is preserved (repeating `all_lots` would recreate
+                          the exact same-Lot_ID-counted-twice bug this fix
+                          removes -- see the owner's note on
+                          request_fix_a1_supply_role_rev2.md). N instead
+                          multiplies the physical quantity a lot represents
+                          (capacity thresholds, cost formulas, KPI unit
+                          counts, PPC display), e.g.
+                          S_Qty[w] = len(psi[w][S]) * cpu_size * N --
+                          entirely outside this lot-identity layer.
+            "confluence": all confluence siblings SPLIT all_lots between them
+                          (equal share + remainder, divmod-based contiguous
+                          slice -- same idiom as push_pull.py's Mode4 leaf-in
+                          distribution). A single confluence child (or a
+                          single child overall) gets 100% of the lots, same
+                          as today.
+
+        `child_w` is computed per child (lt_wks/ss_wks can differ per child).
+        """
+        if not node.children:
+            return
+
+        confluence_children = [c for c in node.children if c.supply_role == "confluence"]
+        assembly_children   = [c for c in node.children if c.supply_role != "confluence"]
+
+        # -- assembly: full copy per child ---------------------------------
+        for child in assembly_children:
+            child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
+            if child_w < 0:
+                for lot_id in all_lots:
+                    result.record_past_due(child.node_id, lot_id, w)
+            elif child_w < n_weeks:
+                for lot_id in all_lots:
+                    child.psi4demand[child_w][S].append(lot_id)
+                result.in_propagations += len(all_lots)
+
+        # -- confluence: split all_lots across siblings (equal + remainder) ---
+        if confluence_children:
+            n = len(confluence_children)
+            base, remainder = divmod(len(all_lots), n)
+            idx = 0
+            for i, child in enumerate(confluence_children):
+                take = base + (1 if i < remainder else 0)
+                child_lots = all_lots[idx: idx + take]
+                idx += take
+                child_w = self._offset_week(w, child.lt_wks + child.ss_wks, child.node_name)
+                if child_w < 0:
+                    for lot_id in child_lots:
                         result.record_past_due(child.node_id, lot_id, w)
-                    elif child_w < n_weeks:
+                elif child_w < n_weeks:
+                    for lot_id in child_lots:
                         child.psi4demand[child_w][S].append(lot_id)
-                        result.in_propagations += 1
+                    result.in_propagations += len(child_lots)
 
     # ======================================================================
     # Phase 3b: MOM constrained demand allocation (v1r0m3)

@@ -1,113 +1,113 @@
-node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,ss_days,buffering_stock_flag,description
-SP_Apparel_Outsourced,,Apparel_Outsourced_S1,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S1)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S1,dad,outbound,4,1,US,21,1,輸入バッファDC (Pre-Spring / 初春物)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S1,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Pre-Spring / 初春物)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S1,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Pre-Spring / 初春物)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S1,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Pre-Spring / 初春物)
-Factory_Import_CN,,Apparel_Outsourced_S1,mom,inbound,8,1,CN,0,0,契約工場 (Pre-Spring / 初春物)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S1,leaf_in,inbound,3,1,CN,0,0,生地調達 (Pre-Spring / 初春物)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S2,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S2)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S2,dad,outbound,4,1,US,21,1,輸入バッファDC (Spring / 春物)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S2,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Spring / 春物)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S2,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Spring / 春物)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S2,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Spring / 春物)
-Factory_Import_CN,,Apparel_Outsourced_S2,mom,inbound,8,1,CN,0,0,契約工場 (Spring / 春物)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S2,leaf_in,inbound,3,1,CN,0,0,生地調達 (Spring / 春物)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S3,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S3)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S3,dad,outbound,4,1,US,21,1,輸入バッファDC (Early Summer / 初夏物)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S3,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Summer / 初夏物)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S3,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Summer / 初夏物)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S3,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Early Summer / 初夏物)
-Factory_Import_CN,,Apparel_Outsourced_S3,mom,inbound,8,1,CN,0,0,契約工場 (Early Summer / 初夏物)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S3,leaf_in,inbound,3,1,CN,0,0,生地調達 (Early Summer / 初夏物)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S4,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S4)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S4,dad,outbound,4,1,US,21,1,輸入バッファDC (High Summer / 盛夏物)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S4,leaf_out,outbound,1,1,TX,0,0,TX店舗 (High Summer / 盛夏物)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S4,leaf_out,outbound,1,1,CA,0,0,CA店舗 (High Summer / 盛夏物)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S4,leaf_out,outbound,2,1,NY,0,0,NY店舗 (High Summer / 盛夏物)
-Factory_Import_CN,,Apparel_Outsourced_S4,mom,inbound,8,1,CN,0,0,契約工場 (High Summer / 盛夏物)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S4,leaf_in,inbound,3,1,CN,0,0,生地調達 (High Summer / 盛夏物)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S5,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S5)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S5,dad,outbound,4,1,US,21,1,輸入バッファDC (Early Fall / 初秋物)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S5,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Fall / 初秋物)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S5,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Fall / 初秋物)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S5,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Early Fall / 初秋物)
-Factory_Import_CN,,Apparel_Outsourced_S5,mom,inbound,8,1,CN,0,0,契約工場 (Early Fall / 初秋物)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S5,leaf_in,inbound,3,1,CN,0,0,生地調達 (Early Fall / 初秋物)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S6,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S6)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S6,dad,outbound,4,1,US,21,1,輸入バッファDC (Fall Coats / 秋物・コート)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S6,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Fall Coats / 秋物・コート)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S6,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Fall Coats / 秋物・コート)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S6,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Fall Coats / 秋物・コート)
-Factory_Import_CN,,Apparel_Outsourced_S6,mom,inbound,8,1,CN,0,0,契約工場 (Fall Coats / 秋物・コート)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S6,leaf_in,inbound,3,1,CN,0,0,生地調達 (Fall Coats / 秋物・コート)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S7,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S7)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S7,dad,outbound,4,1,US,21,1,輸入バッファDC (Early Winter / 初冬物)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S7,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Winter / 初冬物)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S7,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Winter / 初冬物)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S7,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Early Winter / 初冬物)
-Factory_Import_CN,,Apparel_Outsourced_S7,mom,inbound,8,1,CN,0,0,契約工場 (Early Winter / 初冬物)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S7,leaf_in,inbound,3,1,CN,0,0,生地調達 (Early Winter / 初冬物)
-SP_Apparel_Outsourced,,Apparel_Outsourced_S8,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S8)
-DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S8,dad,outbound,4,1,US,21,1,輸入バッファDC (Winter Holiday / 真冬・ホリデー)
-Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S8,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Winter Holiday / 真冬・ホリデー)
-Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S8,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Winter Holiday / 真冬・ホリデー)
-Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S8,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Winter Holiday / 真冬・ホリデー)
-Factory_Import_CN,,Apparel_Outsourced_S8,mom,inbound,8,1,CN,0,0,契約工場 (Winter Holiday / 真冬・ホリデー)
-Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S8,leaf_in,inbound,3,1,CN,0,0,生地調達 (Winter Holiday / 真冬・ホリデー)
-SP_Apparel_Integrated,,Apparel_Integrated_S1,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S1)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S1,dad,outbound,1,1,US,7,1,航空輸送受入DC (Pre-Spring / 初春物)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S1,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Pre-Spring / 初春物)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S1,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Pre-Spring / 初春物)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S1,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Pre-Spring / 初春物)
-Factory_Local_ES,,Apparel_Integrated_S1,mom,inbound,1,1,ES,0,0,自社工場 (Pre-Spring / 初春物)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S1,leaf_in,inbound,1,1,ES,0,0,生地調達 (Pre-Spring / 初春物)
-SP_Apparel_Integrated,,Apparel_Integrated_S2,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S2)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S2,dad,outbound,1,1,US,7,1,航空輸送受入DC (Spring / 春物)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S2,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Spring / 春物)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S2,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Spring / 春物)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S2,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Spring / 春物)
-Factory_Local_ES,,Apparel_Integrated_S2,mom,inbound,1,1,ES,0,0,自社工場 (Spring / 春物)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S2,leaf_in,inbound,1,1,ES,0,0,生地調達 (Spring / 春物)
-SP_Apparel_Integrated,,Apparel_Integrated_S3,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S3)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S3,dad,outbound,1,1,US,7,1,航空輸送受入DC (Early Summer / 初夏物)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S3,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Summer / 初夏物)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S3,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Summer / 初夏物)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S3,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Early Summer / 初夏物)
-Factory_Local_ES,,Apparel_Integrated_S3,mom,inbound,1,1,ES,0,0,自社工場 (Early Summer / 初夏物)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S3,leaf_in,inbound,1,1,ES,0,0,生地調達 (Early Summer / 初夏物)
-SP_Apparel_Integrated,,Apparel_Integrated_S4,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S4)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S4,dad,outbound,1,1,US,7,1,航空輸送受入DC (High Summer / 盛夏物)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S4,leaf_out,outbound,1,1,TX,0,0,TX店舗 (High Summer / 盛夏物)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S4,leaf_out,outbound,1,1,CA,0,0,CA店舗 (High Summer / 盛夏物)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S4,leaf_out,outbound,1,1,NY,0,0,NY店舗 (High Summer / 盛夏物)
-Factory_Local_ES,,Apparel_Integrated_S4,mom,inbound,1,1,ES,0,0,自社工場 (High Summer / 盛夏物)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S4,leaf_in,inbound,1,1,ES,0,0,生地調達 (High Summer / 盛夏物)
-SP_Apparel_Integrated,,Apparel_Integrated_S5,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S5)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S5,dad,outbound,1,1,US,7,1,航空輸送受入DC (Early Fall / 初秋物)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S5,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Fall / 初秋物)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S5,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Fall / 初秋物)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S5,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Early Fall / 初秋物)
-Factory_Local_ES,,Apparel_Integrated_S5,mom,inbound,1,1,ES,0,0,自社工場 (Early Fall / 初秋物)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S5,leaf_in,inbound,1,1,ES,0,0,生地調達 (Early Fall / 初秋物)
-SP_Apparel_Integrated,,Apparel_Integrated_S6,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S6)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S6,dad,outbound,1,1,US,7,1,航空輸送受入DC (Fall Coats / 秋物・コート)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S6,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Fall Coats / 秋物・コート)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S6,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Fall Coats / 秋物・コート)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S6,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Fall Coats / 秋物・コート)
-Factory_Local_ES,,Apparel_Integrated_S6,mom,inbound,1,1,ES,0,0,自社工場 (Fall Coats / 秋物・コート)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S6,leaf_in,inbound,1,1,ES,0,0,生地調達 (Fall Coats / 秋物・コート)
-SP_Apparel_Integrated,,Apparel_Integrated_S7,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S7)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S7,dad,outbound,1,1,US,7,1,航空輸送受入DC (Early Winter / 初冬物)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S7,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Winter / 初冬物)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S7,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Winter / 初冬物)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S7,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Early Winter / 初冬物)
-Factory_Local_ES,,Apparel_Integrated_S7,mom,inbound,1,1,ES,0,0,自社工場 (Early Winter / 初冬物)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S7,leaf_in,inbound,1,1,ES,0,0,生地調達 (Early Winter / 初冬物)
-SP_Apparel_Integrated,,Apparel_Integrated_S8,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S8)
-DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S8,dad,outbound,1,1,US,7,1,航空輸送受入DC (Winter Holiday / 真冬・ホリデー)
-Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S8,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Winter Holiday / 真冬・ホリデー)
-Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S8,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Winter Holiday / 真冬・ホリデー)
-Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S8,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Winter Holiday / 真冬・ホリデー)
-Factory_Local_ES,,Apparel_Integrated_S8,mom,inbound,1,1,ES,0,0,自社工場 (Winter Holiday / 真冬・ホリデー)
-Fabric_ES,Factory_Local_ES,Apparel_Integrated_S8,leaf_in,inbound,1,1,ES,0,0,生地調達 (Winter Holiday / 真冬・ホリデー)
+node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,ss_days,buffering_stock_flag,description,supply_role
+SP_Apparel_Outsourced,,Apparel_Outsourced_S1,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S1),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S1,dad,outbound,4,1,US,21,1,輸入バッファDC (Pre-Spring / 初春物),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S1,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Pre-Spring / 初春物),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S1,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Pre-Spring / 初春物),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S1,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Pre-Spring / 初春物),
+Factory_Import_CN,,Apparel_Outsourced_S1,mom,inbound,8,1,CN,0,0,契約工場 (Pre-Spring / 初春物),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S1,leaf_in,inbound,3,1,CN,0,0,生地調達 (Pre-Spring / 初春物),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S2,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S2),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S2,dad,outbound,4,1,US,21,1,輸入バッファDC (Spring / 春物),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S2,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Spring / 春物),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S2,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Spring / 春物),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S2,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Spring / 春物),
+Factory_Import_CN,,Apparel_Outsourced_S2,mom,inbound,8,1,CN,0,0,契約工場 (Spring / 春物),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S2,leaf_in,inbound,3,1,CN,0,0,生地調達 (Spring / 春物),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S3,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S3),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S3,dad,outbound,4,1,US,21,1,輸入バッファDC (Early Summer / 初夏物),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S3,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Summer / 初夏物),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S3,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Summer / 初夏物),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S3,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Early Summer / 初夏物),
+Factory_Import_CN,,Apparel_Outsourced_S3,mom,inbound,8,1,CN,0,0,契約工場 (Early Summer / 初夏物),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S3,leaf_in,inbound,3,1,CN,0,0,生地調達 (Early Summer / 初夏物),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S4,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S4),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S4,dad,outbound,4,1,US,21,1,輸入バッファDC (High Summer / 盛夏物),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S4,leaf_out,outbound,1,1,TX,0,0,TX店舗 (High Summer / 盛夏物),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S4,leaf_out,outbound,1,1,CA,0,0,CA店舗 (High Summer / 盛夏物),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S4,leaf_out,outbound,2,1,NY,0,0,NY店舗 (High Summer / 盛夏物),
+Factory_Import_CN,,Apparel_Outsourced_S4,mom,inbound,8,1,CN,0,0,契約工場 (High Summer / 盛夏物),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S4,leaf_in,inbound,3,1,CN,0,0,生地調達 (High Summer / 盛夏物),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S5,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S5),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S5,dad,outbound,4,1,US,21,1,輸入バッファDC (Early Fall / 初秋物),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S5,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Fall / 初秋物),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S5,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Fall / 初秋物),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S5,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Early Fall / 初秋物),
+Factory_Import_CN,,Apparel_Outsourced_S5,mom,inbound,8,1,CN,0,0,契約工場 (Early Fall / 初秋物),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S5,leaf_in,inbound,3,1,CN,0,0,生地調達 (Early Fall / 初秋物),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S6,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S6),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S6,dad,outbound,4,1,US,21,1,輸入バッファDC (Fall Coats / 秋物・コート),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S6,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Fall Coats / 秋物・コート),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S6,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Fall Coats / 秋物・コート),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S6,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Fall Coats / 秋物・コート),
+Factory_Import_CN,,Apparel_Outsourced_S6,mom,inbound,8,1,CN,0,0,契約工場 (Fall Coats / 秋物・コート),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S6,leaf_in,inbound,3,1,CN,0,0,生地調達 (Fall Coats / 秋物・コート),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S7,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S7),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S7,dad,outbound,4,1,US,21,1,輸入バッファDC (Early Winter / 初冬物),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S7,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Winter / 初冬物),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S7,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Winter / 初冬物),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S7,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Early Winter / 初冬物),
+Factory_Import_CN,,Apparel_Outsourced_S7,mom,inbound,8,1,CN,0,0,契約工場 (Early Winter / 初冬物),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S7,leaf_in,inbound,3,1,CN,0,0,生地調達 (Early Winter / 初冬物),
+SP_Apparel_Outsourced,,Apparel_Outsourced_S8,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Outsourced_S8),
+DC_Import_Buffer,SP_Apparel_Outsourced,Apparel_Outsourced_S8,dad,outbound,4,1,US,21,1,輸入バッファDC (Winter Holiday / 真冬・ホリデー),
+Sales_US_TX_I,DC_Import_Buffer,Apparel_Outsourced_S8,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Winter Holiday / 真冬・ホリデー),
+Sales_US_CA_I,DC_Import_Buffer,Apparel_Outsourced_S8,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Winter Holiday / 真冬・ホリデー),
+Sales_US_NY_I,DC_Import_Buffer,Apparel_Outsourced_S8,leaf_out,outbound,2,1,NY,0,0,NY店舗 (Winter Holiday / 真冬・ホリデー),
+Factory_Import_CN,,Apparel_Outsourced_S8,mom,inbound,8,1,CN,0,0,契約工場 (Winter Holiday / 真冬・ホリデー),
+Fabric_CN,Factory_Import_CN,Apparel_Outsourced_S8,leaf_in,inbound,3,1,CN,0,0,生地調達 (Winter Holiday / 真冬・ホリデー),
+SP_Apparel_Integrated,,Apparel_Integrated_S1,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S1),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S1,dad,outbound,1,1,US,7,1,航空輸送受入DC (Pre-Spring / 初春物),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S1,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Pre-Spring / 初春物),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S1,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Pre-Spring / 初春物),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S1,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Pre-Spring / 初春物),
+Factory_Local_ES,,Apparel_Integrated_S1,mom,inbound,1,1,ES,0,0,自社工場 (Pre-Spring / 初春物),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S1,leaf_in,inbound,1,1,ES,0,0,生地調達 (Pre-Spring / 初春物),
+SP_Apparel_Integrated,,Apparel_Integrated_S2,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S2),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S2,dad,outbound,1,1,US,7,1,航空輸送受入DC (Spring / 春物),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S2,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Spring / 春物),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S2,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Spring / 春物),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S2,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Spring / 春物),
+Factory_Local_ES,,Apparel_Integrated_S2,mom,inbound,1,1,ES,0,0,自社工場 (Spring / 春物),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S2,leaf_in,inbound,1,1,ES,0,0,生地調達 (Spring / 春物),
+SP_Apparel_Integrated,,Apparel_Integrated_S3,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S3),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S3,dad,outbound,1,1,US,7,1,航空輸送受入DC (Early Summer / 初夏物),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S3,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Summer / 初夏物),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S3,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Summer / 初夏物),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S3,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Early Summer / 初夏物),
+Factory_Local_ES,,Apparel_Integrated_S3,mom,inbound,1,1,ES,0,0,自社工場 (Early Summer / 初夏物),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S3,leaf_in,inbound,1,1,ES,0,0,生地調達 (Early Summer / 初夏物),
+SP_Apparel_Integrated,,Apparel_Integrated_S4,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S4),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S4,dad,outbound,1,1,US,7,1,航空輸送受入DC (High Summer / 盛夏物),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S4,leaf_out,outbound,1,1,TX,0,0,TX店舗 (High Summer / 盛夏物),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S4,leaf_out,outbound,1,1,CA,0,0,CA店舗 (High Summer / 盛夏物),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S4,leaf_out,outbound,1,1,NY,0,0,NY店舗 (High Summer / 盛夏物),
+Factory_Local_ES,,Apparel_Integrated_S4,mom,inbound,1,1,ES,0,0,自社工場 (High Summer / 盛夏物),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S4,leaf_in,inbound,1,1,ES,0,0,生地調達 (High Summer / 盛夏物),
+SP_Apparel_Integrated,,Apparel_Integrated_S5,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S5),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S5,dad,outbound,1,1,US,7,1,航空輸送受入DC (Early Fall / 初秋物),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S5,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Fall / 初秋物),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S5,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Fall / 初秋物),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S5,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Early Fall / 初秋物),
+Factory_Local_ES,,Apparel_Integrated_S5,mom,inbound,1,1,ES,0,0,自社工場 (Early Fall / 初秋物),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S5,leaf_in,inbound,1,1,ES,0,0,生地調達 (Early Fall / 初秋物),
+SP_Apparel_Integrated,,Apparel_Integrated_S6,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S6),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S6,dad,outbound,1,1,US,7,1,航空輸送受入DC (Fall Coats / 秋物・コート),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S6,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Fall Coats / 秋物・コート),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S6,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Fall Coats / 秋物・コート),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S6,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Fall Coats / 秋物・コート),
+Factory_Local_ES,,Apparel_Integrated_S6,mom,inbound,1,1,ES,0,0,自社工場 (Fall Coats / 秋物・コート),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S6,leaf_in,inbound,1,1,ES,0,0,生地調達 (Fall Coats / 秋物・コート),
+SP_Apparel_Integrated,,Apparel_Integrated_S7,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S7),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S7,dad,outbound,1,1,US,7,1,航空輸送受入DC (Early Winter / 初冬物),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S7,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Early Winter / 初冬物),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S7,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Early Winter / 初冬物),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S7,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Early Winter / 初冬物),
+Factory_Local_ES,,Apparel_Integrated_S7,mom,inbound,1,1,ES,0,0,自社工場 (Early Winter / 初冬物),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S7,leaf_in,inbound,1,1,ES,0,0,生地調達 (Early Winter / 初冬物),
+SP_Apparel_Integrated,,Apparel_Integrated_S8,supply_point,outbound,0,1,,0,0,Supply Point bridge (Apparel_Integrated_S8),
+DC_Local_US,SP_Apparel_Integrated,Apparel_Integrated_S8,dad,outbound,1,1,US,7,1,航空輸送受入DC (Winter Holiday / 真冬・ホリデー),
+Sales_US_TX_L,DC_Local_US,Apparel_Integrated_S8,leaf_out,outbound,1,1,TX,0,0,TX店舗 (Winter Holiday / 真冬・ホリデー),
+Sales_US_CA_L,DC_Local_US,Apparel_Integrated_S8,leaf_out,outbound,1,1,CA,0,0,CA店舗 (Winter Holiday / 真冬・ホリデー),
+Sales_US_NY_L,DC_Local_US,Apparel_Integrated_S8,leaf_out,outbound,1,1,NY,0,0,NY店舗 (Winter Holiday / 真冬・ホリデー),
+Factory_Local_ES,,Apparel_Integrated_S8,mom,inbound,1,1,ES,0,0,自社工場 (Winter Holiday / 真冬・ホリデー),
+Fabric_ES,Factory_Local_ES,Apparel_Integrated_S8,leaf_in,inbound,1,1,ES,0,0,生地調達 (Winter Holiday / 真冬・ホリデー),

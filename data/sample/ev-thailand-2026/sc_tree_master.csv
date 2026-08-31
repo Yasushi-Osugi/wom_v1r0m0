@@ -1,15 +1,15 @@
-node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,ss_days,buffering_stock_flag,description
-SP_EV_Local,,EVmaker_Local,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (EVmaker_Local)
-DC_EV_Local,SP_EV_Local,EVmaker_Local,dad,outbound,1,1,TH,7,0,タイ 国内ディーラー配送センター
-Sales_TH_BKK,DC_EV_Local,EVmaker_Local,leaf_out,outbound,1,1,BKK,0,0,バンコク ディーラー（地場代理店）
-Sales_TH_PRO,DC_EV_Local,EVmaker_Local,leaf_out,outbound,2,1,PRO,0,0,地方 ディーラー
-Sales_TH_ONL,DC_EV_Local,EVmaker_Local,leaf_out,outbound,1,1,ONL,0,0,オンライン直販・フリート
-Factory_Local_TH,,EVmaker_Local,mom,inbound,2,1,TH,7,0,タイ国内組立工場 Amata City（年産15万台）
-Battery_CN,Factory_Local_TH,EVmaker_Local,leaf_in,inbound,4,1,CN,0,0,LFPブレードバッテリー 中国内製
-SP_EV_Import,,EVmaker_Import,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (EVmaker_Import)
-DC_EV_Import,SP_EV_Import,EVmaker_Import,dad,outbound,4,1,TH,14,1,輸入バッファ DC（上海→タイ輸入在庫）
-Sales_TH_BKK_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,1,1,BKK,0,0,バンコク旗艦店 直販
-Sales_TH_PRO_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,2,1,PRO,0,0,地方 代理店
-Sales_TH_ONL_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,1,1,ONL,0,0,オンライン直販
-Factory_Import_CN,,EVmaker_Import,mom,inbound,3,1,CN,7,0,上海工場（タイ向け割当）
-Components_CN,Factory_Import_CN,EVmaker_Import,leaf_in,inbound,2,1,CN,0,0,バッテリーセル・電子部品（外部調達）
+node_name,parent_node,product_name,node_type,side,lt_wks,cpu_size,region,ss_days,buffering_stock_flag,description,supply_role
+SP_EV_Local,,EVmaker_Local,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (EVmaker_Local),
+DC_EV_Local,SP_EV_Local,EVmaker_Local,dad,outbound,1,1,TH,7,0,タイ 国内ディーラー配送センター,
+Sales_TH_BKK,DC_EV_Local,EVmaker_Local,leaf_out,outbound,1,1,BKK,0,0,バンコク ディーラー（地場代理店）,
+Sales_TH_PRO,DC_EV_Local,EVmaker_Local,leaf_out,outbound,2,1,PRO,0,0,地方 ディーラー,
+Sales_TH_ONL,DC_EV_Local,EVmaker_Local,leaf_out,outbound,1,1,ONL,0,0,オンライン直販・フリート,
+Factory_Local_TH,,EVmaker_Local,mom,inbound,2,1,TH,7,0,タイ国内組立工場 Amata City（年産15万台）,
+Battery_CN,Factory_Local_TH,EVmaker_Local,leaf_in,inbound,4,1,CN,0,0,LFPブレードバッテリー 中国内製,
+SP_EV_Import,,EVmaker_Import,supply_point,outbound,0,1,,0,0,Supply Point bridge OT/IN (EVmaker_Import),
+DC_EV_Import,SP_EV_Import,EVmaker_Import,dad,outbound,4,1,TH,14,1,輸入バッファ DC（上海→タイ輸入在庫）,
+Sales_TH_BKK_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,1,1,BKK,0,0,バンコク旗艦店 直販,
+Sales_TH_PRO_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,2,1,PRO,0,0,地方 代理店,
+Sales_TH_ONL_i,DC_EV_Import,EVmaker_Import,leaf_out,outbound,1,1,ONL,0,0,オンライン直販,
+Factory_Import_CN,,EVmaker_Import,mom,inbound,3,1,CN,7,0,上海工場（タイ向け割当）,
+Components_CN,Factory_Import_CN,EVmaker_Import,leaf_in,inbound,2,1,CN,0,0,バッテリーセル・電子部品（外部調達）,

@@ -22,6 +22,10 @@ CSV schema (optional)
                            ceil(ss_days/7) extra offset weeks on top of lt_wks
     region       : str   — geographic region; REQUIRED on leaf_out nodes for
                            demand-lot assignment to work (e.g. "AMER")
+    supply_role  : str   — "confluence" | "assembly" | "" (default "assembly").
+                           Only meaningful when a node has 2+ children in the
+                           InBound tree; see PlanNode.supply_role / A1 fix
+                           (request_fix_a1_supply_role_rev2.md).
 
 Tree topology rules
 -------------------
@@ -189,6 +193,11 @@ def _build_product_tree(
         demand_envelope = str(row.get("demand_envelope", "hard") or "hard").strip().lower()
         if demand_envelope not in ("hard", "soft"):
             demand_envelope = "hard"
+        # A1 fix (request_fix_a1_supply_role_rev2.md): blank/unspecified/typo'd
+        # values all default to "assembly" (safe default, existing behaviour).
+        supply_role = str(row.get("supply_role", "") or "").strip().lower()
+        if supply_role != "confluence":
+            supply_role = "assembly"
 
         node_id = _make_node_id(node_type, side, node_name, region, prod_nm)
 
@@ -206,6 +215,7 @@ def _build_product_tree(
             init_stock_days = init_stock_days,
             is_decoupling  = is_decoupling,
             demand_envelope = demand_envelope,
+            supply_role    = supply_role,
         )
         nodes[node_name] = pnode
 
