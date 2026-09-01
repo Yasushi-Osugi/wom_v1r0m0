@@ -17,7 +17,6 @@ CSV schema (required)
 
 CSV schema (optional)
 ---------------------
-    cpu_size     : int   — lot size (default 1)
     ss_days      : int   — safety stock days (default 0); backward planner adds
                            ceil(ss_days/7) extra offset weeks on top of lt_wks
     region       : str   — geographic region; REQUIRED on leaf_out nodes for
@@ -26,6 +25,10 @@ CSV schema (optional)
                            Only meaningful when a node has 2+ children in the
                            InBound tree; see PlanNode.supply_role / A1 fix
                            (request_fix_a1_supply_role_rev2.md).
+
+NOT read from this CSV: `cpu_size` moved to planning_config.csv (Request
+Letter A: request_letter_a_cpu_size_to_plan.md) -- it is a plan-wide value
+(SCTree.cpu_size), not per-node, so a column here would let nodes disagree.
 
 Tree topology rules
 -------------------
@@ -132,7 +135,8 @@ def build_sc_tree_from_master(
         DataFrame loaded from sc_tree_master.csv.
         Required columns: node_name, parent_node, product_name,
                           node_type, side, lt_wks
-        Optional columns: cpu_size, ss_days, init_stock_days, region
+        Optional columns: ss_days, init_stock_days, region, supply_role
+        (cpu_size is NOT read here -- see planning_config.csv / SCTree.cpu_size)
     week_labels:
         Ordered ISO week strings for the planning horizon.
 
@@ -182,7 +186,6 @@ def _build_product_tree(
         # Falls back to lt_wks if not specified (empty/0) in CSV
         _tlt          = row.get("transit_lt_wks", None)
         transit_lt_wks = int(float(_tlt)) if (_tlt is not None and str(_tlt).strip() not in ("", "0", "nan")) else lt_wks
-        cpu_size      = int(row.get("cpu_size", 1) or 1)
         ss_days       = int(row.get("ss_days", 0) or 0)
         # X2: warm-up / initial stock coverage [days] (OutBound only; default 0).
         # Column may be absent in existing models -> 0 = unchanged behaviour.
@@ -210,7 +213,6 @@ def _build_product_tree(
             tier          = 0,       # calculated in Step 3
             lt_wks         = lt_wks,
             transit_lt_wks = transit_lt_wks,
-            cpu_size       = cpu_size,
             ss_days        = ss_days,
             init_stock_days = init_stock_days,
             is_decoupling  = is_decoupling,

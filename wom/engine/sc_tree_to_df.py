@@ -8,7 +8,9 @@ This is the bridge between the Planning Engine (Step 3-11) and the
 Management Layer (money.py / management.py / KPI charts).
 
 Lot → Quantity conversion:
-    quantity = len(psi4supply[w][bucket]) × node.cpu_size
+    quantity = len(psi4supply[w][bucket]) × sc_tree.cpu_size
+    (cpu_size is a plan-wide value, not per-node -- Request Letter A:
+    request_letter_a_cpu_size_to_plan.md)
 
 Output columns (match inventory.py rows exactly):
     scenario, sku_id, region, week,
@@ -48,7 +50,11 @@ def sc_tree_to_planning_df(
     scenario_name : str
         Value written to the ``scenario`` column (default "Planning").
     cpu_size_default : int
-        Fallback cpu_size when the node attribute is missing.
+        Unused (Request Letter A: request_letter_a_cpu_size_to_plan.md).
+        cpu_size is now a plan-wide value read from ``sc_tree.cpu_size``
+        (always present, default 1 -- see SCTree.__init__), not a per-node
+        attribute, so there is nothing left for this parameter to fall back
+        for. Kept only for call-signature compatibility.
 
     Returns
     -------
@@ -71,7 +77,7 @@ def sc_tree_to_planning_df(
             # Derive region from node_id: "OUT:Sales:{region}:{sku}"
             parts  = leaf.node_id.split(":")
             region = parts[2] if len(parts) >= 4 else "?"
-            cpu    = getattr(leaf, "cpu_size", cpu_size_default) or cpu_size_default
+            cpu    = sc_tree.cpu_size
 
             prev_closing = 0.0
 
@@ -132,7 +138,7 @@ def sc_tree_to_planning_df(
             # Derive region from node_id e.g. "OUT:DC:JP:SKU-A" -> "JP"
             parts  = dad.node_id.split(":")
             region = parts[2] if len(parts) >= 4 else dad.node_name
-            cpu    = getattr(dad, "cpu_size", cpu_size_default) or cpu_size_default
+            cpu    = sc_tree.cpu_size
 
             prev_closing = 0.0
 

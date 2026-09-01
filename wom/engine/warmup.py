@@ -23,6 +23,12 @@ wom/engine/warmup.py — Planning Warm-up 行の materialize（案B-safe）
 
 backward-compat：`planning_config.csv` が無く、かつ引数指定も無ければ**完全 no-op**（ファイルに触れない）。
 → 既存ケース（config 無し）は挙動不変・golden 緑。
+
+`cpu_size`（Request Letter A: request_letter_a_cpu_size_to_plan.md）：
+    同じ `planning_config.csv` の `cpu_size` キー（既定 1）。`warmup_lt`/`planning_start`
+    と異なり CSV を書き換える materialize 処理は無く、`read_cpu_size()` で読んだ値を
+    呼び出し元（app.py / run_headless_from_folder.py / sweep_flags.py）が
+    `SCTree.cpu_size` へその都度代入する（計画全体で1つの値、ノード単位ではない）。
 """
 from __future__ import annotations
 
@@ -123,6 +129,32 @@ def read_planning_config(model_dir: str) -> Tuple[Optional[int], str]:
             elif k == "planning_start":
                 planning_start = v
     return warmup_lt, planning_start
+
+
+def read_cpu_size(model_dir: str) -> int:
+    """
+    planning_config.csv（key,value）の cpu_size キーを読む（Request Letter A:
+    request_letter_a_cpu_size_to_plan.md）。
+
+    cpu_size is a plan-wide Common Planning Unit -- every node in a plan is
+    meant to share one value, so (unlike warmup_lt/planning_start, which are
+    read once and consumed immediately by materialize_warmup) it is exposed
+    as its own function for callers to assign onto SCTree.cpu_size once per
+    planning run (see wom.model.sc_tree.SCTree.__init__).
+
+    既定 1（ファイルが無い場合・キーが無い場合・値が空の場合のいずれも）。
+    既存モデルとの後方互換を保つための既定値であり、意図的な設計。
+    """
+    path = os.path.join(model_dir, _CONFIG)
+    if not os.path.exists(path):
+        return 1
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            k = (row.get("key") or "").strip()
+            v = (row.get("value") or "").strip()
+            if k == "cpu_size":
+                return int(v) if v != "" else 1
+    return 1
 
 
 def first_nonzero_demand_week(demand_path: str) -> Optional[str]:

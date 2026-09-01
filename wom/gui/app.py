@@ -411,7 +411,7 @@ class ChartPanel(tk.Frame):
             for node in in_root.walk_preorder():
                 if node.node_type != NODE_TYPE_MOM:
                     continue
-                cpu = getattr(node, "cpu_size", 1) or 1
+                cpu = sc.cpu_size
                 inv_vals = [len(node.psi4supply[w][I_IDX]) * cpu for w in range(n)]
                 if all(v == 0 for v in inv_vals):
                     continue
@@ -479,7 +479,7 @@ class ChartPanel(tk.Frame):
             for node in in_root.walk_preorder():
                 if node.node_type != NODE_TYPE_LEAF_IN:
                     continue
-                cpu = getattr(node, "cpu_size", 1) or 1
+                cpu = sc.cpu_size
                 # S = sales/dispatched from farm = harvest output
                 supply_vals = [len(node.psi4demand[w][S_IDX]) * cpu for w in range(n)]
                 if all(v == 0 for v in supply_vals):
@@ -5088,6 +5088,18 @@ class WOMApp(tk.Tk):
         else:
             sc_tree = build_demo_sc_tree(sku_df, weeks, lt_wks_ot=1, lt_wks_in=2)
 
+        # Request Letter A (request_letter_a_cpu_size_to_plan.md): cpu_size is
+        # a plan-wide value read from planning_config.csv, used by the
+        # KPI/display conversion layer (sc_tree_to_df.py, chart panels below)
+        # ONLY -- see the note by assign_demand_lots_from_dict() just below
+        # for why it is deliberately NOT passed into lot generation.
+        try:
+            from wom.engine.warmup import read_cpu_size
+            sc_tree.cpu_size = (read_cpu_size(self._model_dir)
+                                if getattr(self, "_model_dir", "") else 1)
+        except Exception as _cpu_exc:
+            print(f"[cpu_size] read failed: {_cpu_exc}")
+
         # ── HookBus + active plugins ────────────────────────────────
         _bus = HookBus()
         _cfg = {"n_weeks": n_weeks, "start_week": start,
@@ -5111,6 +5123,10 @@ class WOMApp(tk.Tk):
             for sku_id in sc_tree.products:
                 for reg in set(sku_df.get("region", pd.Series(["JP"])).tolist()):
                     demand_dict[(sku_id, reg, mid)] = 5
+        # cpu_size stays 1 here deliberately (not sc_tree.cpu_size): ceil(qty/cpu_size)
+        # would change the LOT COUNT whenever cpu_size != 1, contradicting Letter A
+        # section 4.2's requirement that lot count is unchanged when cpu_size goes
+        # 1 -> 12 (request_letter_a_cpu_size_to_plan.md).
         assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
 
         # ── Capacity ────────────────────────────────────────────────

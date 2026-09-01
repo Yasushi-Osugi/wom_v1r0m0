@@ -114,7 +114,7 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
     # ── Planning warm-up（Phase 2, opt-in）─────────────────────────
     #   planning_config.csv があれば助走行を materialize（demand=0 / cap・opcal コピー）。
     #   period 検出より前に走らせる（＝早い start 週を含める）。config 無し→no-op。
-    from wom.engine.warmup import materialize_warmup, format_summary
+    from wom.engine.warmup import materialize_warmup, format_summary, read_cpu_size
     _wsum = materialize_warmup(model_dir)
     if verbose:
         print("[Headless]", format_summary(_wsum))
@@ -130,6 +130,15 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
     # ── SCTree 構築 ────────────────────────────────────────────────
     sc_tree_df = pd.read_csv(_p("sc_tree_master.csv"))
     sc_tree = build_sc_tree_from_master(sc_tree_df, weeks)
+    # Request Letter A (request_letter_a_cpu_size_to_plan.md) discrepancy,
+    # resolved here and flagged for owner review: sc_tree.cpu_size is read
+    # from planning_config.csv and used by the KPI/display conversion layer
+    # (sc_tree_to_df.py, GUI charts) ONLY. It is deliberately NOT passed to
+    # assign_demand_lots_from_dict() below (which stays cpu_size=1) -- doing
+    # so would make ceil(qty/cpu_size) change the LOT COUNT whenever cpu_size
+    # != 1, contradicting Letter A section 4.2's explicit requirement that
+    # lot count is unchanged when cpu_size goes 1 -> 12.
+    sc_tree.cpu_size = read_cpu_size(model_dir)
     if verbose:
         print(f"[Headless] products: {sc_tree.products}")
 
@@ -151,6 +160,8 @@ def run(model_dir: str, plugins_spec: str = "safe", output_ppc_dir: str = "outpu
         for _, r in dem_df.iterrows():
             k = (str(r["sku_id"]), str(r["region"]), str(r["week"]))
             demand_dict[k] = demand_dict.get(k, 0) + int(r["quantity"])
+    # NOTE: cpu_size stays 1 here deliberately -- see the note by
+    # sc_tree.cpu_size assignment above (Request Letter A discrepancy).
     assign_demand_lots_from_dict(sc_tree, demand_dict, cpu_size=1)
 
     # ── 能力（capacity_plan → cap_hard [+ cap_soft]、共有ローダ）───

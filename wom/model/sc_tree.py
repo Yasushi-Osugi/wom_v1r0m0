@@ -74,6 +74,17 @@ class SCTree:
         self.prod_tree_dict_OT: Dict[str, PlanNode] = {}
         self.prod_tree_dict_IN: Dict[str, PlanNode] = {}
         self._in_roots_dict: Dict[str, Dict[str, PlanNode]] = {}
+        # Common Planning Unit (lots -> physical quantity), plan-wide (Request
+        # Letter A: request_letter_a_cpu_size_to_plan.md). Formerly a per-node
+        # PlanNode field, which contradicted the WOM principle that every node
+        # in a plan shares one cpu_size; now a single value for the whole tree,
+        # read from planning_config.csv's cpu_size key (see
+        # wom.engine.warmup.read_cpu_size) by the pipeline entry points
+        # (app.py / run_headless_from_folder.py / sweep_flags.py) and assigned
+        # here. Always present (default 1) so callers can read sc_tree.cpu_size
+        # directly -- no getattr(..., 1) fallback needed, and none should be
+        # added (a silent fallback would hide a wiring gap; see Letter A §2.4).
+        self.cpu_size: int = 1
 
     def register(self, prod_nm: str, ot_root: PlanNode, in_root: PlanNode) -> None:
         if ot_root.node_type != NODE_TYPE_SUPPLY_POINT:
@@ -265,6 +276,9 @@ def build_demo_sc_tree(
     from wom.data.schema import Cols
 
     tree = SCTree(week_labels)
+    # cpu_size is plan-wide (Request Letter A: request_letter_a_cpu_size_to_plan.md),
+    # so it is set once on the tree, not per PlanNode.
+    tree.cpu_size = cpu_size
     skus = sku_master[Cols.SKU_ID].unique().tolist()
 
     for sku_id in skus:
@@ -280,7 +294,6 @@ def build_demo_sc_tree(
             node_type = NODE_TYPE_SUPPLY_POINT,
             tier      = 0,
             lt_wks    = 0,
-            cpu_size  = cpu_size,
         )
 
         for region in regions:
@@ -297,7 +310,6 @@ def build_demo_sc_tree(
                 node_type = NODE_TYPE_DAD,
                 tier      = 0,
                 lt_wks    = max(lt, 1),
-                cpu_size  = cpu_size,
             )
             leaf_out = PlanNode(
                 node_id   = f"OUT:Sales:{region}:{sku_id}",
@@ -307,7 +319,6 @@ def build_demo_sc_tree(
                 node_type = NODE_TYPE_LEAF_OUT,
                 tier      = 1,
                 lt_wks    = 1,
-                cpu_size  = cpu_size,
             )
             dad.add_child(leaf_out)
             sp.add_child(dad)
@@ -321,7 +332,6 @@ def build_demo_sc_tree(
             node_type = NODE_TYPE_MOM,
             tier      = 0,
             lt_wks    = lt_wks_in,
-            cpu_size  = cpu_size,
         )
         tier1 = PlanNode(
             node_id   = f"IN:T1:{sku_id}",
@@ -331,7 +341,6 @@ def build_demo_sc_tree(
             node_type = NODE_TYPE_MOM,
             tier      = 1,
             lt_wks    = lt_wks_in,
-            cpu_size  = cpu_size,
         )
         raw_mat = PlanNode(
             node_id   = f"IN:RAW:{sku_id}",
@@ -341,7 +350,6 @@ def build_demo_sc_tree(
             node_type = NODE_TYPE_LEAF_IN,
             tier      = 2,
             lt_wks    = 1,
-            cpu_size  = cpu_size,
         )
         tier1.add_child(raw_mat)
         mom.add_child(tier1)

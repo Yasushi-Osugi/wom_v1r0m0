@@ -291,7 +291,7 @@ def _execute_pipeline(model_dir: str, plugins_spec: str, ppc_out_dir: str,
     from wom.engine.plan_copy import copy_demand_to_supply
     from wom.engine.forward_planner import ForwardPlanner
     from wom.engine.capacity_sealer import load_capacity_dataframe, load_operating_calendar
-    from wom.engine.warmup import materialize_warmup, format_summary
+    from wom.engine.warmup import materialize_warmup, format_summary, read_cpu_size
 
     # run_headless_from_folder.py のヘルパーを再利用（複製しない）
     sys.path.insert(0, _REPO_ROOT) if _REPO_ROOT not in sys.path else None
@@ -326,6 +326,15 @@ def _execute_pipeline(model_dir: str, plugins_spec: str, ppc_out_dir: str,
     # ── SCTree 構築 ─────────────────────────────────────────────────
     sc_tree_df = pd.read_csv(_p("sc_tree_master.csv"))
     sc_tree = build_sc_tree_from_master(sc_tree_df, weeks)
+    # Request Letter A (request_letter_a_cpu_size_to_plan.md) discrepancy,
+    # resolved here and flagged for owner review: sc_tree.cpu_size is read
+    # from planning_config.csv and used by the KPI/display conversion layer
+    # ONLY. It is deliberately NOT passed to assign_demand_lots_from_dict()
+    # below (which stays cpu_size=1) -- doing so would make ceil(qty/cpu_size)
+    # change the LOT COUNT whenever cpu_size != 1, contradicting Letter A
+    # section 4.2's explicit requirement that lot count is unchanged when
+    # cpu_size goes 1 -> 12.
+    sc_tree.cpu_size = read_cpu_size(model_dir)
     print(f"[Sweep] products: {list(sc_tree.products)}")
 
     # ── HookBus + プラグイン ────────────────────────────────────────

@@ -104,7 +104,8 @@ class PlanNode:
     transit_lt_wks: int = 0  # physical transit time [weeks] -- used by ForwardPlanner
                              #   Forward (PUSH_SUB): child.S[w] -> parent.P[w + transit_lt_wks]
                              #   Defaults to lt_wks if not specified in CSV
-    cpu_size: int = 1        # Common Planning Unit (minimum lot size)
+    # cpu_size removed (Request Letter A: request_letter_a_cpu_size_to_plan.md) --
+    # it is a plan-wide value, not a per-node one; see SCTree.cpu_size.
     ss_days:  int = 0       # safety stock [days]; 0 = no extra buffer
                             # backward planner adds ceil(ss_days/7) to lt_wks offset
                             # so upstream demand is placed earlier -> creates buffer at this node
