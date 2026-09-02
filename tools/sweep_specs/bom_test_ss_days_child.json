@@ -1,0 +1,69 @@
+{
+  "model": "data/sample/bom-test-2026",
+  "target_sku": "EV_Model_A",
+  "target_nodes": [
+    "Tire_Supply",
+    "Battery_Supply",
+    "Vehicle_Assy",
+    "SP_Vehicle",
+    "DC_Vehicle"
+  ],
+  "plugins": "safe",
+  "cases": [
+    {
+      "name": "base",
+      "ops": []
+    },
+    {
+      "name": "child_ss3",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Tire_Supply", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "3"}
+        },
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Battery_Supply", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "3"}
+        }
+      ]
+    },
+    {
+      "name": "child_ss7",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Tire_Supply", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "7"}
+        },
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Battery_Supply", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "7"}
+        }
+      ]
+    },
+    {
+      "name": "child_ss14",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Tire_Supply", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "14"}
+        },
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Battery_Supply", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "14"}
+        }
+      ]
+    }
+  ]
+}

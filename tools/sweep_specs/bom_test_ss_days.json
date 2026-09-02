@@ -1,0 +1,51 @@
+{
+  "model": "data/sample/bom-test-2026",
+  "target_sku": "EV_Model_A",
+  "target_nodes": [
+    "Tire_Supply",
+    "Battery_Supply",
+    "Vehicle_Assy",
+    "SP_Vehicle",
+    "DC_Vehicle"
+  ],
+  "plugins": "safe",
+  "cases": [
+    {
+      "name": "base",
+      "ops": []
+    },
+    {
+      "name": "ss3",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Vehicle_Assy", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "3"}
+        }
+      ]
+    },
+    {
+      "name": "ss7",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Vehicle_Assy", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "7"}
+        }
+      ]
+    },
+    {
+      "name": "ss14",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "sc_tree_master.csv",
+          "match": {"node_name": "Vehicle_Assy", "product_name": "EV_Model_A"},
+          "set": {"ss_days": "14"}
+        }
+      ]
+    }
+  ]
+}
