@@ -2300,6 +2300,12 @@ class SCNetworkPanel(tk.Frame):
         ax2.fill_between(x, wk["inv"], alpha=0.18, color="#FF9800")
         ax2.plot(x, wk["inv"], color="#FF9800", linewidth=1.5,
                  marker="o", markersize=3, label="I: Inventory")
+        # request_fix_b2_psi_chart_axis.md: pin the right axis (inventory)
+        # zero-line to the same height as the left axis (P/S) zero-line.
+        # Inventory is never negative, so the bottom is always 0; the top
+        # is left to matplotlib's autoscale (confirmed not to collapse to
+        # 0 even when inventory is all-zero for every week).
+        ax2.set_ylim(bottom=0)
         ax2.set_ylabel("Inventory", color="#FF9800", fontsize=7)
         ax2.tick_params(colors=FG_WHITE, labelsize=6)
         ax2.set_facecolor(BG_MID)
@@ -2367,6 +2373,12 @@ class SCNetworkPanel(tk.Frame):
         ax2.fill_between(x, i_vals, alpha=0.18, color="#FF9800")
         ax2.plot(x, i_vals, color="#FF9800", linewidth=1.5,
                  marker="o", markersize=2, label="I: Inventory")
+        # request_fix_b2_psi_chart_axis.md: pin the right axis (inventory)
+        # zero-line to the same height as the left axis (P/S/CO) zero-line.
+        # Inventory is never negative, so the bottom is always 0; the top
+        # is left to matplotlib's autoscale (confirmed not to collapse to
+        # 0 even when inventory is all-zero for every week).
+        ax2.set_ylim(bottom=0)
         ax2.set_ylabel("Inventory", color="#FF9800", fontsize=7)
         ax2.tick_params(colors=FG_WHITE, labelsize=6)
         ax2.set_facecolor(BG_MID)
