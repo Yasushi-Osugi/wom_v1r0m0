@@ -1,0 +1,2 @@
+sku_id,region,src_region,dst_region,hs_code,product_type,assembly_cost_usd_per_lot
+EV_Model_A,US,US,US,8703800000,finished_goods,0

@@ -1,0 +1,7 @@
+node_name,parent_node,product_name,node_type,side,lt_wks,region,ss_days,buffering_stock_flag,description,supply_role,bom_qty
+SP_Vehicle,,EV_Model_A,supply_point,outbound,0,,0,0,Supply point bridge (OT/IN),,
+DC_Vehicle,SP_Vehicle,EV_Model_A,dad,outbound,1,US,7,0,Vehicle distribution center,,
+Dealer_Sales,DC_Vehicle,EV_Model_A,leaf_out,outbound,1,US,0,0,Dealer sales channel,,
+Vehicle_Assy,,EV_Model_A,mom,inbound,0,US,0,0,Vehicle assembly plant,,
+Tire_Supply,Vehicle_Assy,EV_Model_A,leaf_in,inbound,1,US,0,0,Tyre supplier (4 tyres per vehicle),assembly,4
+Battery_Supply,Vehicle_Assy,EV_Model_A,leaf_in,inbound,1,US,0,0,Battery pack supplier (1 pack per vehicle),assembly,1

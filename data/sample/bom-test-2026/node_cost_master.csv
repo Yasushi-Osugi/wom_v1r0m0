@@ -1,0 +1,6 @@
+sku_id,node_name,selling_price_per_lot,unit_cost_per_lot,note
+EV_Model_A,Tire_Supply,,320,4 tyres x $80/tyre per vehicle-lot
+EV_Model_A,Battery_Supply,,6000,1 battery pack per vehicle-lot
+EV_Model_A,Vehicle_Assy,8657,7870,Assembly (supplier costs + conversion $1500 + logistics $50), cost-plus 10%
+EV_Model_A,DC_Vehicle,,200,DC to dealer delivery
+EV_Model_A,Dealer_Sales,32000,,Retail selling price per vehicle

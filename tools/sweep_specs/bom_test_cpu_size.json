@@ -1,0 +1,29 @@
+{
+  "model": "data/sample/bom-test-2026",
+  "target_sku": "EV_Model_A",
+  "target_nodes": [
+    "Tire_Supply",
+    "Battery_Supply",
+    "Vehicle_Assy",
+    "DC_Vehicle",
+    "Dealer_Sales"
+  ],
+  "plugins": "safe",
+  "cases": [
+    {
+      "name": "cpu_size_1",
+      "ops": []
+    },
+    {
+      "name": "cpu_size_12",
+      "ops": [
+        {
+          "op": "set_cell",
+          "file": "planning_config.csv",
+          "match": {"key": "cpu_size"},
+          "set": {"value": "12"}
+        }
+      ]
+    }
+  ]
+}

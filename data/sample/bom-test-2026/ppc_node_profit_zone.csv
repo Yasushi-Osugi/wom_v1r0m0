@@ -1,0 +1,7 @@
+node_id,product_id,profit_zone_role,country
+Tire_Supply,EV_Model_A,SUPPLIER_COST_BASE,US
+Battery_Supply,EV_Model_A,SUPPLIER_COST_BASE,US
+Vehicle_Assy,EV_Model_A,MOM_PLANT_PROFIT,US
+SP_Vehicle,EV_Model_A,OPERATION_NODE_COST_BASE,US
+DC_Vehicle,EV_Model_A,OPERATION_NODE_COST_BASE,US
+Dealer_Sales,EV_Model_A,OUTBOUND_CHANNEL_PROFIT,US

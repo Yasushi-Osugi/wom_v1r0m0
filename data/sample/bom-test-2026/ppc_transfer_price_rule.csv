@@ -1,0 +1,2 @@
+mom_node,product_id,method,margin_rate,fixed_price,currency
+Vehicle_Assy,EV_Model_A,cost_plus,0.10,,USD

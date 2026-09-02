@@ -108,6 +108,12 @@ def run_ppc_from_psi(
     # the named scenarios (rice/cookie/iphone_global) have no multi-tier
     # InBound chains in their hardcoded sc_paths.
     mom_nodes_chain = None
+    # bom_qty_map: Letter B (request_letter_b_bom_qty.md, "1 set rule").
+    # Only populated by the GENERIC branch below; the named scenarios have no
+    # bom_qty column values (bom_qty is brand new -- no existing model besides
+    # the Letter B verification model sets it), so they stay at the pre-Letter-B
+    # default of bom_qty=1 everywhere.
+    bom_qty_map = None
 
     if scenario == "rice":
         sc_paths      = build_rice_vs_paths()
@@ -166,6 +172,7 @@ def run_ppc_from_psi(
         _dad_list_map: dict = {}  # all DADs per product in OT preorder (legacy fallback)
         _dad_chain_by_channel: dict = {}  # (product_id, channel_node) -> mom-side-first DAD chain
         _mom_chain_by_leaf: dict = {}     # (product_id, leaf_in_node) -> leaf-side-first intermediate MOM chain
+        _bom_qty_map: dict = {}           # (product_id, leaf_in_node) -> bom_qty (Letter B, "1 set rule")
 
         if sc_tree is not None:
             from wom.model.plan_node import (
@@ -201,6 +208,14 @@ def run_ppc_from_psi(
                         # the first one encountered. See ppc_forward.py's
                         # _resolve_node_list for how this list is consumed.
                         _sup_list_map[_prod].append(_nm)
+                        # Letter B (request_letter_b_bom_qty.md): only leaf_in
+                        # nodes carry a meaningful bom_qty (default 1 -- see
+                        # PlanNode.bom_qty). Only recorded when != 1, so an
+                        # empty _bom_qty_map (every existing model) collapses
+                        # to bom_qty_map=None below, identical to pre-Letter-B
+                        # behavior.
+                        if getattr(_nd, "bom_qty", 1) != 1:
+                            _bom_qty_map[(_prod, _nm)] = _nd.bom_qty
                         # Per-supplier InBound tier chain: intermediate
                         # "mom"-type ancestors between this leaf_in and its
                         # own terminal MOM root. No explicit stop_node is
@@ -224,6 +239,8 @@ def run_ppc_from_psi(
         # mom_nodes_chain: per-leaf_in InBound tier chains (brand new
         # parameter, no legacy format to merge with -- see ppc_forward.py).
         mom_nodes_chain = _mom_chain_by_leaf if _mom_chain_by_leaf else None
+        # bom_qty_map: per-leaf_in BOM multiplier (Letter B, "1 set rule").
+        bom_qty_map = _bom_qty_map if _bom_qty_map else None
 
         if _mom_map:
             # Collapse to str when only one product
@@ -281,6 +298,7 @@ def run_ppc_from_psi(
         dad_node=dad_node,
         dad_nodes_chain=dad_nodes_chain,
         mom_nodes_chain=mom_nodes_chain,
+        bom_qty_map=bom_qty_map,
         verbose=False,
     )
     result = eng.run()

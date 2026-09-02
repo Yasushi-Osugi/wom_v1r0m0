@@ -189,7 +189,22 @@ WOM に置き換えると、**Planning Engine を回さずに CSV を読むだ�
 [語彙] node_type の二系統（map 用語 / WOM 用語）の整合
 [規模] cpu_size と demand から想定ロット数を試算、閾値超で警告
 [欠損] lat/lon、leaf_out の region、必須CSVの不在
+[BOM] supply_role=confluence かつ bom_qty > 1
+      → confluence は需要を分担する型であり、倍率は意味を持たない。【エラー】
+[BOM] bom_qty が正の整数でない（0、負数、小数）
+      → 【エラー】
+[能力] max_supply × cpu_size × bom_qty が cap_pieces と一致しない（誤差1単位超）
+      → 換算誤りの疑い。【警告】
+      cap_pieces が空欄の場合は検査しない
+[単位] uom ラベルが実態と食い違っている
+      → oil-global の Hormuz / RedSea が KL のまま（実体は10万バレル相当）
+      → 機械判定は困難。目視確認項目として記録
 ```
+
+上記のうち `[BOM]` 2件・`[能力]` 1件・`[単位]` 1件は Request Letter B
+（`requests/request_letter_b_bom_qty.md` §7、"1 set rule" — per-node BOM
+quantity N）で追加された項目。lint 自体は本節時点でも未実装のまま
+（§6 item 4 参照）。
 
 実行時間は数秒。**エンジンにも lot_id にも一切依存しない**（＝最も早く着手できる層）。
 
@@ -303,6 +318,10 @@ index[product][lot_id] → [(node_id, week, bucket, layer), ...]
 1. **`series_md5` の中身** — lot_id 文字列をハッシュしているか、件数・集計値か。**D1 の判断自体は他の3理由で成立するため確認待ちにする必要はない**が、将来 lot_id 形式に手を入れた場合の Anti-Degrade 網の感度特性として知っておく価値がある。
 2. **`lane_assignment.csv` の BOM 構造での効き方** — ev-europe-2026 のように Battery / Motor / ECU の3 tier-1 が1つの MOM に供給する場合、第2層マトリクスの**行（代表 leaf_in）がどう決まるか**。Node P&L では3ノードが独立して立つのに対しマトリクスは代表1件になるなら、画面上に注記が要る。
 3. `cpu_size` の実運用値がケースごとにどう設定されているか（規模 lint の閾値設計に必要）。
+4. **Request Letter B（`requests/request_letter_b_bom_qty.md`、per-node BOM
+   quantity N・"1 set rule"）の lint 項目 4件を §3 の検査項目（案）カタログに
+   追記済み**（`[BOM]` × 2、`[能力]` × 1、`[単位]` × 1）。lint 自体は本節時点
+   でも未実装のまま — 実装は第1層着手時（§7 の順序表）にまとめて行う。
 
 ---
 

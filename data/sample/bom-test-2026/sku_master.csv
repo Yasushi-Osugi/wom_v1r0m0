@@ -1,0 +1,2 @@
+sku_id,sku_name,region,uom,unit_cost,safety_stock_wks,lead_time_wks,order_multiple,max_order_qty,shelf_life_wks,active,selling_price,dso_wks,dpo_wks
+EV_Model_A,BOM Test Vehicle,US,EA,20000,1,1,1,1000,0,1,32000,4,4

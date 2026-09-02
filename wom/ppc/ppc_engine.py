@@ -61,6 +61,7 @@ class PPCSimulationEngine:
         dad_node: Union[str, Dict[str, str]] = "DAD_Japan",
         dad_nodes_chain=None,
         mom_nodes_chain=None,
+        bom_qty_map=None,
         verbose: bool = False,
     ):
         self.sales_records  = sales_records
@@ -76,6 +77,11 @@ class PPCSimulationEngine:
         # and Coding Request Letter smartx-2027-2029-fix-request-letter.md,
         # Problem B). None / empty entries preserve pre-fix behavior.
         self.mom_nodes_chain = mom_nodes_chain
+        # bom_qty_map: dict[(product_id, leaf_in_node) -> int] (Letter B:
+        # request_letter_b_bom_qty.md, "1 set rule"). See ppc_forward.py's
+        # run_forward_propagation docstring. None / empty entries preserve
+        # pre-Letter-B behavior (every node treated as bom_qty=1).
+        self.bom_qty_map    = bom_qty_map
         self.verbose        = verbose
 
         self._fx = FXConverter(rules.fx_rate, base_currency)
@@ -95,6 +101,7 @@ class PPCSimulationEngine:
             accumulators, self.rules, self._fx, self.sc_paths,
             mom_node=self.mom_node, supplier_node=self.supplier_node,
             mom_nodes_chain=self.mom_nodes_chain,
+            bom_qty_map=self.bom_qty_map,
         )
         all_events.extend(fwd_events)
         if self.verbose:

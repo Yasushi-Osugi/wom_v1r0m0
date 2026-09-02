@@ -1,0 +1,2 @@
+sku_id,leaf_node_name,mom_node_id,priority
+EV_Model_A,Dealer_Sales,IN:mom:Vehicle_Assy:EV_Model_A,1

@@ -65,6 +65,7 @@ def run_forward_propagation(
     mom_node: Union[str, Dict[str, str]] = "MOM_China",
     supplier_node: Union[str, List[str], Dict[str, str], Dict[str, List[str]]] = "Supplier_CN",
     mom_nodes_chain: Optional[Dict[Tuple[str, str], List[str]]] = None,
+    bom_qty_map: Optional[Dict[Tuple[str, str], int]] = None,
 ) -> List[PPCEvent]:
     """
     Step 1: Forward cost accumulation from Supplier(s) -> MOM.
@@ -101,6 +102,62 @@ def run_forward_propagation(
                     (reserved for leaf_in nodes), keeping the accounting
                     rule uniform across every "mom"-type node regardless of
                     tier depth, including the terminal mom_node (Step 1c).
+    bom_qty_map   : dict[(product_id, node_id), int], optional (Letter B:
+                    request_letter_b_bom_qty.md, "1 set rule"). Scales ONLY
+                    the Step 1a supplier_cost line for that supplier node --
+                    ppc_supplier_cost.csv prices are per PHYSICAL COMPONENT
+                    UNIT (e.g. $/tyre), so a vehicle needing 4 tyres must see
+                    4x that price. Deliberately NOT applied to Step 1b (edge
+                    logistics_cost) or Step 1c (terminal MOM's own node
+                    costs): ppc_edge_cost_rule.csv / ppc_node_cost_rule.csv
+                    rates are already per FINAL ASSEMBLED UNIT (see their
+                    `* 1` literal below, not `* qty`), so multiplying them by
+                    bom_qty again would double-count -- freight for "the
+                    tyres" and assembly labor for "the vehicle" do not scale
+                    with how many tyres one vehicle happens to need. Missing
+                    entries (or bom_qty_map=None) default to 1, so every
+                    existing model -- none of which set bom_qty -- produces
+                    events identical to before this parameter was introduced.
+                    (product_id, node_id) assumes a tree, not a DAG: every
+                    node has exactly one parent, confirmed across all 16
+                    tracked sample models before this parameter was added.
+
+                    Step 1b convention confirmed empirically (owner review,
+                    Letter B step (1) revision) against 3 sample models:
+                      - soysauce-jpy-2027 Materials_JP->Brewing_Noda: the
+                        ONLY existing ppc_edge_cost_rule.csv row for an
+                        inbound (supplier->MOM) edge in the whole repo.
+                        $0.3/lot -- read in context as "cost to move the
+                        materials for ONE finished case", not "$/kg of
+                        soybean". Single supplier, no BOM multiplicity, but
+                        the rate is denominated per finished lot.
+                      - apparel-us-2026 Fabric_CN->Factory_Import_CN: no
+                        ppc_edge_cost_rule.csv row exists for this edge at
+                        all. Fabric_CN's own ppc_supplier_cost.csv price is
+                        $0 -- fabric cost is folded entirely into
+                        Factory_Import_CN's own conversion_cost ("CIF価格
+                        （生地込み）" = CIF price INCLUDING the fabric, i.e.
+                        per finished garment lot, in ppc_node_cost_rule.csv).
+                      - ev-europe-2026 Battery/Motor/ECU->Factory_Import_HU:
+                        no ppc_edge_cost_rule.csv row exists for these edges
+                        either (the only edge_cost_rule rows in that model
+                        are the OUTBOUND Factory->SP->DC legs, downstream of
+                        the MOM -- irrelevant to Step 1b's inbound walk).
+                        Component freight is not modeled as a separate line
+                        at all; ppc_supplier_cost.csv's per-piece purchase
+                        price (correctly bom_qty-scaled in Step 1a) is the
+                        only cost carried for each of the 3 Tier-1 parts.
+                    No existing model populates an inbound edge cost for a
+                    genuine multi-BOM supplier set, so this is "no
+                    counter-evidence + one supportive precedent" rather than
+                    an exhaustive proof -- but combined with the structural
+                    fact that ppc_edge_cost_rule.csv uses the identical
+                    basis="per_lot" / `rate * 1 + fixed_amount` convention as
+                    ppc_node_cost_rule.csv (Step 1c, unambiguously "per
+                    finished unit" per the apparel CIF note above), the
+                    evidence is consistent: edge costs in this codebase are
+                    denominated per finished/assembled lot, not per physical
+                    component piece -- confirming Step 1b stays untouched.
 
     Returns
     -------
@@ -120,6 +177,16 @@ def run_forward_propagation(
         # ── Step 1a: Supplier purchase cost (one or more Tier-1 suppliers) ──
         for s_node in s_nodes:
             price_local, currency = rules.get_supplier_cost(s_node, product, week)
+            # Letter B (request_letter_b_bom_qty.md): ppc_supplier_cost.csv is
+            # priced per PHYSICAL COMPONENT UNIT (e.g. $/tyre), not per parent
+            # unit -- see this function's bom_qty_map docstring. Scaling here,
+            # before the fx conversion, means amount_local/amount_base already
+            # represent "cost of bom_qty units of this component" so the
+            # ledger reads directly as "this many pieces at this rate", and
+            # the existing acc.qty multiplication downstream (ppc_kpi.py)
+            # needs no changes at all.
+            bom = bom_qty_map.get((product, s_node), 1) if bom_qty_map else 1
+            price_local *= bom
             fx_rate, price_base = fx.convert(price_local, currency, week)
 
             acc.supplier_cost_base += price_base

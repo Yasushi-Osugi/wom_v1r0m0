@@ -1,0 +1,86 @@
+{
+  "backward": {
+    "cap_soft_envelope_count": 0
+  },
+  "case": "bom-test-2026",
+  "config": {
+    "plugins": [
+      "BufferingStockOptimizerPlugin",
+      "CapacityOverridePlugin",
+      "HolidayCalendarPlugin"
+    ]
+  },
+  "forward": {
+    "cap_hard_sealed": 0,
+    "cap_soft_violation_count": 0
+  },
+  "period": {
+    "start": "2025-W41",
+    "weeks": 32
+  },
+  "ppc": {
+    "base_currency": "USD",
+    "cost_base": 807000.0,
+    "gross_margin_pct": 0.747812,
+    "gross_profit_base": 2393000.0,
+    "revenue_base": 3200000.0,
+    "tariff_base": 0.0,
+    "total_lots": 20,
+    "trust_event_count": 0
+  },
+  "products": [
+    "EV_Model_A"
+  ],
+  "psi": {
+    "EV_Model_A": {
+      "Battery_Supply": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100,
+        "S": 100,
+        "series_md5": "c1efed775621"
+      },
+      "DC_Vehicle": {
+        "CO": 0,
+        "I_max": 5,
+        "I_sum": 100,
+        "P": 100,
+        "S": 100,
+        "series_md5": "d58eed04acaa"
+      },
+      "Dealer_Sales": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100,
+        "S": 100,
+        "series_md5": "392f30ca7266"
+      },
+      "SP_Vehicle": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100,
+        "S": 100,
+        "series_md5": "f8a4fb232672"
+      },
+      "Tire_Supply": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100,
+        "S": 100,
+        "series_md5": "c1efed775621"
+      },
+      "Vehicle_Assy": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 200,
+        "S": 100,
+        "series_md5": "f9aac1966652"
+      }
+    }
+  }
+}

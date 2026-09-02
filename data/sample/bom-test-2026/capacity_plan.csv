@@ -1,0 +1,3 @@
+sku_id,node_name,week,max_supply,cap_pieces,source
+EV_Model_A,Tire_Supply,2026-W01,1000,4000,manual
+EV_Model_A,Battery_Supply,2026-W01,1000,1000,manual

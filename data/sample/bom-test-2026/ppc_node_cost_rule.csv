@@ -1,0 +1,4 @@
+node_id,product_id,cost_type,basis,rate,fixed_amount,currency,note
+Vehicle_Assy,EV_Model_A,conversion_cost,per_lot,0,1500,USD,Assembly labor per vehicle
+Vehicle_Assy,EV_Model_A,logistics_cost,per_lot,0,50,USD,Plant to bridge internal transfer
+DC_Vehicle,EV_Model_A,logistics_cost,per_lot,0,200,USD,DC to dealer delivery

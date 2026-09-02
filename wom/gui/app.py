@@ -411,7 +411,7 @@ class ChartPanel(tk.Frame):
             for node in in_root.walk_preorder():
                 if node.node_type != NODE_TYPE_MOM:
                     continue
-                cpu = sc.cpu_size
+                cpu = sc.cpu_size * node.bom_qty
                 inv_vals = [len(node.psi4supply[w][I_IDX]) * cpu for w in range(n)]
                 if all(v == 0 for v in inv_vals):
                     continue
@@ -479,7 +479,7 @@ class ChartPanel(tk.Frame):
             for node in in_root.walk_preorder():
                 if node.node_type != NODE_TYPE_LEAF_IN:
                     continue
-                cpu = sc.cpu_size
+                cpu = sc.cpu_size * node.bom_qty
                 # S = sales/dispatched from farm = harvest output
                 supply_vals = [len(node.psi4demand[w][S_IDX]) * cpu for w in range(n)]
                 if all(v == 0 for v in supply_vals):

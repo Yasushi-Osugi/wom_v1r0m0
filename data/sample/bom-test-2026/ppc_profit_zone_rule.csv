@@ -1,0 +1,4 @@
+profit_zone_role,product_id,profit_type,basis,rate,fixed_amount
+OUTBOUND_CHANNEL_PROFIT,EV_Model_A,channel_margin,market_price,0.05,0
+MOM_PLANT_PROFIT,EV_Model_A,mom_margin,transfer_price,0.10,0
+SUPPLIER_COST_BASE,EV_Model_A,supplier_cost,transfer_price,1.0,0

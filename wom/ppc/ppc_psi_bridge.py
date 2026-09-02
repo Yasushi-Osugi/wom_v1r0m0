@@ -93,7 +93,8 @@ def psi_to_sales_records(
     Extract leaf_out supply quantities from sc_tree and build sales_records.
 
     One aggregated record is created per (channel_node, week) combination
-    where supply > 0.  The qty field carries the total lot count.
+    where supply > 0.  The qty field carries the total physical quantity
+    (lot count x sc_tree.cpu_size -- Letter A: request_letter_a_cpu_size_to_plan.md).
 
     Parameters
     ----------
@@ -147,9 +148,16 @@ def psi_to_sales_records(
                 channel_node = _region_to_channel(region, merged_map)
 
             for w_idx, week_label in enumerate(weeks):
-                qty = node.qty_supply(w_idx, S_BUCKET)
-                if qty == 0:
+                lot_count = node.qty_supply(w_idx, S_BUCKET)
+                if lot_count == 0:
                     continue
+                # Letter A (request_letter_a_cpu_size_to_plan.md): cpu_size is
+                # plan-wide, so it applies here uniformly. bom_qty does NOT
+                # apply to leaf_out -- a channel sells finished units (e.g.
+                # "5 vehicles"), not the components inside them (see Letter B:
+                # request_letter_b_bom_qty.md, and the owner's own framing:
+                # "EV を5台売ったのであってタイヤ20本を売ったのではない").
+                qty = lot_count * sc_tree.cpu_size
                 # One aggregated lot per (product, channel, week)
                 lot_id = f"PSI-{ppc_product}-{channel_node}-{week_label}"
                 rows.append({

@@ -1,0 +1,7 @@
+node_id,node_name,node_type,lat,lon,sku_id,region,description
+Tire_Supply,Tyre Supplier (US),sku_supplier,42.33,-83.05,EV_Model_A,US,Tyre supplier plant
+Battery_Supply,Battery Supplier (US),sku_supplier,39.10,-84.51,EV_Model_A,US,Battery pack supplier
+Vehicle_Assy,Vehicle Assembly Plant,mother_plant,39.77,-86.16,EV_Model_A,US,Vehicle assembly plant
+SP_Vehicle,Supply Point Bridge,procurement,39.77,-86.16,EV_Model_A,US,Supply point bridge
+DC_Vehicle,Vehicle Distribution Center,region_dc,41.88,-87.63,EV_Model_A,US,Regional distribution center
+Dealer_Sales,Dealer Sales Channel,marketing,40.71,-74.01,EV_Model_A,US,Dealer retail channel

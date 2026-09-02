@@ -181,6 +181,24 @@ class PlanNode:
     #                  child" behaviour unchanged).
     supply_role: str = "assembly"
 
+    # -- BOM quantity (Letter B: request_letter_b_bom_qty.md, "1 set rule") ─
+    # Interpreted as an edge attribute like supply_role: "how many of THIS
+    # node's own units does one parent unit require?" (e.g. 4 tyres per
+    # vehicle). Read from sc_tree_master.csv's bom_qty column (on the
+    # CHILD's row). Meaningful ONLY for supply_role="assembly" children;
+    # sc_tree_builder.py forces bom_qty=1 for "confluence" children
+    # regardless of the CSV value (a confluence sibling splits demand, it
+    # does not multiply it -- see request_fix_a1_supply_role_rev2.md §3.2).
+    #
+    # bom_qty is a PER-NODE value (unlike cpu_size, which is plan-wide on
+    # SCTree -- do not confuse the two). It NEVER touches the Lot_ID list:
+    # Planning Engine / lot_generator are completely unaware of it. It only
+    # scales the physical-quantity INTERPRETATION of a lot count, downstream
+    # of planning: sc_tree_to_df.py, GUI chart panels, and (for leaf_in
+    # supplier-cost lines only) the PPC engine, per
+    #     S_Qty[w] = len(psi[w]["S"]) * cpu_size * bom_qty
+    bom_qty: int = 1
+
     # -- Week index lookup (set after init_psi) ────────────────────────────
     # week_labels[week_idx] = ISO week string, e.g. "2026-W01"
     week_labels: List[str] = field(default_factory=list, repr=False)

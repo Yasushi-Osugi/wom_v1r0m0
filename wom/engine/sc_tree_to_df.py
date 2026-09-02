@@ -8,9 +8,11 @@ This is the bridge between the Planning Engine (Step 3-11) and the
 Management Layer (money.py / management.py / KPI charts).
 
 Lot → Quantity conversion:
-    quantity = len(psi4supply[w][bucket]) × sc_tree.cpu_size
+    quantity = len(psi4supply[w][bucket]) × sc_tree.cpu_size × node.bom_qty
     (cpu_size is a plan-wide value, not per-node -- Request Letter A:
-    request_letter_a_cpu_size_to_plan.md)
+    request_letter_a_cpu_size_to_plan.md. bom_qty is per-node, default 1 --
+    Letter B: request_letter_b_bom_qty.md. Neither ever touches the Lot_ID
+    list itself, only this display-layer conversion.)
 
 Output columns (match inventory.py rows exactly):
     scenario, sku_id, region, week,
@@ -77,7 +79,7 @@ def sc_tree_to_planning_df(
             # Derive region from node_id: "OUT:Sales:{region}:{sku}"
             parts  = leaf.node_id.split(":")
             region = parts[2] if len(parts) >= 4 else "?"
-            cpu    = sc_tree.cpu_size
+            cpu    = sc_tree.cpu_size * leaf.bom_qty
 
             prev_closing = 0.0
 
@@ -138,7 +140,7 @@ def sc_tree_to_planning_df(
             # Derive region from node_id e.g. "OUT:DC:JP:SKU-A" -> "JP"
             parts  = dad.node_id.split(":")
             region = parts[2] if len(parts) >= 4 else dad.node_name
-            cpu    = sc_tree.cpu_size
+            cpu    = sc_tree.cpu_size * dad.bom_qty
 
             prev_closing = 0.0
 

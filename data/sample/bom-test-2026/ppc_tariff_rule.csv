@@ -1,0 +1,2 @@
+edge_id,from_country,to_country,product_id,hs_code,tariff_rate,tariff_basis
+Vehicle_Assy->DC_Vehicle,US,US,EV_Model_A,8703800000,0.0,transfer_price

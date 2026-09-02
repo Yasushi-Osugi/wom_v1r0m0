@@ -1,535 +1,535 @@
-sku_id,node_name,week,max_supply,source
-Apparel_Outsourced_S1,Factory_Import_CN,2026-W02,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2026-W02,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2026-W02,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2026-W02,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2026-W02,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2026-W02,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2026-W03,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2026-W03,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2026-W03,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2026-W03,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2026-W03,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2026-W03,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2026-W04,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2026-W04,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2026-W04,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2026-W04,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2026-W04,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2026-W04,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2026-W05,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2026-W05,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2026-W05,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2026-W05,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2026-W05,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2026-W05,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2026-W06,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2026-W06,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2026-W06,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2026-W06,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2026-W06,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2026-W06,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2026-W07,1500,Chinese New Year reduced capacity (10% of normal)
-Apparel_Outsourced_S1,Fabric_CN,2026-W07,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2026-W07,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2026-W07,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2026-W07,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2026-W07,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2026-W09,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2026-W09,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2026-W09,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2026-W09,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2026-W09,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2026-W09,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2026-W10,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2026-W10,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2026-W10,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2026-W10,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2026-W10,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2026-W10,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2026-W11,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2026-W11,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2026-W11,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2026-W11,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2026-W11,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2026-W11,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2026-W12,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2026-W12,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2026-W12,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2026-W12,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2026-W12,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2026-W12,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2026-W13,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2026-W13,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2026-W13,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2026-W13,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2026-W13,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2026-W13,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2026-W14,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2026-W14,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2026-W14,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2026-W14,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2026-W14,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2026-W14,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2026-W16,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2026-W16,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2026-W16,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2026-W16,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2026-W16,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2026-W16,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2026-W17,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2026-W17,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2026-W17,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2026-W17,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2026-W17,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2026-W17,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2026-W18,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2026-W18,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2026-W18,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2026-W18,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2026-W18,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2026-W18,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2026-W19,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2026-W19,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2026-W19,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2026-W19,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2026-W19,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2026-W19,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2026-W20,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2026-W20,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2026-W20,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2026-W20,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2026-W20,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2026-W20,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2026-W22,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2026-W22,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2026-W22,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2026-W22,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2026-W22,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2026-W22,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2026-W23,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2026-W23,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2026-W23,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2026-W23,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2026-W23,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2026-W23,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2026-W24,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2026-W24,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2026-W24,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2026-W24,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2026-W24,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2026-W24,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2026-W25,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2026-W25,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2026-W25,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2026-W25,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2026-W25,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2026-W25,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2026-W26,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2026-W26,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2026-W26,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2026-W26,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2026-W26,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2026-W26,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2026-W27,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2026-W27,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2026-W27,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2026-W27,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2026-W27,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2026-W27,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2026-W29,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2026-W29,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2026-W29,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2026-W29,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S5,Fabric_ES,2026-W29,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2026-W29,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2026-W30,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2026-W30,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2026-W30,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2026-W30,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S5,Fabric_ES,2026-W30,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2026-W30,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2026-W31,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2026-W31,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2026-W31,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2026-W31,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S5,Fabric_ES,2026-W31,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2026-W31,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2026-W32,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2026-W32,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2026-W32,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2026-W32,1500,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
-Apparel_Integrated_S5,Fabric_ES,2026-W32,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2026-W32,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2026-W33,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2026-W33,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2026-W33,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2026-W33,1500,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
-Apparel_Integrated_S5,Fabric_ES,2026-W33,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2026-W33,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2026-W35,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2026-W35,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2026-W35,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2026-W35,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2026-W35,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2026-W35,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2026-W36,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2026-W36,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2026-W36,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2026-W36,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2026-W36,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2026-W36,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2026-W37,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2026-W37,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2026-W37,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2026-W37,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2026-W37,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2026-W37,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2026-W38,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2026-W38,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2026-W38,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2026-W38,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2026-W38,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2026-W38,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2026-W39,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2026-W39,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2026-W39,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2026-W39,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2026-W39,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2026-W39,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2026-W40,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2026-W40,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2026-W40,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2026-W40,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2026-W40,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2026-W40,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2026-W42,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2026-W42,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2026-W42,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2026-W42,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2026-W42,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2026-W42,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2026-W43,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2026-W43,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2026-W43,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2026-W43,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2026-W43,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2026-W43,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2026-W44,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2026-W44,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2026-W44,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2026-W44,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2026-W44,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2026-W44,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2026-W45,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2026-W45,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2026-W45,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2026-W45,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2026-W45,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2026-W45,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2026-W46,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2026-W46,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2026-W46,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2026-W46,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2026-W46,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2026-W46,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2026-W48,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2026-W48,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2026-W48,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2026-W48,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2026-W48,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2026-W48,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2026-W49,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2026-W49,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2026-W49,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2026-W49,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2026-W49,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2026-W49,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2026-W50,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2026-W50,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2026-W50,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2026-W50,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2026-W50,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2026-W50,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2026-W51,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2026-W51,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2026-W51,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2026-W51,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2026-W51,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2026-W51,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2026-W52,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2026-W52,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2026-W52,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2026-W52,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2026-W52,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2026-W52,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2026-W53,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2026-W53,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2026-W53,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2026-W53,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2026-W53,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2026-W53,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2027-W02,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2027-W02,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2027-W02,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2027-W02,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2027-W02,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2027-W02,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2027-W03,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2027-W03,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2027-W03,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2027-W03,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2027-W03,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2027-W03,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2027-W04,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2027-W04,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2027-W04,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2027-W04,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2027-W04,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2027-W04,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2027-W05,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S1,Fabric_CN,2027-W05,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2027-W05,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2027-W05,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2027-W05,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2027-W05,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2027-W06,1500,Chinese New Year reduced capacity (10% of normal)
-Apparel_Outsourced_S1,Fabric_CN,2027-W06,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2027-W06,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2027-W06,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2027-W06,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2027-W06,25000,DC throughput
-Apparel_Outsourced_S1,Factory_Import_CN,2027-W07,1500,Chinese New Year reduced capacity (10% of normal)
-Apparel_Outsourced_S1,Fabric_CN,2027-W07,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S1,DC_Import_Buffer,2027-W07,25000,DC throughput
-Apparel_Integrated_S1,Factory_Local_ES,2027-W07,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S1,Fabric_ES,2027-W07,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S1,DC_Local_US,2027-W07,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2027-W09,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2027-W09,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2027-W09,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2027-W09,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2027-W09,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2027-W09,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2027-W10,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2027-W10,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2027-W10,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2027-W10,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2027-W10,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2027-W10,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2027-W11,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2027-W11,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2027-W11,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2027-W11,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2027-W11,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2027-W11,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2027-W12,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2027-W12,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2027-W12,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2027-W12,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2027-W12,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2027-W12,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2027-W13,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2027-W13,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2027-W13,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2027-W13,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2027-W13,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2027-W13,25000,DC throughput
-Apparel_Outsourced_S2,Factory_Import_CN,2027-W14,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S2,Fabric_CN,2027-W14,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S2,DC_Import_Buffer,2027-W14,25000,DC throughput
-Apparel_Integrated_S2,Factory_Local_ES,2027-W14,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S2,Fabric_ES,2027-W14,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S2,DC_Local_US,2027-W14,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2027-W16,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2027-W16,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2027-W16,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2027-W16,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2027-W16,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2027-W16,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2027-W17,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2027-W17,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2027-W17,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2027-W17,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2027-W17,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2027-W17,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2027-W18,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2027-W18,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2027-W18,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2027-W18,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2027-W18,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2027-W18,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2027-W19,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2027-W19,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2027-W19,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2027-W19,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2027-W19,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2027-W19,25000,DC throughput
-Apparel_Outsourced_S3,Factory_Import_CN,2027-W20,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S3,Fabric_CN,2027-W20,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S3,DC_Import_Buffer,2027-W20,25000,DC throughput
-Apparel_Integrated_S3,Factory_Local_ES,2027-W20,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S3,Fabric_ES,2027-W20,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S3,DC_Local_US,2027-W20,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2027-W22,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2027-W22,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2027-W22,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2027-W22,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2027-W22,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2027-W22,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2027-W23,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2027-W23,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2027-W23,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2027-W23,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2027-W23,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2027-W23,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2027-W24,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2027-W24,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2027-W24,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2027-W24,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2027-W24,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2027-W24,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2027-W25,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2027-W25,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2027-W25,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2027-W25,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2027-W25,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2027-W25,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2027-W26,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2027-W26,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2027-W26,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2027-W26,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2027-W26,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2027-W26,25000,DC throughput
-Apparel_Outsourced_S4,Factory_Import_CN,2027-W27,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S4,Fabric_CN,2027-W27,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S4,DC_Import_Buffer,2027-W27,25000,DC throughput
-Apparel_Integrated_S4,Factory_Local_ES,2027-W27,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S4,Fabric_ES,2027-W27,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S4,DC_Local_US,2027-W27,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2027-W29,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2027-W29,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2027-W29,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2027-W29,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S5,Fabric_ES,2027-W29,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2027-W29,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2027-W30,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2027-W30,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2027-W30,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2027-W30,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S5,Fabric_ES,2027-W30,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2027-W30,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2027-W31,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2027-W31,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2027-W31,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2027-W31,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S5,Fabric_ES,2027-W31,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2027-W31,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2027-W32,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2027-W32,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2027-W32,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2027-W32,1500,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
-Apparel_Integrated_S5,Fabric_ES,2027-W32,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2027-W32,25000,DC throughput
-Apparel_Outsourced_S5,Factory_Import_CN,2027-W33,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S5,Fabric_CN,2027-W33,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S5,DC_Import_Buffer,2027-W33,25000,DC throughput
-Apparel_Integrated_S5,Factory_Local_ES,2027-W33,1500,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
-Apparel_Integrated_S5,Fabric_ES,2027-W33,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S5,DC_Local_US,2027-W33,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2027-W35,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2027-W35,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2027-W35,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2027-W35,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2027-W35,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2027-W35,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2027-W36,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2027-W36,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2027-W36,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2027-W36,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2027-W36,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2027-W36,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2027-W37,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2027-W37,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2027-W37,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2027-W37,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2027-W37,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2027-W37,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2027-W38,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2027-W38,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2027-W38,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2027-W38,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2027-W38,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2027-W38,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2027-W39,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2027-W39,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2027-W39,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2027-W39,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2027-W39,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2027-W39,25000,DC throughput
-Apparel_Outsourced_S6,Factory_Import_CN,2027-W40,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S6,Fabric_CN,2027-W40,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S6,DC_Import_Buffer,2027-W40,25000,DC throughput
-Apparel_Integrated_S6,Factory_Local_ES,2027-W40,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S6,Fabric_ES,2027-W40,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S6,DC_Local_US,2027-W40,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2027-W42,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2027-W42,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2027-W42,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2027-W42,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2027-W42,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2027-W42,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2027-W43,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2027-W43,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2027-W43,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2027-W43,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2027-W43,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2027-W43,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2027-W44,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2027-W44,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2027-W44,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2027-W44,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2027-W44,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2027-W44,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2027-W45,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2027-W45,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2027-W45,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2027-W45,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2027-W45,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2027-W45,25000,DC throughput
-Apparel_Outsourced_S7,Factory_Import_CN,2027-W46,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S7,Fabric_CN,2027-W46,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S7,DC_Import_Buffer,2027-W46,25000,DC throughput
-Apparel_Integrated_S7,Factory_Local_ES,2027-W46,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S7,Fabric_ES,2027-W46,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S7,DC_Local_US,2027-W46,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2027-W48,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2027-W48,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2027-W48,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2027-W48,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2027-W48,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2027-W48,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2027-W49,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2027-W49,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2027-W49,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2027-W49,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2027-W49,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2027-W49,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2027-W50,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2027-W50,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2027-W50,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2027-W50,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2027-W50,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2027-W50,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2027-W51,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2027-W51,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2027-W51,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2027-W51,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2027-W51,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2027-W51,25000,DC throughput
-Apparel_Outsourced_S8,Factory_Import_CN,2027-W52,15000,Factory weekly capacity (shared across seasons)
-Apparel_Outsourced_S8,Fabric_CN,2027-W52,50000,"Fabric supply, effectively unconstrained"
-Apparel_Outsourced_S8,DC_Import_Buffer,2027-W52,25000,DC throughput
-Apparel_Integrated_S8,Factory_Local_ES,2027-W52,15000,Factory weekly capacity (shared across seasons)
-Apparel_Integrated_S8,Fabric_ES,2027-W52,50000,"Fabric supply, effectively unconstrained"
-Apparel_Integrated_S8,DC_Local_US,2027-W52,25000,DC throughput
+sku_id,node_name,week,max_supply,cap_pieces,source
+Apparel_Outsourced_S1,Factory_Import_CN,2026-W02,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2026-W02,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2026-W02,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2026-W02,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2026-W02,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2026-W02,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2026-W03,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2026-W03,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2026-W03,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2026-W03,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2026-W03,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2026-W03,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2026-W04,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2026-W04,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2026-W04,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2026-W04,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2026-W04,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2026-W04,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2026-W05,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2026-W05,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2026-W05,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2026-W05,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2026-W05,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2026-W05,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2026-W06,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2026-W06,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2026-W06,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2026-W06,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2026-W06,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2026-W06,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2026-W07,1500,,Chinese New Year reduced capacity (10% of normal)
+Apparel_Outsourced_S1,Fabric_CN,2026-W07,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2026-W07,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2026-W07,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2026-W07,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2026-W07,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2026-W09,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2026-W09,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2026-W09,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2026-W09,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2026-W09,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2026-W09,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2026-W10,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2026-W10,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2026-W10,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2026-W10,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2026-W10,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2026-W10,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2026-W11,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2026-W11,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2026-W11,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2026-W11,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2026-W11,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2026-W11,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2026-W12,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2026-W12,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2026-W12,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2026-W12,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2026-W12,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2026-W12,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2026-W13,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2026-W13,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2026-W13,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2026-W13,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2026-W13,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2026-W13,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2026-W14,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2026-W14,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2026-W14,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2026-W14,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2026-W14,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2026-W14,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2026-W16,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2026-W16,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2026-W16,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2026-W16,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2026-W16,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2026-W16,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2026-W17,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2026-W17,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2026-W17,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2026-W17,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2026-W17,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2026-W17,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2026-W18,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2026-W18,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2026-W18,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2026-W18,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2026-W18,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2026-W18,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2026-W19,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2026-W19,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2026-W19,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2026-W19,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2026-W19,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2026-W19,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2026-W20,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2026-W20,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2026-W20,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2026-W20,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2026-W20,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2026-W20,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2026-W22,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2026-W22,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2026-W22,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2026-W22,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2026-W22,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2026-W22,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2026-W23,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2026-W23,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2026-W23,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2026-W23,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2026-W23,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2026-W23,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2026-W24,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2026-W24,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2026-W24,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2026-W24,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2026-W24,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2026-W24,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2026-W25,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2026-W25,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2026-W25,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2026-W25,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2026-W25,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2026-W25,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2026-W26,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2026-W26,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2026-W26,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2026-W26,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2026-W26,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2026-W26,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2026-W27,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2026-W27,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2026-W27,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2026-W27,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2026-W27,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2026-W27,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2026-W29,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2026-W29,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2026-W29,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2026-W29,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S5,Fabric_ES,2026-W29,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2026-W29,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2026-W30,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2026-W30,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2026-W30,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2026-W30,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S5,Fabric_ES,2026-W30,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2026-W30,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2026-W31,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2026-W31,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2026-W31,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2026-W31,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S5,Fabric_ES,2026-W31,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2026-W31,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2026-W32,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2026-W32,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2026-W32,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2026-W32,1500,,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
+Apparel_Integrated_S5,Fabric_ES,2026-W32,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2026-W32,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2026-W33,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2026-W33,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2026-W33,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2026-W33,1500,,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
+Apparel_Integrated_S5,Fabric_ES,2026-W33,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2026-W33,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2026-W35,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2026-W35,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2026-W35,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2026-W35,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2026-W35,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2026-W35,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2026-W36,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2026-W36,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2026-W36,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2026-W36,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2026-W36,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2026-W36,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2026-W37,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2026-W37,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2026-W37,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2026-W37,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2026-W37,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2026-W37,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2026-W38,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2026-W38,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2026-W38,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2026-W38,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2026-W38,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2026-W38,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2026-W39,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2026-W39,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2026-W39,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2026-W39,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2026-W39,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2026-W39,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2026-W40,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2026-W40,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2026-W40,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2026-W40,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2026-W40,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2026-W40,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2026-W42,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2026-W42,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2026-W42,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2026-W42,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2026-W42,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2026-W42,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2026-W43,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2026-W43,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2026-W43,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2026-W43,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2026-W43,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2026-W43,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2026-W44,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2026-W44,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2026-W44,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2026-W44,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2026-W44,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2026-W44,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2026-W45,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2026-W45,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2026-W45,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2026-W45,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2026-W45,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2026-W45,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2026-W46,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2026-W46,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2026-W46,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2026-W46,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2026-W46,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2026-W46,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2026-W48,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2026-W48,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2026-W48,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2026-W48,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2026-W48,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2026-W48,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2026-W49,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2026-W49,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2026-W49,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2026-W49,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2026-W49,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2026-W49,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2026-W50,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2026-W50,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2026-W50,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2026-W50,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2026-W50,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2026-W50,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2026-W51,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2026-W51,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2026-W51,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2026-W51,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2026-W51,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2026-W51,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2026-W52,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2026-W52,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2026-W52,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2026-W52,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2026-W52,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2026-W52,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2026-W53,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2026-W53,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2026-W53,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2026-W53,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2026-W53,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2026-W53,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2027-W02,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2027-W02,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2027-W02,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2027-W02,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2027-W02,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2027-W02,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2027-W03,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2027-W03,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2027-W03,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2027-W03,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2027-W03,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2027-W03,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2027-W04,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2027-W04,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2027-W04,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2027-W04,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2027-W04,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2027-W04,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2027-W05,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S1,Fabric_CN,2027-W05,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2027-W05,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2027-W05,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2027-W05,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2027-W05,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2027-W06,1500,,Chinese New Year reduced capacity (10% of normal)
+Apparel_Outsourced_S1,Fabric_CN,2027-W06,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2027-W06,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2027-W06,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2027-W06,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2027-W06,25000,,DC throughput
+Apparel_Outsourced_S1,Factory_Import_CN,2027-W07,1500,,Chinese New Year reduced capacity (10% of normal)
+Apparel_Outsourced_S1,Fabric_CN,2027-W07,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S1,DC_Import_Buffer,2027-W07,25000,,DC throughput
+Apparel_Integrated_S1,Factory_Local_ES,2027-W07,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S1,Fabric_ES,2027-W07,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S1,DC_Local_US,2027-W07,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2027-W09,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2027-W09,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2027-W09,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2027-W09,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2027-W09,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2027-W09,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2027-W10,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2027-W10,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2027-W10,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2027-W10,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2027-W10,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2027-W10,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2027-W11,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2027-W11,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2027-W11,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2027-W11,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2027-W11,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2027-W11,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2027-W12,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2027-W12,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2027-W12,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2027-W12,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2027-W12,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2027-W12,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2027-W13,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2027-W13,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2027-W13,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2027-W13,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2027-W13,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2027-W13,25000,,DC throughput
+Apparel_Outsourced_S2,Factory_Import_CN,2027-W14,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S2,Fabric_CN,2027-W14,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S2,DC_Import_Buffer,2027-W14,25000,,DC throughput
+Apparel_Integrated_S2,Factory_Local_ES,2027-W14,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S2,Fabric_ES,2027-W14,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S2,DC_Local_US,2027-W14,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2027-W16,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2027-W16,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2027-W16,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2027-W16,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2027-W16,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2027-W16,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2027-W17,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2027-W17,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2027-W17,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2027-W17,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2027-W17,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2027-W17,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2027-W18,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2027-W18,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2027-W18,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2027-W18,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2027-W18,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2027-W18,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2027-W19,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2027-W19,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2027-W19,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2027-W19,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2027-W19,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2027-W19,25000,,DC throughput
+Apparel_Outsourced_S3,Factory_Import_CN,2027-W20,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S3,Fabric_CN,2027-W20,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S3,DC_Import_Buffer,2027-W20,25000,,DC throughput
+Apparel_Integrated_S3,Factory_Local_ES,2027-W20,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S3,Fabric_ES,2027-W20,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S3,DC_Local_US,2027-W20,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2027-W22,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2027-W22,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2027-W22,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2027-W22,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2027-W22,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2027-W22,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2027-W23,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2027-W23,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2027-W23,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2027-W23,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2027-W23,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2027-W23,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2027-W24,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2027-W24,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2027-W24,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2027-W24,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2027-W24,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2027-W24,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2027-W25,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2027-W25,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2027-W25,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2027-W25,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2027-W25,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2027-W25,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2027-W26,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2027-W26,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2027-W26,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2027-W26,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2027-W26,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2027-W26,25000,,DC throughput
+Apparel_Outsourced_S4,Factory_Import_CN,2027-W27,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S4,Fabric_CN,2027-W27,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S4,DC_Import_Buffer,2027-W27,25000,,DC throughput
+Apparel_Integrated_S4,Factory_Local_ES,2027-W27,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S4,Fabric_ES,2027-W27,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S4,DC_Local_US,2027-W27,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2027-W29,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2027-W29,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2027-W29,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2027-W29,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S5,Fabric_ES,2027-W29,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2027-W29,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2027-W30,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2027-W30,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2027-W30,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2027-W30,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S5,Fabric_ES,2027-W30,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2027-W30,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2027-W31,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2027-W31,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2027-W31,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2027-W31,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S5,Fabric_ES,2027-W31,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2027-W31,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2027-W32,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2027-W32,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2027-W32,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2027-W32,1500,,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
+Apparel_Integrated_S5,Fabric_ES,2027-W32,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2027-W32,25000,,DC throughput
+Apparel_Outsourced_S5,Factory_Import_CN,2027-W33,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S5,Fabric_CN,2027-W33,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S5,DC_Import_Buffer,2027-W33,25000,,DC throughput
+Apparel_Integrated_S5,Factory_Local_ES,2027-W33,1500,,Spain August Factory Holiday (agosto) reduced capacity (10% of normal)
+Apparel_Integrated_S5,Fabric_ES,2027-W33,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S5,DC_Local_US,2027-W33,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2027-W35,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2027-W35,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2027-W35,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2027-W35,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2027-W35,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2027-W35,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2027-W36,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2027-W36,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2027-W36,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2027-W36,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2027-W36,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2027-W36,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2027-W37,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2027-W37,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2027-W37,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2027-W37,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2027-W37,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2027-W37,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2027-W38,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2027-W38,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2027-W38,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2027-W38,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2027-W38,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2027-W38,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2027-W39,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2027-W39,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2027-W39,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2027-W39,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2027-W39,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2027-W39,25000,,DC throughput
+Apparel_Outsourced_S6,Factory_Import_CN,2027-W40,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S6,Fabric_CN,2027-W40,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S6,DC_Import_Buffer,2027-W40,25000,,DC throughput
+Apparel_Integrated_S6,Factory_Local_ES,2027-W40,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S6,Fabric_ES,2027-W40,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S6,DC_Local_US,2027-W40,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2027-W42,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2027-W42,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2027-W42,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2027-W42,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2027-W42,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2027-W42,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2027-W43,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2027-W43,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2027-W43,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2027-W43,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2027-W43,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2027-W43,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2027-W44,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2027-W44,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2027-W44,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2027-W44,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2027-W44,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2027-W44,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2027-W45,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2027-W45,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2027-W45,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2027-W45,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2027-W45,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2027-W45,25000,,DC throughput
+Apparel_Outsourced_S7,Factory_Import_CN,2027-W46,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S7,Fabric_CN,2027-W46,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S7,DC_Import_Buffer,2027-W46,25000,,DC throughput
+Apparel_Integrated_S7,Factory_Local_ES,2027-W46,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S7,Fabric_ES,2027-W46,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S7,DC_Local_US,2027-W46,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2027-W48,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2027-W48,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2027-W48,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2027-W48,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2027-W48,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2027-W48,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2027-W49,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2027-W49,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2027-W49,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2027-W49,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2027-W49,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2027-W49,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2027-W50,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2027-W50,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2027-W50,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2027-W50,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2027-W50,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2027-W50,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2027-W51,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2027-W51,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2027-W51,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2027-W51,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2027-W51,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2027-W51,25000,,DC throughput
+Apparel_Outsourced_S8,Factory_Import_CN,2027-W52,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Outsourced_S8,Fabric_CN,2027-W52,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Outsourced_S8,DC_Import_Buffer,2027-W52,25000,,DC throughput
+Apparel_Integrated_S8,Factory_Local_ES,2027-W52,15000,,Factory weekly capacity (shared across seasons)
+Apparel_Integrated_S8,Fabric_ES,2027-W52,50000,,"Fabric supply, effectively unconstrained"
+Apparel_Integrated_S8,DC_Local_US,2027-W52,25000,,DC throughput

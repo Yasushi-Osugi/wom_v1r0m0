@@ -25,6 +25,11 @@ CSV schema (optional)
                            Only meaningful when a node has 2+ children in the
                            InBound tree; see PlanNode.supply_role / A1 fix
                            (request_fix_a1_supply_role_rev2.md).
+    bom_qty      : int   — BOM quantity per parent unit (default 1). Only
+                           meaningful for supply_role="assembly" children;
+                           forced to 1 for "confluence" children regardless
+                           of the CSV value. See PlanNode.bom_qty / Letter B
+                           (request_letter_b_bom_qty.md, "1 set rule").
 
 NOT read from this CSV: `cpu_size` moved to planning_config.csv (Request
 Letter A: request_letter_a_cpu_size_to_plan.md) -- it is a plan-wide value
@@ -118,6 +123,30 @@ def _make_node_id(
     return f"{prefix}:{node_type}:{safe_name}:{safe_prod}"
 
 
+def _parse_bom_qty(raw) -> int:
+    """
+    Parse one sc_tree_master.csv bom_qty cell (Letter B:
+    request_letter_b_bom_qty.md, "1 set rule").
+
+    Defined behaviour for invalid input (section 9.1): blank, 0, negative,
+    non-integer (e.g. "2.5"), or non-numeric (e.g. a string) all default to
+    1 -- the same safe-default philosophy already used for supply_role /
+    demand_envelope / cpu_size. This column only ever multiplies a
+    KPI/display/PPC quantity downstream of Planning; a bad value must never
+    raise, only fall back silently to "no multiplier".
+    """
+    s = str(raw).strip() if raw is not None else ""
+    if s == "" or s.lower() == "nan":
+        return 1
+    try:
+        f = float(s)
+    except (ValueError, TypeError):
+        return 1
+    if f <= 0 or f != int(f):
+        return 1
+    return int(f)
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Main builder
 # ──────────────────────────────────────────────────────────────────────────
@@ -201,6 +230,15 @@ def _build_product_tree(
         supply_role = str(row.get("supply_role", "") or "").strip().lower()
         if supply_role != "confluence":
             supply_role = "assembly"
+        # Letter B (request_letter_b_bom_qty.md, "1 set rule"): bom_qty is a
+        # per-node BOM multiplier, meaningful only for "assembly" children.
+        bom_qty = _parse_bom_qty(row.get("bom_qty", ""))
+        # confluence siblings SPLIT demand rather than multiply it, so bom_qty
+        # is forced to 1 regardless of the CSV value (request_fix_a1_supply_role_rev2.md
+        # §3.2 -- writing bom_qty>1 on a confluence row is a lint error candidate,
+        # not silently honored here).
+        if supply_role == "confluence":
+            bom_qty = 1
 
         node_id = _make_node_id(node_type, side, node_name, region, prod_nm)
 
@@ -218,6 +256,7 @@ def _build_product_tree(
             is_decoupling  = is_decoupling,
             demand_envelope = demand_envelope,
             supply_role    = supply_role,
+            bom_qty        = bom_qty,
         )
         nodes[node_name] = pnode
 

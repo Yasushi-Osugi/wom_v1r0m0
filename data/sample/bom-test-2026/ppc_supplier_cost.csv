@@ -1,0 +1,3 @@
+supplier_node,product_id,week,purchase_price,currency
+Tire_Supply,EV_Model_A,2026-W01,80,USD
+Battery_Supply,EV_Model_A,2026-W01,6000,USD
