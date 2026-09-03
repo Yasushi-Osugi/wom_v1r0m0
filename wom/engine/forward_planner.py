@@ -52,6 +52,13 @@ from wom.model.sc_tree   import SCTree
 from wom.model.lot_generator import LotIDGenerator
 
 
+# Kitting List stage 3 switch (request_kitting_stage1.md §3.7).
+# Stage 1 (current): record-only -- P extend below is UNCONDITIONAL and this
+# flag is not read anywhere. Stage 3 will use it to withhold incomplete-kit
+# lots from a parent's P bucket (separate Request Letter; not implemented here).
+KITTING_GATE_ENABLED = False
+
+
 @dataclass
 class ForwardPlanResult:
     prod_nm:        str
@@ -65,6 +72,19 @@ class ForwardPlanResult:
     cap_hard_sealed: int = 0
     cap_hard_events: List[tuple] = field(default_factory=list)
     cap_soft_violations: List[tuple] = field(default_factory=list)
+
+    # Kitting List stage 1 (request_kitting_stage1.md §1 owner review):
+    # count of lot_ids that could NOT be found in the parent's own
+    # backward-planned demand (psi4demand[*][S]) when recording kitting, so
+    # arrival_week (target_w) was used as the assembly_week fallback instead
+    # of the parent's demand week. See ForwardPlanner._get_demand_week_index.
+    # Under Demand Anchored design this should normally be 0; a nonzero count
+    # is a signal worth investigating (e.g. opening_inv-seeded lots that never
+    # passed through BackwardPlanner demand propagation), not a silent no-op.
+    kitting_fallback_events: List[tuple] = field(default_factory=list)
+
+    def record_kitting_fallback(self, node_id, week_label, lot_id):
+        self.kitting_fallback_events.append((node_id, week_label, lot_id))
 
     def record_shortfall(self, node_id, week_label, count):
         self.shortfall_weeks.append((node_id, week_label, count))
@@ -84,7 +104,8 @@ class ForwardPlanResult:
             f"IN={self.in_processed}  OT={self.ot_processed}  "
             f"bridge={self.bridge_lots}  CO={self.co_generated}  "
             f"cap_hard_sealed={self.cap_hard_sealed}  "
-            f"cap_soft_violations={len(self.cap_soft_violations)}"
+            f"cap_soft_violations={len(self.cap_soft_violations)}  "
+            f"kitting_fallback={len(self.kitting_fallback_events)}"
         )
 
 
@@ -127,6 +148,11 @@ class ForwardPlanner:
         # (_propagate_to_parent / _propagate_to_child / MOM->supply_point
         # bridge) reads from this dict, not from psi4supply[w][S].
         self._actual_s: Dict[str, Dict[int, List[str]]] = {}
+        # Kitting List stage 1 (request_kitting_stage1.md): per-parent cache
+        # of {lot_id: assembly_week}, lazily built from the parent's own
+        # psi4demand[*][S] -- see _get_demand_week_index. Reset per run() so
+        # a stale index from a previous product/run is never reused.
+        self._kitting_week_index: Dict[str, Dict[str, int]] = {}
 
         # Phase 1: InBound POST-ORDER (all MOM roots)
         #
@@ -159,6 +185,16 @@ class ForwardPlanner:
                     # PUSH decoupling node: propagate ACTUAL lots (not display S) to parent.
                     # psi4supply[w][S] = demand_staircase (maintained for display/CO visibility).
                     # actual_s = min(available, demand) -- physically shipped to TSMC_TW etc.
+                    #
+                    # Kitting List stage 1 (request_kitting_stage1.md): NOT recorded here.
+                    # This inline extend is a second, separate propagation path from
+                    # _propagate_to_parent below and does not update parent.kitting.
+                    # No current model combines is_decoupling+push with an assembly
+                    # parent, so this is out of scope for stage 1 -- but it means a
+                    # stage-3 assembly parent fed (even partially) through THIS path
+                    # would see its kitting stay empty for that child's contribution
+                    # (mis-detected as "missing", not "not applicable"). Needs explicit
+                    # handling before stage 3 gate keeping is enabled on such a tree.
                     if node.parent is not None:
                         actual_by_w = self._actual_s.get(node.node_id, {})
                         for w in range(n_weeks):
@@ -172,7 +208,7 @@ class ForwardPlanner:
                     in_pull_mode = True
                 elif not in_pull_mode and node.parent is not None:
                     # Normal PUSH_SUB propagation (e.g. SiliconWafer_TW -> Buffer)
-                    self._propagate_to_parent(node, n_weeks)
+                    self._propagate_to_parent(node, n_weeks, result)
 
         # Phase 2: Bridge ALL MOM roots -> supply_point
         # Uses _actual_s (physically-matched shipment), NOT psi4supply[w][S]
@@ -502,7 +538,34 @@ class ForwardPlanner:
     # Supply propagation helpers
     # ------------------------------------------------------------------
 
-    def _propagate_to_parent(self, node, n_weeks):
+    def _get_demand_week_index(self, parent: PlanNode) -> Dict[str, int]:
+        """
+        Kitting List stage 1 (request_kitting_stage1.md): lazily build/cache
+        {lot_id: assembly_week} from parent.psi4demand[*][S].
+
+        This is the week BackwardPlanner fixed as "when parent needs this
+        lot" (see backward_planner._propagate_to_children: all assembly
+        siblings receive the SAME all_lots from the SAME parent week `w`,
+        even though each child's own child_w -- and later, each child's own
+        forward-plan shipment week -- can differ). It is therefore the
+        correct shared key for grouping sibling deliveries of the same lot,
+        unlike each child's own arrival_week (target_w in
+        _propagate_to_parent), which is per-child and can diverge when one
+        sibling is capacity-delayed relative to another.
+
+        psi4demand is never written by ForwardPlanner, so this mapping is
+        stable for the whole forward pass; cached per parent.node_id.
+        """
+        idx = self._kitting_week_index.get(parent.node_id)
+        if idx is None:
+            idx = {}
+            for w, wk in enumerate(parent.psi4demand):
+                for lot_id in wk[S]:
+                    idx.setdefault(lot_id, w)
+            self._kitting_week_index[parent.node_id] = idx
+        return idx
+
+    def _propagate_to_parent(self, node, n_weeks, result=None):
         """InBound: child's ACTUAL shipment[w] -> parent P[w + node.transit_lt_wks].
 
         Uses transit_lt_wks (physical transport time) NOT lt_wks (demand planning LT).
@@ -512,11 +575,23 @@ class ForwardPlanner:
         Reads from self._actual_s (Lot_ID-identity-matched physical shipment),
         NOT psi4supply[w][S] (the planned/demand-anchored record -- see
         _process_node / _match_by_identity).
+
+        Kitting List stage 1 (request_kitting_stage1.md): alongside the
+        existing P extend (UNCHANGED, unconditional -- this stage never
+        withholds a lot), records who-delivered-what into parent.kitting for
+        every child whose supply_role != "confluence" (confluence siblings
+        split the same-kind demand between them -- there is no "must all be
+        present" concept to record). `result`, when given, receives a
+        kitting_fallback event whenever a lot_id cannot be found in the
+        parent's own demand (see _get_demand_week_index) -- expected to be
+        rare/zero under Demand Anchored design; not a silent no-op.
         """
         parent = node.parent
         if parent is None:
             return
-        actual_by_w = self._actual_s.get(node.node_id, {})
+        actual_by_w   = self._actual_s.get(node.node_id, {})
+        record_kitting = (node.supply_role != "confluence")
+        demand_week_idx = self._get_demand_week_index(parent) if record_kitting else None
         for w in range(n_weeks):
             confirmed_s = actual_by_w.get(w, [])
             if not confirmed_s:
@@ -525,6 +600,17 @@ class ForwardPlanner:
             target_w = w + tlt
             if 0 <= target_w < n_weeks:
                 parent.psi4supply[target_w][P].extend(confirmed_s)
+                if record_kitting:
+                    wk_label = node.week_labels[w] if node.week_labels else str(w)
+                    for lot_id in confirmed_s:
+                        assembly_w = demand_week_idx.get(lot_id)
+                        if assembly_w is None:
+                            assembly_w = target_w
+                            if result is not None:
+                                result.record_kitting_fallback(
+                                    parent.node_id, wk_label, lot_id)
+                        parent.kitting[assembly_w].setdefault(
+                            lot_id, {})[node.node_name] = target_w
 
     def _propagate_to_child(self, parent, child, n_weeks):
         """

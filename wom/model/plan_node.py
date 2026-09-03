@@ -47,7 +47,7 @@ ss_days usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +229,21 @@ class PlanNode:
         # Phase 2 operating calendar: per-week shift count (0..MAX_SHIFTS).
         # None = no calendar entry (always open); 0 = closed; N>0 = open with N shifts.
         self.op_shifts  = [None] * n
+        # Kitting List stage 1 (request_kitting_stage1.md, record-only).
+        # kitting[assembly_week][lot_id] = {child_node_name: arrival_week}
+        #   assembly_week : the week THIS node's own backward-planned demand
+        #                   (psi4demand[w][S]) needed this lot -- a single
+        #                   value shared by all assembly siblings regardless
+        #                   of each child's own lt_wks/ss_wks or forward-plan
+        #                   delay (see ForwardPlanner._get_demand_week_index).
+        #   arrival_week  : the week THIS child's shipment actually landed in
+        #                   this node's psi4supply[w][P] (may differ per
+        #                   child -- e.g. one part arrives early, another
+        #                   late).
+        # Only populated for children whose supply_role != "confluence"
+        # (see PlanNode.kitting_required). Record-only: does NOT affect
+        # P/S/I/CO. Explicit init (not defaultdict), matching op_shifts.
+        self.kitting: List[Dict[str, Dict[str, int]]] = [{} for _ in range(n)]
 
     # ======================================================================
     # Week index helper
@@ -323,6 +338,39 @@ class PlanNode:
         0 shifts => closed; N>0 => open."""
         s = self.op_shifts[week]
         return s is None or s > 0
+
+    # ======================================================================
+    # Kitting List (stage 1, request_kitting_stage1.md) -- judgement helpers
+    # ======================================================================
+
+    def kitting_required(self) -> set:
+        """
+        Set of child node_names this node's kitting must see arrive before a
+        lot is "complete" -- every child EXCEPT supply_role == "confluence"
+        siblings (confluence = same-kind supply converging from multiple
+        routes; there is no "must all be present" concept for them).
+
+        Written to be reused unchanged by stage 3 gate keeping.
+        """
+        return {c.node_name for c in self.children if c.supply_role != "confluence"}
+
+    def kitting_status(self, week: int, lot_id: str) -> dict:
+        """
+        Read-only judgement for one (week, lot_id) kitting entry.
+
+        Stage 1: informational only -- callers must NOT use this to withhold
+        lots from P (KITTING_GATE_ENABLED in forward_planner.py stays False).
+        Stage 3 gate keeping can call this exact method.
+        """
+        required = self.kitting_required()
+        arrived  = set(self.kitting[week].get(lot_id, {}).keys())
+        missing  = required - arrived
+        return {
+            "required":    required,
+            "arrived":     arrived,
+            "missing":     missing,
+            "is_complete": not missing,
+        }
 
     # ======================================================================
     # Carry Over helper (Forward Planning only)
