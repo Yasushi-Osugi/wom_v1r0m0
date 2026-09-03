@@ -1480,3 +1480,51 @@ WOM では 0.3〜0.4週にあたるこれを表現できない。`ss_days=3` は
 これは V&V の粒度制約に属する（Weekly Granularity Thesis の境界）。
 
 **未検証**：在庫が積み上がっても PPC 金額が無変化である点（CCC / 棚卸資産回転日数への反映）。
+
+## Kitting List と Stock Yard：InBound 組立工程（設計のみ・実装なし、2026-09-01）
+
+**設計文書（正典）**：`docs/design/kitting_list_assembly.md`
+**段階1の Request Letter**：`requests/request_kitting_stage1.md`
+
+**実証された問題**：`supply_role=assembly` は名前に反して合流と同じ挙動であり、
+**部材が欠品しても完成品が作られたことになる。**
+
+`bom-test-2026` で `Battery_Supply` の能力を絞った実測（`tools/sweep_specs/bom_test_shortage.json`）：
+
+| | base | battery_zero（cap 1） |
+|---|---|---|
+| Battery_Supply CO_sum | 0 | **2,160** |
+| Vehicle_Assy S_sum | 100 | **100**（変わらない） |
+| Vehicle_Assy CO_sum | 0 | **0**（立たない） |
+| 下流の `series_md5` | — | **完全一致** |
+| PPC Revenue | $3.2M | **$3.2M**（1ドルも変わらない） |
+
+原因は `_match_by_identity` の `supply_set = set(supply_lots)`。
+Tire と Battery の Lot_ID が同一のため重複が吸収され、
+**Tire が単独で全ロットを届けていれば「揃っている」と判定される。**
+
+**影響範囲**：`ev-europe-2026`（Factory_Import_HU / Factory_Local_DE、各3部材）、
+`ev-thailand-2026_update`、`bom-test-2026`。
+**実運用の golden 2ケースが同じ隠蔽を起こしうる。**
+
+**方針**：Lot_ID とその集合演算には触らない。
+
+- `plan_node.kitting[assembly_week][lot_id] = {child_node_name: arrival_week}` を横に持つ
+- 止めた部材は **Stock Yard ノード**の I に滞留させる（質量保存とロット総数の整合性が同時に保たれる）
+- Yard の運用上の余裕は既存の `ss_days` 機構で表現できる（エンジン変更不要）
+
+**段階**：
+
+| | 内容 | golden |
+|---|---|---|
+| 段階1 | 記録のみ。判定するが P には通す | **無変化** |
+| 段階2 | 可視化・auto-debug | 無変化 |
+| 段階3a | Stock Yard 導入 + gate keeping 有効化 | **変わる** |
+
+**カンバン方式は WOM の対象外**（§6）。払出が上流への納入指示になる＝**遡及**であり、
+「Forward Planning は決して時間を遡及しない」という確立した設計原則に抵触する。
+またカンバンが働くのは週内の日・時・分の単位であり、WOM の粒度の外。
+**現場で選択的に運用する実行系の問題として、WOM の計画系の外に置く。**
+
+石油精製（`global_oil_model_three_steps.md`）に続き、
+**「WOM に何を入れないか」という判断が二度続けて設計を単純にしている。**

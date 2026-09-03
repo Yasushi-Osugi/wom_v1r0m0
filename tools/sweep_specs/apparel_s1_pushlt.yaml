@@ -1,0 +1,92 @@
+# tools/sweep_specs/apparel_s1_pushlt.yaml
+#
+# 2026-08-27 の apparel_s1.yaml スイープで、C_flag1_push4（buffering_stock_flag=1 +
+# push_lead_time_weeks=4）のとき Factory_Import_CN の CO は解消したが、下流
+# （SP_Apparel_Outsourced / DC_Import_Buffer）に "1,150" という数字が繰り返し
+# 現れる不整合が残った。この 1,150 が push_lead_time_weeks に依存するのか、
+# LT に依らず構造的に残るのかを確定するための push_lead_time_weeks スイープ。
+#
+# 共通条件: buffering_stock_flag=1（Factory_Import_CN）、holiday_calendar.csv あり
+# （apparel_s1.yaml の base のまま。remove_file op を持たないので何もしなければ有効）。
+#
+# L0_mode_only: push_lead_time_weeks を 0/空にすると Mode4 が発火せず Mode2
+# （replenishment、push_pull.py:305-312 の KNOWN LIMITATION）にフォールバックし、
+# 新規 Lot_ID を採番して下流 CO を暴走させる既知の制約があるため、
+# mode_only=True（plan_mode のみ設定、P-schedule は上書きしない）で代替する。
+#
+# 実行:
+#   python -m tools.sweep_flags --spec tools/sweep_specs/apparel_s1_pushlt.yaml
+
+model: data/sample/apparel-us-2026
+target_sku: Apparel_Outsourced_S1
+target_nodes:
+  - Fabric_CN            # leaf_in
+  - Factory_Import_CN    # mom
+  - SP_Apparel_Outsourced  # supply_point
+  - DC_Import_Buffer     # dad
+plugins: safe
+
+cases:
+  # mode_only=True: plan_mode（push/push_sub）だけ設定し、P-schedule は
+  # copy_demand_to_supply がコピーした値のまま上書きしない。
+  - name: L0_mode_only
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,True,,0,,,
+
+  - name: L1
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,1,
+
+  - name: L2
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,2,
+
+  # 前回スイープ（2026-08-27, apparel_s1.yaml）の C_flag1_push4 と同一条件
+  # （再現確認用）。
+  - name: L4
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,4,
+
+  - name: L8
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,8,

@@ -1,0 +1,75 @@
+# tools/sweep_specs/apparel_s1_lt3.yaml
+#
+# push_pull.py の Mode4（LTシフト）に関するコードリーディング（2026-08-30）で
+# 提示された仮説の検証：
+#
+#   Mode4 は「触った週だけ上書き」する加算的な処理であり、copy_demand_to_supply
+#   が置いた自然コピー（全週、Fabric_CN.psi4demand[w][P]をpsi4supplyへdeep copy）
+#   をクリアしない。
+#   - Mode4 が書く週：d − LT（d = Factory_Import_CN の実需要週、LT = push_lead_time_weeks）
+#   - 自然コピーの週：d − τ（τ = Fabric_CN 自身の lt_wks + ss_wks = 3 + 0 = 3週、
+#     sc_tree_master.csv より）
+#   LT ≠ τ のとき、この2つの週集合がズレるため、同じLot_IDが「別の週」に
+#   二重に残ってしまい P_sum が水増しされる。
+#   → push_lead_time_weeks = 3（= τ）なら2つの週集合がほぼ一致し、
+#     Mode4の書き込みが自然コピーへの「追加」ではなく「上書き（実質no-op）」に
+#     近くなり、P_sum が base（23,884）に戻るはず、という予測。
+#
+# L2 / L4 は前回（apparel_s1_pushlt.yaml）と同一条件を挟み、L3 が谷底になるかを
+# 見るための再現確認ケース。
+#
+# 共通条件：buffering_stock_flag=1（Factory_Import_CN）、holiday_calendar.csv あり
+# （remove_file op を持たないので有効なまま）、warmup_lt=52（現状のまま、
+# set_cell op なし＝planning_config.csvは触らない）。
+#
+# 実行:
+#   python -m tools.sweep_flags --spec tools/sweep_specs/apparel_s1_lt3.yaml
+
+model: data/sample/apparel-us-2026
+target_sku: Apparel_Outsourced_S1
+target_nodes:
+  - Fabric_CN            # leaf_in
+  - Factory_Import_CN    # mom
+  - SP_Apparel_Outsourced  # supply_point
+  - DC_Import_Buffer     # dad
+plugins: safe
+
+cases:
+  # 前回（apparel_s1_pushlt.yaml）と同一条件。再現確認用。
+  - name: L2
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,2,
+
+  # push_lead_time_weeks = 3 = Fabric_CN の τ（lt_wks+ss_wks）。仮説の本命ケース。
+  - name: L3
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,3,
+
+  # 前回（apparel_s1_pushlt.yaml / apparel_s1_holiday_lt8.yaml）と同一条件。再現確認用。
+  - name: L4
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,4,

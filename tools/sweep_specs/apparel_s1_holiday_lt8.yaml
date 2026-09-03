@@ -1,0 +1,61 @@
+# tools/sweep_specs/apparel_s1_holiday_lt8.yaml
+#
+# apparel_s1_horizon.yaml（2026-08-30）で「horizon 前方延長では CO が一切変わらない」
+# ことが確認され、horizon 端（前方）の欠落という仮説は棄却された。
+# CO は 2026-W47 から発生し 2027-W22 まで横ばいで解消しない
+# （実需要は 2026-W02〜2027-W06 の年2山×5週のみ）——CO の発生位置は
+# horizon の末尾からも遠く、末尾切り詰めでも説明しづらい。
+#
+# 新しい仮説：holiday_calendar.csv の Chinese New Year 閉鎖
+# （Factory_Import_CN、2026-W07/08・2027-W06/07）と、push_lead_time_weeks=8 の
+# LT シフトされた生産スケジュールが衝突しているのではないか。
+# 累積LT が約20週なので、2027-W06/W07 の閉鎖から遡ると 2026-W46〜W47 になり、
+# CO の発生開始週（2026-W47）とほぼ一致する。
+#
+# 検証方法：push_lead_time_weeks=8 に固定し、holiday_calendar.csv の有無だけを
+# 切り替える（remove_file op、apparel_s1.yaml の A_no_holiday ケースと同じ手法）。
+#
+# 共通条件：buffering_stock_flag=1（Factory_Import_CN）、
+# push_config.csv に push_lead_time_weeks=8。
+#
+# 実行:
+#   python -m tools.sweep_flags --spec tools/sweep_specs/apparel_s1_holiday_lt8.yaml
+
+model: data/sample/apparel-us-2026
+target_sku: Apparel_Outsourced_S1
+target_nodes:
+  - Fabric_CN            # leaf_in
+  - Factory_Import_CN    # mom
+  - SP_Apparel_Outsourced  # supply_point
+  - DC_Import_Buffer     # dad
+plugins: safe
+
+cases:
+  # holiday_calendar.csv あり（現状のまま）。apparel_s1_horizon.yaml の H52_L8 /
+  # apparel_s1_pushlt.yaml の L8 と同一条件のはず（再現確認用）。
+  - name: X_holiday_L8
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,8,
+
+  # holiday_calendar.csv を退避（無効化）
+  - name: Y_noholiday_L8
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,8,
+      - op: remove_file
+        file: holiday_calendar.csv

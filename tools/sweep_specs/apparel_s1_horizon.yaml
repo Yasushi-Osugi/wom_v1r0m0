@@ -1,0 +1,88 @@
+# tools/sweep_specs/apparel_s1_horizon.yaml
+#
+# apparel_s1_pushlt.yaml（2026-08-30）で、push_lead_time_weeks（LT）ごとに
+# SP_Apparel_Outsourced / DC_Import_Buffer の CO_max が非単調に変化することが
+# 分かった（L1=8,350 / L2=3,529 / L4=1,150 / L8=11,492）。
+#
+# 仮説：Mode4（push_pull.py）は demand_ref_node.psi4demand[w+LT][S] の既存
+# Lot_ID を leaf_in.psi4supply[w][P] へ再配置する。w+LT が horizon の範囲外
+# になる週では参照先が存在せず、その分の Lot が失われ、そのまま CO として
+# 現れるのではないか。
+#
+# 検証方法：push_lead_time_weeks=8 に固定し、planning_config.csv の
+# warmup_lt（horizon の前方への延長量）だけを 52 → 78 → 104 と変えて、
+# CO が horizon 長に応じて変化するかを見る。
+#
+# 注意（事前に判明していること）：materialize_warmup は demand_forecast.csv の
+# 「最初の非ゼロ需要週」より前（＝前方）にのみ 0 需要行を追加する
+# （wom/engine/warmup.py _rebuild/_build_warm_lines）。末尾（最後の実需要週より
+# 後ろ）には一切行を追加しない。Mode4 が参照する w+LT は「未来方向」であり、
+# 欠落が起こり得るとすれば horizon の後方（末尾）の週。よって本スイープが
+# warmup_lt（前方延長）だけを動かしても、末尾側の欠落を直接解消する保証はない
+# ——これは意図した設計で、「前方延長では治らない」という結果が出た場合に
+# 「欠落は末尾側にある」ことの傍証として報告する（依頼メモの通り）。
+#
+# 共通条件：buffering_stock_flag=1（Factory_Import_CN）、
+# push_config.csv に push_lead_time_weeks=8、holiday_calendar.csv あり。
+#
+# 実行:
+#   python -m tools.sweep_flags --spec tools/sweep_specs/apparel_s1_horizon.yaml
+
+model: data/sample/apparel-us-2026
+target_sku: Apparel_Outsourced_S1
+target_nodes:
+  - Fabric_CN            # leaf_in
+  - Factory_Import_CN    # mom
+  - SP_Apparel_Outsourced  # supply_point
+  - DC_Import_Buffer     # dad
+plugins: safe
+
+cases:
+  # 現状の warmup_lt=52。apparel_s1_pushlt.yaml の L8 と同一条件のはず（再現確認用）。
+  - name: H52_L8
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,8,
+      - op: set_cell
+        file: planning_config.csv
+        match: {key: warmup_lt}
+        set:   {value: "52"}
+
+  - name: H78_L8
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,8,
+      - op: set_cell
+        file: planning_config.csv
+        match: {key: warmup_lt}
+        set:   {value: "78"}
+
+  - name: H104_L8
+    ops:
+      - op: set_cell
+        file: sc_tree_master.csv
+        match: {node_name: Factory_Import_CN, product_name: Apparel_Outsourced_S1}
+        set:   {buffering_stock_flag: "1"}
+      - op: write_file
+        file: push_config.csv
+        content: |
+          sku_id,node_id,push_qty_per_week,buffer_lots,mode_only,mom_ref_node_id,pre_build_qty_per_week,pre_build_end_week,push_lead_time_weeks,push_eol_week
+          Apparel_Outsourced_S1,Factory_Import_CN,0,0,False,,0,,8,
+      - op: set_cell
+        file: planning_config.csv
+        match: {key: warmup_lt}
+        set:   {value: "104"}
