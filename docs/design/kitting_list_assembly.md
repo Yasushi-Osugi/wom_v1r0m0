@@ -272,6 +272,39 @@ Stock Yard の導入によって同時に解ける。**
 
 ### 段階3a：Stock Yard + gate keeping
 
+**【前提条件】`push_pull.py` Mode4 の `supply_role` 無視を先に修正すること。**
+
+Mode4（`push_lead_time_weeks`）は `decoupling_node.walk_preorder()` 配下の
+全 leaf_in を無条件に「同種の並行供給者」として扱い、
+親の lot リストを **重複なし・disjoint な 1/n スライス**に分割して各子へ書き込む。
+`supply_role` 導入（`39bcb44`）以前に書かれたコードであり、**一切参照していない。**
+
+段階1の実測（2026-09-03、`ev-europe-2026` Import 側）：
+
+```
+Factory_Import_HU（Mode4 decoupling node、3部材）
+  kitting complete = 0 / 7,945 件
+  全件が「3部材中ちょうど2部材が欠けている」
+  Battery_HU 34件 / Motor_HU 33件 / ECU_HU 33件
+  3者の積集合は常に空。和集合は親需要100件と一致
+```
+
+**BOM 部材が「車両1台分の全部材」ではなく「全体需要の 1/3 ずつ」しか
+生産されていない。** 車両1台に必要な3部品のうち、実際に揃うのは常に高々1つ。
+
+MOM ノード自身の P 合計は数量として正しく（3スライスが過不足なく分割されるため）、
+`_match_by_identity` の集合演算が「どの子が実際に供給したか」を隠蔽していたため、
+これまで観測できなかった。
+**まさに kitting 段階1が可視化するために作られた種類の欠陥である。**
+
+**この状態で gate keeping を有効にすると、`ev-europe-2026` Import 側は
+全ロットが部材不足となり、生産が完全に停止する。**
+
+別タスクとして登録済み（`task_fdcb95f8`）。
+段階3a の Request Letter を起票する前に、こちらを解決すること。
+
+---
+
 **ここで初めて挙動が変わる。**
 
 - 各サンプルモデルに Yard ノードを追加する（CSV のモデル定義）
@@ -327,15 +360,34 @@ lot_E  arrived={Tire}           → Battery 待ち
 
 ### 5.5 未決事項
 
+**段階3a の前提条件（先に解決すること）**
+
 | 項目 | 状態 |
 |---|---|
-| Yard ノードを既存モデルにどう追加するか（ノード数が増える） | 段階3a で決める |
-| Yard の `node_type` をどうするか（新しい型か、既存の型か） | 段階3a |
-| Yard に原価・PPC ルールをどう与えるか | 段階3a |
-| 多段の組立（子自身が組立ノードの場合） | 未検討 |
-| `bom-test-2026` / `ev-europe-2026` の golden を段階3a でどう扱うか | 段階3a |
+| **`push_pull.py` Mode4 が `supply_role` を無視し、assembly の部材を 1/n 分割する** | **段階3a の前提条件。**`ev-europe-2026` Import 側で complete=0（7,945件全部が3部材中2部材欠け）。詳細は §4 の段階3a を参照。別タスク `task_fdcb95f8` |
+| PUSH decoupling ノード自身の inline extend 経路（`forward_planner.py` 158-169行）が kitting 未対応 | 段階3a で対応が必要。該当箇所にコメントで明記済み（2026-09-03）。現行モデルに `is_decoupling + push` な assembly 兄弟が存在しないため段階1のスコープ外とした |
 
----
+**未検証の観測（段階1で判明）**
+
+| 項目 | 状態 |
+|---|---|
+| `ev-europe-2026` Local 側の 500件が `missing={ECU_DE}` のみ | **未検証。**`ECU_DE` だけ `lt_wks=2`（他2部材は1）による境界週の取りこぼしと推定。complete は 41,475/41,975（98.8%）。**段階3a で 1.2% が不当に止まる可能性がある** |
+| `kitting_fallback_events` の発生源 | Demand Anchored 経路を通らずに親の P へ入る lot（`opening_inv` 由来等）。**実測では全ケース0件。**Mode4 は既存 lot_id を再利用するのみで新規発番しないため、発生源にならない |
+
+**段階3a で決めること**
+
+| 項目 | 状態 |
+|---|---|
+| Yard ノードを既存モデルにどう追加するか（ノード数が増える） | 未決 |
+| Yard の `node_type` をどうするか（新しい型か、既存の型か） | 未決 |
+| Yard に原価・PPC ルールをどう与えるか | 未決 |
+| `bom-test-2026` / `ev-europe-2026` の golden をどう扱うか | 未決 |
+
+**未検討**
+
+| 項目 | 状態 |
+|---|---|
+| 多段の組立（子自身が組立ノードの場合） | 未検討 |
 
 ## 6. 【Rev 2 で追加】カンバン方式は WOM の対象外
 
@@ -425,11 +477,16 @@ Yard の運用上の余裕は、同文書で確定した `ss_days` の機構で�
 
 ## 8. ステータス
 
-**設計文書。実装なし。**
-
-- **段階1**：Request Letter 起票済み（`requests/request_kitting_stage1.md`）
-- 段階2・3a：未起票
+- **段階1**：**実装済み**（2026-09-03、`45d6eac`）
+  - `plan_node.kitting[assembly_week][lot_id] = {child_node_name: arrival_week}`
+  - `KITTING_GATE_ENABLED = False`。P への extend は無条件のまま
+  - golden 13ケース無変化、249 passed、fallback 0件
+  - `bom-test-2026` で欠品 60件・80件を可視化
+  - **`ev-europe-2026` Import 側の重大な欠陥を発見**（§4 段階3a の前提条件）
+- 段階2（可視化）：未起票
+- 段階3a（Stock Yard + gate keeping）：未起票。**前提条件あり**（§4）
 - **カンバン方式**：WOM の対象外と確定（§6）
 
-段階1・2は既存挙動を変えないため、優先して着手できる。
-段階3a は挙動と golden が変わるため、独立した Request Letter とする。
+**段階1は「記録するだけ」の機能だが、実運用の golden ケースで
+これまで見えなかった欠陥を、実装したその日に暴いた。**
+段階2・3a に進む前に、その欠陥（`task_fdcb95f8`）を解決する必要がある。
