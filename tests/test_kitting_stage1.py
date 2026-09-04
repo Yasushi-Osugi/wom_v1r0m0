@@ -267,7 +267,14 @@ def test_kitting_fallback_when_lot_not_in_parent_demand():
 # ---------------------------------------------------------------------------
 
 def test_gate_flag_is_false_and_incomplete_kit_still_enters_p():
-    assert KITTING_GATE_ENABLED is False
+    # Stage 3a-2 (request_stage3a2_kitting_gate.md) flipped this constant to
+    # True, but gate keeping only activates for a node whose direct children
+    # are ALL node_type=="stockyard" (checked in ForwardPlanner.run()'s main
+    # loop, not in _propagate_to_parent itself). This test's tree uses plain
+    # leaf_in children and calls _propagate_to_parent directly -- the code
+    # path this stage added is never reached, so the original Stage 1
+    # invariant (P extend stays unconditional) still holds unchanged here.
+    assert KITTING_GATE_ENABLED is True
 
     tree, mom, ot_root, (tire, battery) = _build_tree(["assembly", "assembly"])
     n_weeks = tree.num_weeks()

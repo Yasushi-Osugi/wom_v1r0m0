@@ -210,7 +210,20 @@ def _build_product_tree(
         node_name = str(row["node_name"]).strip()
         node_type = str(row["node_type"]).strip()
         side      = str(row["side"]).strip()
-        lt_wks        = int(row.get("lt_wks", 1) or 1)
+        # Bug fix (2026-09-04, request_stage3a1_stockyard_passthrough.md):
+        # `int(row.get("lt_wks", 1) or 1)` treated an explicit lt_wks=0 as
+        # falsy and silently forced it to 1 -- invisible until Stage 3a-1's
+        # stockyard nodes (deliberately lt_wks=0, pass-through) were the
+        # first non-root nodes in any model to actually specify 0. The
+        # forced-to-1 value double-shifted backward demand offsets by one
+        # extra week at each Yard hop, pushing boundary-week lots past
+        # week 0 into negative (past-due) territory and silently dropping
+        # them. Root nodes (supply_point/mom) already used lt_wks=0 in
+        # every sample model but never hit this path's effect, since a
+        # root's own lt_wks is never read by _offset_week (only a CHILD's
+        # lt_wks is, when propagating demand up to ITS parent).
+        _lt_raw = row.get("lt_wks", 1)
+        lt_wks = 1 if (_lt_raw is None or (isinstance(_lt_raw, float) and pd.isna(_lt_raw))) else int(_lt_raw)
         # transit_lt_wks: physical supply transit time (ForwardPlanner)
         # Falls back to lt_wks if not specified (empty/0) in CSV
         _tlt          = row.get("transit_lt_wks", None)

@@ -480,3 +480,16 @@ NODE_TYPE_DAD          = "dad"           # OutBound intermediate (倉庫, DC等)
 NODE_TYPE_SUPPLY_POINT = "supply_point"  # Bridge between OutBound / InBound
 NODE_TYPE_MOM          = "mom"           # InBound intermediate (Mother Plant, Tier-N)
 NODE_TYPE_LEAF_IN      = "leaf_in"       # InBound leaf (raw material supplier)
+NODE_TYPE_STOCKYARD    = "stockyard"     # InBound intermediate (Stage 3a-1,
+                                          # request_stage3a1_stockyard_passthrough.md):
+                                          # component staging node inserted between a
+                                          # leaf_in supplier and its assembly (mom)
+                                          # parent. No special-cased branch anywhere in
+                                          # the engine reads this constant -- node_type
+                                          # is an unvalidated free string throughout
+                                          # sc_tree_builder.py / backward_planner.py /
+                                          # forward_planner.py / push_pull.py, confirmed
+                                          # empirically (Sec 4 impact scan) to behave as
+                                          # a plain pass-through intermediate node with
+                                          # lt_wks=0. Defined here only for readability
+                                          # and parity with the other NODE_TYPE_* names.

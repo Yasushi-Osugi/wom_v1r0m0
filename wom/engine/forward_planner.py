@@ -47,16 +47,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from wom.model.plan_node import PlanNode, S, CO, I, P, NODE_TYPE_LEAF_IN
+from wom.model.plan_node import PlanNode, S, CO, I, P, NODE_TYPE_LEAF_IN, NODE_TYPE_STOCKYARD
 from wom.model.sc_tree   import SCTree
 from wom.model.lot_generator import LotIDGenerator
 
 
-# Kitting List stage 3 switch (request_kitting_stage1.md §3.7).
-# Stage 1 (current): record-only -- P extend below is UNCONDITIONAL and this
-# flag is not read anywhere. Stage 3 will use it to withhold incomplete-kit
-# lots from a parent's P bucket (separate Request Letter; not implemented here).
-KITTING_GATE_ENABLED = False
+# Kitting Gate switch (request_kitting_stage1.md §3.7; enabled by
+# request_stage3a2_kitting_gate.md). When True, an assembly (mom) node whose
+# direct children are ALL node_type=="stockyard" is processed by
+# _process_assembly_with_yards() instead of the normal per-child
+# _propagate_to_parent extend -- only a Lot_ID present in EVERY sibling
+# Yard's I bucket (a set intersection, not a quantity) is paid out, exactly
+# once, into the assembly's own P. Trees with no stockyard nodes take
+# exactly the same code path as before this flag existed (the condition
+# that selects _process_assembly_with_yards is `stockyard_children`, which
+# is empty for every model that predates Stage 3a).
+KITTING_GATE_ENABLED = True
 
 
 @dataclass
@@ -167,6 +173,20 @@ class ForwardPlanner:
         for mom_root in in_roots.values():
             in_pull_mode = False   # False = PUSH; True = demand-anchored PULL
             for node in mom_root.walk_postorder():
+                # Stage 3a-2 (request_stage3a2_kitting_gate.md): a stockyard
+                # node's own P/S/I is decided jointly with its siblings when
+                # its assembly parent is visited below (postorder guarantees
+                # the parent comes after every child, including this one) --
+                # skip its own _process_node/_propagate_to_parent entirely.
+                if KITTING_GATE_ENABLED and node.node_type == NODE_TYPE_STOCKYARD:
+                    result.in_processed += 1
+                    continue
+
+                stockyard_children = (
+                    [c for c in node.children if c.node_type == NODE_TYPE_STOCKYARD]
+                    if KITTING_GATE_ENABLED else []
+                )
+
                 # Demand-S copy at decouple node, or InBound PULL downstream.
                 # plan_mode=="push" MOM nodes are excluded: their P is set by
                 # upstream PUSH propagation (_propagate_to_parent) and must NOT be
@@ -178,7 +198,11 @@ class ForwardPlanner:
                         node.psi4supply[w][P] = list(node.psi4demand[w][P])
 
                 opening = list(self.opening_inv.get(node.node_id, []))
-                self._process_node(node, n_weeks, result, opening_lots=opening)
+                if stockyard_children:
+                    self._process_assembly_with_yards(
+                        node, stockyard_children, n_weeks, result, opening_lots=opening)
+                else:
+                    self._process_node(node, n_weeks, result, opening_lots=opening)
                 result.in_processed += 1
 
                 if node.is_decoupling and node.plan_mode == "push":
@@ -533,6 +557,98 @@ class ForwardPlanner:
                 if (w + 1) < n_weeks:
                     node.psi4supply[w + 1][CO].extend(unmatched_demand)
                 result.record_shortfall(node.node_id, wk_label, len(unmatched_demand))
+
+    # ------------------------------------------------------------------
+    # Stage 3a-2 Kitting Gate (request_stage3a2_kitting_gate.md)
+    # ------------------------------------------------------------------
+
+    def _process_assembly_with_yards(self, node, yard_children, n_weeks, result, opening_lots):
+        """
+        Joint, week-interleaved processing for an assembly (mom) node whose
+        direct children are all node_type=="stockyard" pass-through buffers.
+
+        Must be interleaved week-by-week -- NOT "let every yard accumulate
+        its whole horizon independently, then gate afterward" -- because
+        each yard's carried-forward inventory for week w+1 is whatever the
+        SAME week's gate did not consume at week w. Two separate full-
+        horizon passes cannot express that dependency.
+
+        Per week:
+          1. Each yard's raw arrivals (already placed in yard.psi4supply[w][P]
+             by its own leaf_in child's ordinary _propagate_to_parent call,
+             earlier in this same postorder walk -- unchanged) are added to
+             that yard's carried-forward inventory.
+          2. Gate: walk node's OWN demand order (node.psi4demand[w][S], the
+             order Backward fixed for this node) and, for each lot_id
+             present in the Lot_ID-identity INTERSECTION of every yard's
+             current inventory (not a quantity comparison -- see the
+             Request Letter §2.1 for why quantity would let unrelated Lots
+             be mixed into one kit), pay it out: remove it from every
+             yard's inventory, record it as that yard's actual shipment
+             (kitting + _actual_s, using the exact same {child_name:
+             arrival_week} shape _propagate_to_parent already used in
+             Stage 1), and append it -- ONCE -- to node's own P. A lot_id
+             not in the intersection stays in every yard's inventory this
+             week (mass conserved; becomes next week's carry-forward) and,
+             being absent from node's P, resolves as node's own CO through
+             the ordinary _process_node identity match run at the end of
+             this method.
+
+        Deliberate departure from the "S is planned, never overwritten"
+        invariant that holds for every OTHER node type: a stockyard's own
+        S is not a demand-anchored plan copy here -- it IS the gate's
+        actual payout record, which is the whole point of the design (see
+        Request Letter §2.3). copy_demand_to_supply() still seeds it with
+        the demand-mirror "natural copy" beforehand; that value is
+        deliberately discarded (cleared) below before the gate writes the
+        real one.
+        """
+        for w in range(n_weeks):
+            node.psi4supply[w][P] = []          # defensive: rebuild from scratch
+        for yard in yard_children:
+            for w in range(n_weeks):
+                yard.psi4supply[w][S] = []       # discard the Step-5 "planned" copy
+
+        demand_week_idx = self._get_demand_week_index(node)
+        yard_prev_inv: Dict[str, List[str]] = {yard.node_id: [] for yard in yard_children}
+
+        for w in range(n_weeks):
+            wk_label = node.week_labels[w] if node.week_labels else str(w)
+
+            for yard in yard_children:
+                arrivals = list(yard.psi4supply[w][P])
+                yard.psi4supply[w][I] = yard_prev_inv[yard.node_id] + arrivals
+                # Kitting record: on EVERY fresh arrival, independent of the
+                # gate outcome below -- this is the diagnostic half (Stage 1
+                # semantics: "who delivered when"), which must keep working
+                # for lots that never complete, not just the ones that do.
+                for lot_id in arrivals:
+                    assembly_w = demand_week_idx.get(lot_id)
+                    if assembly_w is None:
+                        assembly_w = w
+                        result.record_kitting_fallback(node.node_id, wk_label, lot_id)
+                    node.kitting[assembly_w].setdefault(lot_id, {})[yard.node_name] = w
+
+            intersection = set(yard_children[0].psi4supply[w][I])
+            for yard in yard_children[1:]:
+                intersection &= set(yard.psi4supply[w][I])
+
+            if intersection:
+                for lot_id in list(node.psi4demand[w][S]):
+                    if lot_id not in intersection:
+                        continue
+                    for yard in yard_children:
+                        yard.psi4supply[w][I].remove(lot_id)
+                        yard.psi4supply[w][S].append(lot_id)
+                        self._actual_s.setdefault(
+                            yard.node_id, {}).setdefault(w, []).append(lot_id)
+                    node.psi4supply[w][P].append(lot_id)
+                    intersection.discard(lot_id)
+
+            for yard in yard_children:
+                yard_prev_inv[yard.node_id] = list(yard.psi4supply[w][I])
+
+        self._process_node(node, n_weeks, result, opening_lots=opening_lots)
 
     # ------------------------------------------------------------------
     # Supply propagation helpers

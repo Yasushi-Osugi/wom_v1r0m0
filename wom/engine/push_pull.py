@@ -305,24 +305,52 @@ class PushProductionPlanner:
                 for w in range(n_weeks):
                     leaf_node.psi4supply[w][P] = []
 
+            # Bug fix (2026-09-04, Request Letter
+            # request_fix_mode4_supply_role_semantics.md): Mode4 must not
+            # re-decide WHO supplies each lot -- BackwardPlanner already did,
+            # via supply_role ("assembly" siblings each get the full demand
+            # list; "confluence" siblings split it -- see
+            # backward_planner._propagate_to_children). The contiguous
+            # divmod(len(lots), n_leaves) slicing this replaces was written
+            # before supply_role existed and re-allocates as if every
+            # leaf_in were an interchangeable confluence producer, which
+            # silently turns "assembly" BOM components (e.g. Battery+Motor+
+            # ECU, each needing the FULL lot list) into a 1/n split --
+            # confirmed on ev-europe-2026 / Factory_Import_HU via Kitting
+            # Stage 1 (kitting complete = 0 / 7,945; every lot missing 2 of
+            # its 3 required components).
+            #
+            # Canonical rule: Backward decides WHO; Mode4 decides WHEN only.
+            # WHO = each leaf_in's own horizon-wide psi4demand[*][S]
+            # membership (the recipient set BackwardPlanner already fixed
+            # for it -- looked up across ALL weeks, not just future_w,
+            # because a leaf's own lt_wks/ss_wks/closure offset can place
+            # the same Demand Anchored Lot_ID at a different week than the
+            # reference node's own demand week). No second supply_role
+            # branch is added here -- this reads Backward's decision back
+            # as a fact, it does not recompute the policy.
+            leaf_membership: Dict[str, set] = {}
+            for leaf_node in leaf_in_nodes:
+                membership: set = set()
+                for dw in range(n_weeks):
+                    membership.update(leaf_node.psi4demand[dw][S])
+                leaf_membership[leaf_node.node_id] = membership
+
             for w in range(n_weeks):
                 future_w = w + lt_weeks
-                lots = list(ref.psi4demand[future_w][S]) if future_w < n_weeks else []
-                if not lots:
+                future_lots = list(ref.psi4demand[future_w][S]) if future_w < n_weeks else []
+                if not future_lots:
                     continue
                 wk_label = self.sc_tree.week_labels[w]
 
-                # Distribute the EXISTING lots across leaf_in nodes as
-                # contiguous slices -- identity is preserved throughout,
-                # no LotIDGenerator call for this mode.
-                base, remainder = divmod(len(lots), n_leaves)
-                idx = 0
-                for leaf_idx, leaf_node in enumerate(leaf_in_nodes):
-                    take = base + (1 if leaf_idx < remainder else 0)
-                    if take <= 0:
+                # WHEN only: re-time each leaf's own (Backward-assigned)
+                # lots to this production week, preserving future_lots order.
+                # Identity is preserved throughout -- no LotIDGenerator call.
+                for leaf_node in leaf_in_nodes:
+                    membership = leaf_membership[leaf_node.node_id]
+                    leaf_lots = [lot_id for lot_id in future_lots if lot_id in membership]
+                    if not leaf_lots:
                         continue
-                    leaf_lots = lots[idx: idx + take]
-                    idx += take
                     leaf_node.psi4supply[w][P] = list(leaf_lots)
                     result.record(leaf_node.node_id, wk_label, len(leaf_lots))
             return result

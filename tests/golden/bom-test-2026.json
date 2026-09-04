@@ -41,6 +41,14 @@
         "S": 100,
         "series_md5": "c1efed775621"
       },
+      "Battery_Yard": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100,
+        "S": 100,
+        "series_md5": "f8a4fb232672"
+      },
       "DC_Vehicle": {
         "CO": 0,
         "I_max": 5,
@@ -73,13 +81,21 @@
         "S": 100,
         "series_md5": "c1efed775621"
       },
+      "Tire_Yard": {
+        "CO": 0,
+        "I_max": 0,
+        "I_sum": 0,
+        "P": 100,
+        "S": 100,
+        "series_md5": "f8a4fb232672"
+      },
       "Vehicle_Assy": {
         "CO": 0,
         "I_max": 0,
         "I_sum": 0,
-        "P": 200,
+        "P": 100,
         "S": 100,
-        "series_md5": "f9aac1966652"
+        "series_md5": "f8a4fb232672"
       }
     }
   }
